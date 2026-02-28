@@ -9,6 +9,9 @@ import cookieParser from "cookie-parser";
 const db = new Database("store.db");
 const JWT_SECRET = process.env.JWT_SECRET || "fallback-secret";
 
+export const app = express();
+const PORT = 3000;
+
 // Initialize DB
 db.exec(`
   CREATE TABLE IF NOT EXISTS users (
@@ -103,9 +106,6 @@ try {
 }
 
 async function startServer() {
-  const app = express();
-  const PORT = 3000;
-
   app.use(express.json());
   app.use(cookieParser());
 
@@ -335,23 +335,24 @@ async function startServer() {
     res.json({ success: true, orderId: id });
   });
 
-  // Vite middleware for development
-  if (process.env.NODE_ENV !== "production") {
+  if (process.env.NODE_ENV !== "production" && !process.env.VERCEL) {
     const vite = await createViteServer({
       server: { middlewareMode: true },
       appType: "spa",
     });
     app.use(vite.middlewares);
-  } else {
+  } else if (process.env.NODE_ENV === "production" && !process.env.VERCEL) {
     app.use(express.static(path.join(__dirname, "dist")));
     app.get("*", (req, res) => {
       res.sendFile(path.join(__dirname, "dist", "index.html"));
     });
   }
 
-  app.listen(PORT, "0.0.0.0", () => {
-    console.log(`Server running on http://localhost:${PORT}`);
-  });
+  if (!process.env.VERCEL) {
+    app.listen(PORT, "0.0.0.0", () => {
+      console.log(`Server running on http://localhost:${PORT}`);
+    });
+  }
 }
 
 startServer();
