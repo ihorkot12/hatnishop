@@ -32,7 +32,7 @@ async function ensureDb() {
   db.exec(`
     CREATE TABLE IF NOT EXISTS users (
       id TEXT PRIMARY KEY,
-      email TEXT UNIQUE,
+      email TEXT UNIQUE COLLATE NOCASE,
       password TEXT,
       name TEXT,
       avatar TEXT,
@@ -134,14 +134,17 @@ async function ensureDb() {
   // Seed Admins
   const admins = [
     { email: "admin@homecraft.com", pass: "admin123", name: "Адміністратор", id: "admin-1" },
-    { email: "ihorkot12@gmail.com", pass: "4756500", name: "Ihor Kot", id: "admin-2" }
+    { email: "ihorKot12@gmail.com", pass: "4756500", name: "Ihor Kot", id: "admin-2" }
   ];
 
   for (const admin of admins) {
-    const exists = db.prepare("SELECT * FROM users WHERE email = ?").get(admin.email);
+    const exists = db.prepare("SELECT * FROM users WHERE id = ?").get(admin.id) as any;
     if (!exists) {
       const hashed = await bcrypt.hash(admin.pass, 10);
       db.prepare("INSERT INTO users (id, email, password, name, role) VALUES (?, ?, ?, ?, ?)").run(admin.id, admin.email, hashed, admin.name, "admin");
+    } else if (exists.email.toLowerCase() !== admin.email.toLowerCase()) {
+      // Update email if it changed in seed
+      db.prepare("UPDATE users SET email = ? WHERE id = ?").run(admin.email, admin.id);
     }
   }
 
@@ -188,13 +191,29 @@ app.post("/api/auth/register", asyncHandler(async (req: any, res: any) => {
 
   app.post("/api/auth/login", asyncHandler(async (req: any, res: any) => {
     const { email, password } = req.body;
-    const user = db.prepare("SELECT * FROM users WHERE email = ?").get(email) as any;
-    if (user && await bcrypt.compare(password, user.password)) {
+    console.log(`Login attempt for: ${email}`);
+    
+    const user = db.prepare("SELECT * FROM users WHERE LOWER(email) = LOWER(?)").get(email) as any;
+    
+    if (!user) {
+      console.log(`User not found: ${email}`);
+      return res.status(401).json({ error: "Користувача не знайдено" });
+    }
+
+    const isMatch = await bcrypt.compare(password, user.password);
+    if (isMatch) {
+      console.log(`Login successful for: ${email}`);
       const token = jwt.sign({ id: user.id, email: user.email, name: user.name, role: user.role }, JWT_SECRET);
-      res.cookie("token", token, { httpOnly: true, secure: true, sameSite: 'none' });
+      res.cookie("token", token, { 
+        httpOnly: true, 
+        secure: true, 
+        sameSite: 'none',
+        maxAge: 30 * 24 * 60 * 60 * 1000 // 30 days
+      });
       res.json({ user: { id: user.id, email: user.email, name: user.name, bonuses: user.bonuses, role: user.role } });
     } else {
-      res.status(401).json({ error: "Invalid credentials" });
+      console.log(`Invalid password for: ${email}`);
+      res.status(401).json({ error: "Невірний пароль" });
     }
   }));
 
