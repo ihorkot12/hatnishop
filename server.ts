@@ -10,7 +10,8 @@ import cookieParser from "cookie-parser";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const db = new Database("store.db");
+const dbPath = process.env.VERCEL ? path.join("/tmp", "store.db") : "store.db";
+const db = new Database(dbPath);
 const JWT_SECRET = process.env.JWT_SECRET || "fallback-secret";
 
 export const app = express();
@@ -109,25 +110,25 @@ try {
   // Column already exists
 }
 
-async function startServer() {
-  app.use(express.json());
-  app.use(cookieParser());
+app.use(express.json());
+app.use(cookieParser());
 
-  // Auth Middleware
-  const authenticate = (req: any, res: any, next: any) => {
-    const token = req.cookies.token;
-    if (!token) return res.status(401).json({ error: "Unauthorized" });
-    try {
-      const decoded = jwt.verify(token, JWT_SECRET);
-      req.user = decoded;
-      next();
-    } catch (err) {
-      res.status(401).json({ error: "Invalid token" });
-    }
-  };
+// Auth Middleware
+const authenticate = (req: any, res: any, next: any) => {
+  const token = req.cookies.token;
+  if (!token) return res.status(401).json({ error: "Unauthorized" });
+  try {
+    const decoded = jwt.verify(token, JWT_SECRET);
+    req.user = decoded;
+    next();
+  } catch (err) {
+    res.status(401).json({ error: "Invalid token" });
+  }
+};
 
-  // Auth Routes
-  app.post("/api/auth/register", async (req, res) => {
+// --- API Routes ---
+// Auth Routes
+app.post("/api/auth/register", async (req, res) => {
     const { email, password, name } = req.body;
     const hashedPassword = await bcrypt.hash(password, 10);
     const id = Math.random().toString(36).substr(2, 9);
@@ -262,40 +263,10 @@ async function startServer() {
   app.get("/api/products", (req, res) => {
     const products = db.prepare("SELECT * FROM products").all();
     res.json(products);
-  });
+});
 
-  // Populate initial data if empty
-  const count = db.prepare("SELECT COUNT(*) as count FROM products").get() as { count: number };
-  if (count.count === 0) {
-    const insert = db.prepare(`
-      INSERT INTO products (id, name, category, price, image, description, material, brand, isPopular, isBundle)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `);
-    
-    insert.run('p1', 'Керамічна чашка "Ранкова кава"', 'tableware', 350, 'https://picsum.photos/seed/cup1/800/800', 'Ручна робота, тепла кераміка, що зберігає тепло вашого напою.', 'Кераміка', 'HomeCraft', 1, 0);
-    insert.run('p2', 'Лляний рушник "Еко-стиль"', 'textile', 280, 'https://picsum.photos/seed/towel1/800/800', 'Натуральний льон, висока поглинальна здатність.', 'Льон', 'EcoHome', 1, 0);
-    insert.run('p3', 'Набір для сніданку "Затишок"', 'tableware', 1200, 'https://picsum.photos/seed/breakfast-set/800/800', 'Комплект: чашка, тарілка та дерев\'яна підставка.', null, null, 0, 1);
-    insert.run('p4', 'Дерев\'яна дошка для сервірування', 'kitchen', 450, 'https://picsum.photos/seed/board1/800/800', 'Дубова дошка, оброблена натуральною олією.', 'Дуб', 'WoodSoul', 0, 0);
-    insert.run('p5', 'Термос "Мандрівник" 500мл', 'bottles', 650, 'https://picsum.photos/seed/thermos1/800/800', 'Тримає тепло до 12 годин. Стильний матовий дизайн.', 'Нержавіюча сталь', 'Traveler', 0, 0);
-  }
-
-  // Create default admins if not exists
-  const admins = [
-    { email: "admin@homecraft.com", pass: "admin123", name: "Адміністратор", id: "admin-1" },
-    { email: "ihorkot12@gmail.com", pass: "4756500", name: "Ihor Kot", id: "admin-2" }
-  ];
-
-  for (const admin of admins) {
-    const exists = db.prepare("SELECT * FROM users WHERE email = ?").get(admin.email);
-    if (!exists) {
-      const hashed = await bcrypt.hash(admin.pass, 10);
-      db.prepare("INSERT INTO users (id, email, password, name, role) VALUES (?, ?, ?, ?, ?)").run(
-        admin.id, admin.email, hashed, admin.name, "admin"
-      );
-    }
-  }
-
-  app.get("/api/admin/users", authenticate, (req: any, res) => {
+// Admin & Order Routes
+app.get("/api/admin/users", authenticate, (req: any, res) => {
     if (req.user.role !== 'admin') return res.status(403).json({ error: "Forbidden" });
     const users = db.prepare("SELECT id, email, name, role, bonuses, total_spent FROM users").all();
     res.json(users);
@@ -376,4 +347,4 @@ async function startServer() {
   }
 }
 
-startServer();
+startViteAndListen();
