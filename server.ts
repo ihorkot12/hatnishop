@@ -10,108 +10,152 @@ import cookieParser from "cookie-parser";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const dbPath = process.env.VERCEL ? path.join("/tmp", "store.db") : "store.db";
+const dbPath = process.env.VERCEL ? path.join("/tmp", "store.db") : path.join(__dirname, "store.db");
 const db = new Database(dbPath);
 const JWT_SECRET = process.env.JWT_SECRET || "fallback-secret";
 
 export const app = express();
 const PORT = 3000;
 
-// Initialize DB
-db.exec(`
-  CREATE TABLE IF NOT EXISTS users (
-    id TEXT PRIMARY KEY,
-    email TEXT UNIQUE,
-    password TEXT,
-    name TEXT,
-    avatar TEXT,
-    bonuses REAL DEFAULT 0,
-    total_spent REAL DEFAULT 0,
-    role TEXT DEFAULT 'user'
-  );
+// Helper to handle async errors
+const asyncHandler = (fn: any) => (req: any, res: any, next: any) => {
+  Promise.resolve(fn(req, res, next)).catch(next);
+};
 
-  CREATE TABLE IF NOT EXISTS products (
-    id TEXT PRIMARY KEY,
-    name TEXT,
-    category TEXT,
-    price REAL,
-    image TEXT,
-    description TEXT,
-    material TEXT,
-    brand TEXT,
-    isPopular INTEGER,
-    isBundle INTEGER,
-    stock INTEGER DEFAULT 10,
-    rating REAL DEFAULT 5.0,
-    review_count INTEGER DEFAULT 0,
-    ai_description TEXT
-  );
+// --- Database Initialization & Seeding ---
+let dbInitialized = false;
 
-  CREATE TABLE IF NOT EXISTS orders (
-    id TEXT PRIMARY KEY,
-    user_id TEXT,
-    customer_name TEXT,
-    customer_phone TEXT,
-    customer_address TEXT,
-    total REAL,
-    payment_method TEXT,
-    status TEXT,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY(user_id) REFERENCES users(id)
-  );
+async function ensureDb() {
+  if (dbInitialized) return;
 
-  CREATE TABLE IF NOT EXISTS order_items (
-    order_id TEXT,
-    product_id TEXT,
-    quantity INTEGER,
-    price REAL,
-    FOREIGN KEY(order_id) REFERENCES orders(id)
-  );
+  // Initialize DB Schema
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS users (
+      id TEXT PRIMARY KEY,
+      email TEXT UNIQUE,
+      password TEXT,
+      name TEXT,
+      avatar TEXT,
+      bonuses REAL DEFAULT 0,
+      total_spent REAL DEFAULT 0,
+      role TEXT DEFAULT 'user'
+    );
 
-  CREATE TABLE IF NOT EXISTS reviews (
-    id TEXT PRIMARY KEY,
-    product_id TEXT,
-    user_id TEXT,
-    user_name TEXT,
-    rating INTEGER,
-    comment TEXT,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY(product_id) REFERENCES products(id),
-    FOREIGN KEY(user_id) REFERENCES users(id)
-  );
+    CREATE TABLE IF NOT EXISTS products (
+      id TEXT PRIMARY KEY,
+      name TEXT,
+      category TEXT,
+      price REAL,
+      image TEXT,
+      description TEXT,
+      material TEXT,
+      brand TEXT,
+      isPopular INTEGER,
+      isBundle INTEGER,
+      stock INTEGER DEFAULT 10,
+      rating REAL DEFAULT 5.0,
+      review_count INTEGER DEFAULT 0,
+      ai_description TEXT
+    );
 
-  CREATE TABLE IF NOT EXISTS price_subscriptions (
-    id TEXT PRIMARY KEY,
-    user_id TEXT,
-    product_id TEXT,
-    initial_price REAL,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY(user_id) REFERENCES users(id),
-    FOREIGN KEY(product_id) REFERENCES products(id),
-    UNIQUE(user_id, product_id)
-  );
+    CREATE TABLE IF NOT EXISTS orders (
+      id TEXT PRIMARY KEY,
+      user_id TEXT,
+      customer_name TEXT,
+      customer_phone TEXT,
+      customer_address TEXT,
+      total REAL,
+      payment_method TEXT,
+      status TEXT,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY(user_id) REFERENCES users(id)
+    );
 
-  CREATE TABLE IF NOT EXISTS notifications (
-    id TEXT PRIMARY KEY,
-    user_id TEXT,
-    title TEXT,
-    message TEXT,
-    type TEXT,
-    is_read INTEGER DEFAULT 0,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY(user_id) REFERENCES users(id)
-  );
-`);
+    CREATE TABLE IF NOT EXISTS order_items (
+      order_id TEXT,
+      product_id TEXT,
+      quantity INTEGER,
+      price REAL,
+      FOREIGN KEY(order_id) REFERENCES orders(id)
+    );
 
-// Ensure role column exists for existing databases
-try {
-  db.exec("ALTER TABLE users ADD COLUMN role TEXT DEFAULT 'user'");
-} catch (e) {
-  // Column already exists
+    CREATE TABLE IF NOT EXISTS reviews (
+      id TEXT PRIMARY KEY,
+      product_id TEXT,
+      user_id TEXT,
+      user_name TEXT,
+      rating INTEGER,
+      comment TEXT,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY(product_id) REFERENCES products(id),
+      FOREIGN KEY(user_id) REFERENCES users(id)
+    );
+
+    CREATE TABLE IF NOT EXISTS price_subscriptions (
+      id TEXT PRIMARY KEY,
+      user_id TEXT,
+      product_id TEXT,
+      initial_price REAL,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY(user_id) REFERENCES users(id),
+      FOREIGN KEY(product_id) REFERENCES products(id),
+      UNIQUE(user_id, product_id)
+    );
+
+    CREATE TABLE IF NOT EXISTS notifications (
+      id TEXT PRIMARY KEY,
+      user_id TEXT,
+      title TEXT,
+      message TEXT,
+      type TEXT,
+      is_read INTEGER DEFAULT 0,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY(user_id) REFERENCES users(id)
+    );
+  `);
+
+  // Ensure role column exists
+  try { db.exec("ALTER TABLE users ADD COLUMN role TEXT DEFAULT 'user'"); } catch (e) {}
+
+  // Seed Products
+  const count = db.prepare("SELECT COUNT(*) as count FROM products").get() as { count: number };
+  if (count.count === 0) {
+    const insert = db.prepare(`
+      INSERT INTO products (id, name, category, price, image, description, material, brand, isPopular, isBundle)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `);
+    insert.run('p1', 'Керамічна чашка "Ранкова кава"', 'tableware', 350, 'https://picsum.photos/seed/cup1/800/800', 'Ручна робота, тепла кераміка, що зберігає тепло вашого напою.', 'Кераміка', 'HomeCraft', 1, 0);
+    insert.run('p2', 'Лляний рушник "Еко-стиль"', 'textile', 280, 'https://picsum.photos/seed/towel1/800/800', 'Натуральний льон, висока поглинальна здатність.', 'Льон', 'EcoHome', 1, 0);
+    insert.run('p3', 'Набір для сніданку "Затишок"', 'tableware', 1200, 'https://picsum.photos/seed/breakfast-set/800/800', 'Комплект: чашка, тарілка та дерев\'яна підставка.', null, null, 0, 1);
+    insert.run('p4', 'Дерев\'яна дошка для сервірування', 'kitchen', 450, 'https://picsum.photos/seed/board1/800/800', 'Дубова дошка, оброблена натуральною олією.', 'Дуб', 'WoodSoul', 0, 0);
+    insert.run('p5', 'Термос "Мандрівник" 500мл', 'bottles', 650, 'https://picsum.photos/seed/thermos1/800/800', 'Тримає тепло до 12 годин. Стильний матовий дизайн.', 'Нержавіюча сталь', 'Traveler', 0, 0);
+  }
+
+  // Seed Admins
+  const admins = [
+    { email: "admin@homecraft.com", pass: "admin123", name: "Адміністратор", id: "admin-1" },
+    { email: "ihorkot12@gmail.com", pass: "4756500", name: "Ihor Kot", id: "admin-2" }
+  ];
+
+  for (const admin of admins) {
+    const exists = db.prepare("SELECT * FROM users WHERE email = ?").get(admin.email);
+    if (!exists) {
+      const hashed = await bcrypt.hash(admin.pass, 10);
+      db.prepare("INSERT INTO users (id, email, password, name, role) VALUES (?, ?, ?, ?, ?)").run(admin.id, admin.email, hashed, admin.name, "admin");
+    }
+  }
+
+  dbInitialized = true;
 }
 
 app.use(express.json());
 app.use(cookieParser());
+
+// Lazy DB Init Middleware
+app.use(asyncHandler(async (req: any, res: any, next: any) => {
+  await ensureDb();
+  next();
+}));
 
 // Auth Middleware
 const authenticate = (req: any, res: any, next: any) => {
@@ -128,7 +172,7 @@ const authenticate = (req: any, res: any, next: any) => {
 
 // --- API Routes ---
 // Auth Routes
-app.post("/api/auth/register", async (req, res) => {
+app.post("/api/auth/register", asyncHandler(async (req: any, res: any) => {
     const { email, password, name } = req.body;
     const hashedPassword = await bcrypt.hash(password, 10);
     const id = Math.random().toString(36).substr(2, 9);
@@ -140,9 +184,9 @@ app.post("/api/auth/register", async (req, res) => {
     } catch (err) {
       res.status(400).json({ error: "Email already exists" });
     }
-  });
+  }));
 
-  app.post("/api/auth/login", async (req, res) => {
+  app.post("/api/auth/login", asyncHandler(async (req: any, res: any) => {
     const { email, password } = req.body;
     const user = db.prepare("SELECT * FROM users WHERE email = ?").get(email) as any;
     if (user && await bcrypt.compare(password, user.password)) {
@@ -152,9 +196,9 @@ app.post("/api/auth/register", async (req, res) => {
     } else {
       res.status(401).json({ error: "Invalid credentials" });
     }
-  });
+  }));
 
-  app.get("/api/auth/me", (req, res) => {
+  app.get("/api/auth/me", asyncHandler(async (req: any, res: any) => {
     const token = req.cookies.token;
     if (!token) return res.json({ user: null });
     try {
@@ -164,36 +208,36 @@ app.post("/api/auth/register", async (req, res) => {
     } catch (err) {
       res.json({ user: null });
     }
-  });
+  }));
 
-  app.post("/api/auth/logout", (req, res) => {
+  app.post("/api/auth/logout", asyncHandler(async (req: any, res: any) => {
     res.clearCookie("token");
     res.json({ success: true });
-  });
+  }));
 
   // Review Routes
-  app.get("/api/reviews/:productId", (req, res) => {
+  app.get("/api/reviews/:productId", asyncHandler(async (req: any, res: any) => {
     const reviews = db.prepare("SELECT * FROM reviews WHERE product_id = ? ORDER BY created_at DESC").all(req.params.productId);
     res.json(reviews);
-  });
+  }));
 
-  app.post("/api/reviews", authenticate, (req: any, res) => {
+  app.post("/api/reviews", authenticate, asyncHandler(async (req: any, res: any) => {
     const { productId, rating, comment } = req.body;
     const id = Math.random().toString(36).substr(2, 9);
     db.prepare("INSERT INTO reviews (id, product_id, user_id, user_name, rating, comment) VALUES (?, ?, ?, ?, ?, ?)").run(
       id, productId, req.user.id, req.user.name, rating, comment
     );
     res.json({ success: true });
-  });
+  }));
 
-  app.post("/api/products/:id/ai-description", authenticate, (req, res) => {
+  app.post("/api/products/:id/ai-description", authenticate, asyncHandler(async (req: any, res: any) => {
     const { aiDescription } = req.body;
     db.prepare("UPDATE products SET ai_description = ? WHERE id = ?").run(aiDescription, req.params.id);
     res.json({ success: true });
-  });
+  }));
 
   // Price Subscriptions
-  app.post("/api/subscriptions/price-drop", authenticate, (req: any, res) => {
+  app.post("/api/subscriptions/price-drop", authenticate, asyncHandler(async (req: any, res: any) => {
     const { productId, currentPrice } = req.body;
     const id = Math.random().toString(36).substr(2, 9);
     try {
@@ -204,9 +248,9 @@ app.post("/api/auth/register", async (req, res) => {
     } catch (err) {
       res.status(400).json({ error: "Already subscribed" });
     }
-  });
+  }));
 
-  app.get("/api/subscriptions/price-drop", authenticate, (req: any, res) => {
+  app.get("/api/subscriptions/price-drop", authenticate, asyncHandler(async (req: any, res: any) => {
     const subs = db.prepare(`
       SELECT s.*, p.name, p.price as current_price, p.image 
       FROM price_subscriptions s 
@@ -214,28 +258,28 @@ app.post("/api/auth/register", async (req, res) => {
       WHERE s.user_id = ?
     `).all(req.user.id);
     res.json(subs);
-  });
+  }));
 
-  app.delete("/api/subscriptions/price-drop/:productId", authenticate, (req: any, res) => {
+  app.delete("/api/subscriptions/price-drop/:productId", authenticate, asyncHandler(async (req: any, res: any) => {
     db.prepare("DELETE FROM price_subscriptions WHERE user_id = ? AND product_id = ?").run(
       req.user.id, req.params.productId
     );
     res.json({ success: true });
-  });
+  }));
 
   // Notifications
-  app.get("/api/notifications", authenticate, (req: any, res) => {
+  app.get("/api/notifications", authenticate, asyncHandler(async (req: any, res: any) => {
     const notifications = db.prepare("SELECT * FROM notifications WHERE user_id = ? ORDER BY created_at DESC").all(req.user.id);
     res.json(notifications);
-  });
+  }));
 
-  app.post("/api/notifications/:id/read", authenticate, (req: any, res) => {
+  app.post("/api/notifications/:id/read", authenticate, asyncHandler(async (req: any, res: any) => {
     db.prepare("UPDATE notifications SET is_read = 1 WHERE id = ? AND user_id = ?").run(req.params.id, req.user.id);
     res.json({ success: true });
-  });
+  }));
 
   // Admin: Update Price (triggers notifications)
-  app.post("/api/admin/products/:id/price", authenticate, (req: any, res) => {
+  app.post("/api/admin/products/:id/price", authenticate, asyncHandler(async (req: any, res: any) => {
     const { newPrice } = req.body;
     const product = db.prepare("SELECT * FROM products WHERE id = ?").get(req.params.id) as any;
     if (!product) return res.status(404).json({ error: "Product not found" });
@@ -257,29 +301,29 @@ app.post("/api/auth/register", async (req, res) => {
       }
     }
     res.json({ success: true });
-  });
+  }));
 
   // API Routes
-  app.get("/api/products", (req, res) => {
+  app.get("/api/products", asyncHandler(async (req: any, res: any) => {
     const products = db.prepare("SELECT * FROM products").all();
     res.json(products);
-});
+  }));
 
 // Admin & Order Routes
-app.get("/api/admin/users", authenticate, (req: any, res) => {
+app.get("/api/admin/users", authenticate, asyncHandler(async (req: any, res: any) => {
     if (req.user.role !== 'admin') return res.status(403).json({ error: "Forbidden" });
     const users = db.prepare("SELECT id, email, name, role, bonuses, total_spent FROM users").all();
     res.json(users);
-  });
+  }));
 
-  app.post("/api/admin/users/:id/role", authenticate, (req: any, res) => {
+  app.post("/api/admin/users/:id/role", authenticate, asyncHandler(async (req: any, res: any) => {
     if (req.user.role !== 'admin') return res.status(403).json({ error: "Forbidden" });
     const { role } = req.body;
     db.prepare("UPDATE users SET role = ? WHERE id = ?").run(role, req.params.id);
     res.json({ success: true });
-  });
+  }));
 
-  app.post("/api/orders", (req, res) => {
+  app.post("/api/orders", asyncHandler(async (req: any, res: any) => {
     const { id, customer, items, total, paymentMethod, bonusUsed, finalTotal, userId } = req.body;
     
     const insertOrder = db.prepare(`
@@ -325,8 +369,9 @@ app.get("/api/admin/users", authenticate, (req: any, res) => {
 
     transaction({ id, customer, total, paymentMethod, bonusUsed, finalTotal, userId }, items);
     res.json({ success: true, orderId: id });
-  });
+  }));
 
+async function startViteAndListen() {
   if (process.env.NODE_ENV !== "production" && !process.env.VERCEL) {
     const vite = await createViteServer({
       server: { middlewareMode: true },
@@ -345,6 +390,15 @@ app.get("/api/admin/users", authenticate, (req: any, res) => {
       console.log(`Server running on http://localhost:${PORT}`);
     });
   }
+
+  // Global Error Handler
+  app.use((err: any, req: any, res: any, next: any) => {
+    console.error("Server Error:", err);
+    res.status(err.status || 500).json({
+      error: err.message || "Internal Server Error",
+      stack: process.env.NODE_ENV === "development" ? err.stack : undefined
+    });
+  });
 }
 
 startViteAndListen();

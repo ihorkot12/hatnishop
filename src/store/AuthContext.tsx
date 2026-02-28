@@ -31,9 +31,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email, password }),
     });
-    const data = await res.json();
+    
+    let data;
+    try {
+      data = await res.json();
+    } catch (e) {
+      throw new Error('Не вдалося отримати відповідь від сервера. Спробуйте пізніше.');
+    }
+
     if (res.ok) setUser(data.user);
-    else throw new Error(data.error);
+    else throw new Error(data.error || 'Помилка авторизації');
   };
 
   const register = async (email: string, password: string, name: string) => {
@@ -42,9 +49,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email, password, name }),
     });
-    const data = await res.json();
+
+    let data;
+    try {
+      data = await res.json();
+    } catch (e) {
+      throw new Error('Не вдалося отримати відповідь від сервера. Спробуйте пізніше.');
+    }
+
     if (res.ok) setUser(data.user);
-    else throw new Error(data.error);
+    else throw new Error(data.error || 'Помилка реєстрації');
   };
 
   const logout = async () => {
