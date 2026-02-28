@@ -53,10 +53,12 @@ export interface UserProfile {
   email: string;
   name?: string;
   bonuses: number;
-  totalSpent: number;
+  total_spent: number;
   avatar?: string;
   role?: 'user' | 'admin';
 }
+
+export type User = UserProfile;
 
 export interface Review {
   id: string;
