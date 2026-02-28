@@ -109,7 +109,7 @@ app.post("/api/auth/register", asyncHandler(async (req: any, res: any) => {
       await db.createUser({ id, email, password: hashedPassword, name });
       const token = jwt.sign({ id, email, name, role: 'user' }, JWT_SECRET);
       res.cookie("token", token, { httpOnly: true, secure: true, sameSite: 'none' });
-      res.json({ user: { id, email, name, bonuses: 0, role: 'user' } });
+      res.json({ user: { id, email, name, bonuses: 0, total_spent: 0, role: 'user', avatar: null } });
     } catch (err) {
       res.status(400).json({ error: "Email already exists" });
     }
@@ -136,7 +136,17 @@ app.post("/api/auth/register", asyncHandler(async (req: any, res: any) => {
         sameSite: 'none',
         maxAge: 30 * 24 * 60 * 60 * 1000 // 30 days
       });
-      res.json({ user: { id: user.id, email: user.email, name: user.name, bonuses: user.bonuses, role: user.role } });
+      res.json({ 
+        user: { 
+          id: user.id, 
+          email: user.email, 
+          name: user.name, 
+          bonuses: user.bonuses, 
+          total_spent: user.total_spent,
+          role: user.role,
+          avatar: user.avatar
+        } 
+      });
     } else {
       console.log(`Invalid password for: ${email}`);
       res.status(401).json({ error: "Невірний пароль" });

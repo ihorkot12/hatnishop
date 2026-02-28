@@ -10,12 +10,14 @@ export const Login = () => {
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
   const [error, setError] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
   const { login, register } = useAuth();
   const navigate = useNavigate();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+    setIsLoading(true);
     try {
       if (isRegister) {
         await register(email, password, name);
@@ -25,6 +27,8 @@ export const Login = () => {
       navigate(-1);
     } catch (err: any) {
       setError(err.message);
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -89,9 +93,16 @@ export const Login = () => {
 
           <button 
             type="submit"
-            className="w-full bg-slate-900 text-white py-5 rounded-2xl font-bold hover:bg-tiffany transition-all flex items-center justify-center gap-3 shadow-xl shadow-slate-900/10"
+            disabled={isLoading}
+            className="w-full bg-slate-900 text-white py-5 rounded-2xl font-bold hover:bg-tiffany transition-all flex items-center justify-center gap-3 shadow-xl shadow-slate-900/10 disabled:opacity-70 disabled:cursor-not-allowed"
           >
-            {isRegister ? 'Зареєструватися' : 'Увійти'} <ArrowRight size={20} />
+            {isLoading ? (
+              <div className="w-6 h-6 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+            ) : (
+              <>
+                {isRegister ? 'Зареєструватися' : 'Увійти'} <ArrowRight size={20} />
+              </>
+            )}
           </button>
         </form>
 
