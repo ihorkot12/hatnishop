@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Package, ShoppingCart, TrendingUp, Plus, Edit2, Trash2, CheckCircle, Clock, Star, Truck } from 'lucide-react';
+import { Package, ShoppingCart, TrendingUp, Plus, Edit2, Trash2, CheckCircle, Clock, Star, Truck, Users, Shield, UserPlus } from 'lucide-react';
 import { MOCK_PRODUCTS } from '../constants';
-import { Order } from '../types';
+import { Order, User } from '../types';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, Cell } from 'recharts';
 import { useAuth } from '../store/AuthContext';
 import { useNavigate } from 'react-router-dom';
@@ -27,14 +27,50 @@ const categoryData = [
 export const Admin = () => {
   const { user, loading } = useAuth();
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState<'products' | 'orders' | 'analytics'>('analytics');
+  const [activeTab, setActiveTab] = useState<'products' | 'orders' | 'analytics' | 'users'>('analytics');
   const [orders, setOrders] = useState<Order[]>([]);
+  const [users, setUsers] = useState<User[]>([]);
+  const [isUserLoading, setIsUserLoading] = useState(false);
 
   useEffect(() => {
     if (!loading && (!user || user.role !== 'admin')) {
       navigate('/login');
     }
   }, [user, loading, navigate]);
+
+  useEffect(() => {
+    if (activeTab === 'users') {
+      fetchUsers();
+    }
+  }, [activeTab]);
+
+  const fetchUsers = async () => {
+    setIsUserLoading(true);
+    try {
+      const res = await fetch('/api/admin/users');
+      const data = await res.json();
+      setUsers(data);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setIsUserLoading(false);
+    }
+  };
+
+  const updateUserRole = async (userId: string, newRole: string) => {
+    try {
+      const res = await fetch(`/api/admin/users/${userId}/role`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ role: newRole })
+      });
+      if (res.ok) {
+        fetchUsers();
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
 
   if (loading || !user || user.role !== 'admin') {
     return (
@@ -90,6 +126,12 @@ export const Admin = () => {
             className={`w-full flex items-center gap-3 px-6 py-4 rounded-2xl font-bold transition-all ${activeTab === 'products' ? 'bg-slate-900 text-white shadow-lg' : 'text-slate-500 hover:bg-slate-100'}`}
           >
             <Package size={20} /> Товари
+          </button>
+          <button 
+            onClick={() => setActiveTab('users')}
+            className={`w-full flex items-center gap-3 px-6 py-4 rounded-2xl font-bold transition-all ${activeTab === 'users' ? 'bg-slate-900 text-white shadow-lg' : 'text-slate-500 hover:bg-slate-100'}`}
+          >
+            <Users size={20} /> Користувачі
           </button>
           <div className="h-px bg-slate-100 my-4" />
           <div className="p-6 bg-tiffany/5 rounded-3xl border border-tiffany/10">
@@ -184,11 +226,17 @@ export const Admin = () => {
             <div className="bg-white rounded-[2.5rem] border border-slate-100 shadow-sm overflow-hidden">
               <div className="p-8 border-b border-slate-50 flex justify-between items-center">
                 <h2 className="text-2xl font-bold text-slate-900">
-                  {activeTab === 'orders' ? 'Керування замовленнями' : 'Каталог товарів'}
+                  {activeTab === 'orders' ? 'Керування замовленнями' : 
+                   activeTab === 'users' ? 'Керування користувачами' : 'Каталог товарів'}
                 </h2>
                 {activeTab === 'products' && (
                   <button className="bg-tiffany text-white px-6 py-3 rounded-xl font-bold flex items-center gap-2 hover:bg-slate-900 transition-all">
                     <Plus size={20} /> Додати товар
+                  </button>
+                )}
+                {activeTab === 'users' && (
+                  <button className="bg-slate-900 text-white px-6 py-3 rounded-xl font-bold flex items-center gap-2 hover:bg-tiffany transition-all">
+                    <UserPlus size={20} /> Новий користувач
                   </button>
                 )}
               </div>
@@ -229,6 +277,49 @@ export const Admin = () => {
                           </td>
                           <td className="px-8 py-6">
                             <button className="text-tiffany hover:text-slate-900 font-bold text-sm">Деталі</button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                ) : activeTab === 'users' ? (
+                  <table className="w-full text-left">
+                    <thead className="bg-slate-50 text-slate-400 text-[10px] uppercase tracking-widest font-bold">
+                      <tr>
+                        <th className="px-8 py-4">Користувач</th>
+                        <th className="px-8 py-4">Email</th>
+                        <th className="px-8 py-4">Роль</th>
+                        <th className="px-8 py-4">Бонуси / Витрачено</th>
+                        <th className="px-8 py-4">Дії</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-50">
+                      {users.map(u => (
+                        <tr key={u.id} className="hover:bg-slate-50/50 transition-colors">
+                          <td className="px-8 py-6">
+                            <div className="font-bold text-slate-900">{u.name}</div>
+                            <div className="text-[10px] text-slate-400 uppercase tracking-widest">ID: {u.id}</div>
+                          </td>
+                          <td className="px-8 py-6 text-slate-500">{u.email}</td>
+                          <td className="px-8 py-6">
+                            <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-bold uppercase ${u.role === 'admin' ? 'bg-tiffany/10 text-tiffany' : 'bg-slate-100 text-slate-500'}`}>
+                              {u.role === 'admin' ? <Shield size={12} /> : null}
+                              {u.role === 'admin' ? 'Адмін' : 'Клієнт'}
+                            </span>
+                          </td>
+                          <td className="px-8 py-6">
+                            <div className="font-bold text-slate-900">{u.bonuses} бонуси</div>
+                            <div className="text-xs text-slate-400">{u.total_spent || 0} грн витрачено</div>
+                          </td>
+                          <td className="px-8 py-6">
+                            <div className="flex gap-3">
+                              <button 
+                                onClick={() => updateUserRole(u.id, u.role === 'admin' ? 'user' : 'admin')}
+                                className="text-xs font-bold uppercase tracking-widest text-slate-400 hover:text-tiffany transition-colors"
+                              >
+                                {u.role === 'admin' ? 'Зняти права' : 'Зробити адміном'}
+                              </button>
+                            </div>
                           </td>
                         </tr>
                       ))}

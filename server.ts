@@ -279,17 +279,34 @@ async function startServer() {
     insert.run('p5', 'Термос "Мандрівник" 500мл', 'bottles', 650, 'https://picsum.photos/seed/thermos1/800/800', 'Тримає тепло до 12 годин. Стильний матовий дизайн.', 'Нержавіюча сталь', 'Traveler', 0, 0);
   }
 
-  // Create default admin if not exists
-  const adminEmail = "admin@homecraft.com";
-  const adminExists = db.prepare("SELECT * FROM users WHERE email = ?").get(adminEmail);
-  if (!adminExists) {
-    const adminId = "admin-1";
-    const adminPass = "admin123";
-    const hashed = await bcrypt.hash(adminPass, 10);
-    db.prepare("INSERT INTO users (id, email, password, name, role) VALUES (?, ?, ?, ?, ?)").run(
-      adminId, adminEmail, hashed, "Адміністратор", "admin"
-    );
+  // Create default admins if not exists
+  const admins = [
+    { email: "admin@homecraft.com", pass: "admin123", name: "Адміністратор", id: "admin-1" },
+    { email: "ihorkot12@gmail.com", pass: "4756500", name: "Ihor Kot", id: "admin-2" }
+  ];
+
+  for (const admin of admins) {
+    const exists = db.prepare("SELECT * FROM users WHERE email = ?").get(admin.email);
+    if (!exists) {
+      const hashed = await bcrypt.hash(admin.pass, 10);
+      db.prepare("INSERT INTO users (id, email, password, name, role) VALUES (?, ?, ?, ?, ?)").run(
+        admin.id, admin.email, hashed, admin.name, "admin"
+      );
+    }
   }
+
+  app.get("/api/admin/users", authenticate, (req: any, res) => {
+    if (req.user.role !== 'admin') return res.status(403).json({ error: "Forbidden" });
+    const users = db.prepare("SELECT id, email, name, role, bonuses, total_spent FROM users").all();
+    res.json(users);
+  });
+
+  app.post("/api/admin/users/:id/role", authenticate, (req: any, res) => {
+    if (req.user.role !== 'admin') return res.status(403).json({ error: "Forbidden" });
+    const { role } = req.body;
+    db.prepare("UPDATE users SET role = ? WHERE id = ?").run(role, req.params.id);
+    res.json({ success: true });
+  });
 
   app.post("/api/orders", (req, res) => {
     const { id, customer, items, total, paymentMethod, bonusUsed, finalTotal, userId } = req.body;
