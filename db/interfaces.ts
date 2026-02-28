@@ -84,7 +84,12 @@ export interface DatabaseAdapter {
   updateProductPrice(id: string, price: number): Promise<void>;
   updateProductStock(id: string, quantity: number): Promise<void>;
   updateProductAiDescription(id: string, description: string): Promise<void>;
+  createProduct(product: Partial<Product>): Promise<void>;
+  updateProduct(id: string, product: Partial<Product>): Promise<void>;
+  deleteProduct(id: string): Promise<void>;
   createOrder(order: Partial<Order>, items: OrderItem[], bonusUsed: number, finalTotal: number): Promise<void>;
+  getAllOrders(): Promise<any[]>;
+  updateOrderStatus(id: string, status: string): Promise<void>;
   getReviews(productId: string): Promise<Review[]>;
   createReview(review: Partial<Review>): Promise<void>;
   getPriceSubscriptions(userId: string): Promise<any[]>;

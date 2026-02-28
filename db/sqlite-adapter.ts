@@ -141,6 +141,33 @@ export class SqliteAdapter implements DatabaseAdapter {
     this.db.prepare("UPDATE products SET ai_description = ? WHERE id = ?").run(description, id);
   }
 
+  async createProduct(product: Partial<Product>): Promise<void> {
+    this.db.prepare(`
+      INSERT INTO products (id, name, category, price, image, description, material, brand, isPopular, isBundle, stock)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `).run(
+      product.id, product.name, product.category, product.price, product.image,
+      product.description, product.material, product.brand, product.isPopular ? 1 : 0, product.isBundle ? 1 : 0, product.stock
+    );
+  }
+
+  async updateProduct(id: string, product: Partial<Product>): Promise<void> {
+    const fields = [];
+    const values = [];
+    for (const [key, value] of Object.entries(product)) {
+      if (key !== 'id') {
+        fields.push(`${key} = ?`);
+        values.push(typeof value === 'boolean' ? (value ? 1 : 0) : value);
+      }
+    }
+    values.push(id);
+    this.db.prepare(`UPDATE products SET ${fields.join(', ')} WHERE id = ?`).run(...values);
+  }
+
+  async deleteProduct(id: string): Promise<void> {
+    this.db.prepare("DELETE FROM products WHERE id = ?").run(id);
+  }
+
   async createOrder(order: Partial<Order>, items: OrderItem[], bonusUsed: number, finalTotal: number): Promise<void> {
     const insertOrder = this.db.prepare(`
       INSERT INTO orders (id, user_id, customer_name, customer_phone, customer_address, total, payment_method, status)
