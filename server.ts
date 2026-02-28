@@ -2,9 +2,13 @@ import express from "express";
 import { createServer as createViteServer } from "vite";
 import Database from "better-sqlite3";
 import path from "path";
+import { fileURLToPath } from "url";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import cookieParser from "cookie-parser";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const db = new Database("store.db");
 const JWT_SECRET = process.env.JWT_SECRET || "fallback-secret";
@@ -341,7 +345,7 @@ async function startServer() {
       appType: "spa",
     });
     app.use(vite.middlewares);
-  } else if (process.env.NODE_ENV === "production" && !process.env.VERCEL) {
+  } else if (process.env.VERCEL || process.env.NODE_ENV === "production") {
     app.use(express.static(path.join(__dirname, "dist")));
     app.get("*", (req, res) => {
       res.sendFile(path.join(__dirname, "dist", "index.html"));
