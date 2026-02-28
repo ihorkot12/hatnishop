@@ -1,0 +1,70 @@
+@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;0,700;1,300;1,400;1,500;1,600;1,700&family=Inter:wght@100..900&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --color-tiffany: #81D8D0;
+  --color-gold: #D4AF37;
+  --color-warm-bg: #F9F7F5;
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-serif: "Cormorant Garamond", serif;
+}
+
+@layer base {
+  body {
+    @apply bg-warm-bg text-slate-900 antialiased;
+  }
+  
+  h1, h2, h3, h4 {
+    @apply font-serif;
+  }
+
+  a {
+    @apply transition-all duration-300;
+  }
+
+  a:hover {
+    text-decoration: underline;
+    text-underline-offset: 8px;
+    text-decoration-color: #000;
+    text-decoration-thickness: 1px;
+  }
+}
+
+.premium-blur {
+  @apply backdrop-blur-xl bg-white/70 border border-white/20;
+}
+
+.btn-premium {
+  @apply relative overflow-hidden transition-all duration-500 ease-out;
+}
+
+.btn-premium::after {
+  content: '';
+  @apply absolute inset-0 bg-white/20 translate-y-full transition-transform duration-500 ease-out;
+}
+
+.btn-premium:hover::after {
+  @apply translate-y-0;
+}
+
+.tiffany-gradient {
+  background: linear-gradient(135deg, #81D8D0 0%, #A0E6DF 100%);
+}
+
+.gold-text {
+  @apply text-gold font-medium;
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-track {
+  @apply bg-transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  @apply bg-slate-200 rounded-full hover:bg-tiffany transition-colors;
+}
+
