@@ -58,13 +58,31 @@ export class NeonAdapter implements DatabaseAdapter {
         user_id TEXT REFERENCES users(id),
         customer_name TEXT,
         customer_phone TEXT,
+        customer_email TEXT,
+        customer_city TEXT,
         customer_address TEXT,
+        delivery_method TEXT,
+        warehouse TEXT,
         total NUMERIC,
+        bonus_used NUMERIC DEFAULT 0,
+        final_total NUMERIC,
         payment_method TEXT,
         status TEXT,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
     `;
+
+    // Try to add missing columns if table already exists
+    try {
+      await this.sql`ALTER TABLE orders ADD COLUMN IF NOT EXISTS customer_email TEXT`;
+      await this.sql`ALTER TABLE orders ADD COLUMN IF NOT EXISTS customer_city TEXT`;
+      await this.sql`ALTER TABLE orders ADD COLUMN IF NOT EXISTS delivery_method TEXT`;
+      await this.sql`ALTER TABLE orders ADD COLUMN IF NOT EXISTS warehouse TEXT`;
+      await this.sql`ALTER TABLE orders ADD COLUMN IF NOT EXISTS bonus_used NUMERIC DEFAULT 0`;
+      await this.sql`ALTER TABLE orders ADD COLUMN IF NOT EXISTS final_total NUMERIC`;
+    } catch (e) {
+      console.log("Columns might already exist or error adding them:", e);
+    }
 
     await this.sql`
       CREATE TABLE IF NOT EXISTS order_items (
@@ -222,13 +240,21 @@ export class NeonAdapter implements DatabaseAdapter {
     await this.sql`DELETE FROM products WHERE id = ${id}`;
   }
 
-  async createOrder(order: Partial<Order>, items: OrderItem[], bonusUsed: number, finalTotal: number): Promise<void> {
+  async createOrder(order: any, items: OrderItem[], bonusUsed: number, finalTotal: number): Promise<void> {
     // Neon serverless doesn't support multi-statement transactions in a single tagged template easily
     // but we can execute them sequentially or use a transaction if the driver supports it.
     // For simplicity and reliability in this environment, we'll do sequential calls.
     await this.sql`
-      INSERT INTO orders (id, user_id, customer_name, customer_phone, customer_address, total, payment_method, status)
-      VALUES (${order.id}, ${order.user_id || null}, ${order.customer_name}, ${order.customer_phone}, ${order.customer_address}, ${finalTotal}, ${order.payment_method}, 'pending')
+      INSERT INTO orders (
+        id, user_id, customer_name, customer_phone, customer_email, 
+        customer_city, customer_address, delivery_method, warehouse, 
+        total, bonus_used, final_total, payment_method, status
+      )
+      VALUES (
+        ${order.id}, ${order.user_id || null}, ${order.customer_name}, ${order.customer_phone}, ${order.customer_email || null},
+        ${order.customer_city || null}, ${order.customer_address}, ${order.delivery_method || null}, ${order.warehouse || null},
+        ${order.total}, ${bonusUsed}, ${finalTotal}, ${order.payment_method}, 'pending'
+      )
     `;
 
     for (const item of items) {
@@ -261,7 +287,42 @@ export class NeonAdapter implements DatabaseAdapter {
   }
 
   async getAllOrders(): Promise<any[]> {
-    return await this.sql`SELECT * FROM orders ORDER BY created_at DESC`;
+    const orders = await this.sql`SELECT * FROM orders ORDER BY created_at DESC`;
+    const result = [];
+    for (const order of orders) {
+      const items = await this.sql`
+        SELECT oi.*, p.name, p.image 
+        FROM order_items oi 
+        JOIN products p ON oi.product_id = p.id 
+        WHERE oi.order_id = ${order.id}
+      `;
+      result.push({
+        id: order.id,
+        total: Number(order.total),
+        bonusUsed: Number(order.bonus_used || 0),
+        finalTotal: Number(order.final_total || order.total),
+        paymentMethod: order.payment_method,
+        status: order.status,
+        createdAt: order.created_at,
+        customer: {
+          name: order.customer_name,
+          phone: order.customer_phone,
+          email: order.customer_email,
+          city: order.customer_city,
+          address: order.customer_address,
+          deliveryMethod: order.delivery_method,
+          warehouse: order.warehouse
+        },
+        items: items.map((item: any) => ({
+          id: item.product_id,
+          name: item.name,
+          image: item.image,
+          price: Number(item.price),
+          quantity: item.quantity
+        }))
+      });
+    }
+    return result;
   }
 
   async updateOrderStatus(id: string, status: string): Promise<void> {
@@ -341,5 +402,68 @@ export class NeonAdapter implements DatabaseAdapter {
 
   async getAllUsers(): Promise<User[]> {
     return await this.sql`SELECT id, email, name, role, bonuses, total_spent FROM users`;
+  }
+
+  async updateUserBonuses(id: string, bonuses: number): Promise<void> {
+    await this.sql`UPDATE users SET bonuses = ${bonuses} WHERE id = ${id}`;
+  }
+
+  async resetStats(): Promise<void> {
+    await this.sql`DELETE FROM order_items`;
+    await this.sql`DELETE FROM orders`;
+  }
+
+  async getAdminStats(): Promise<{
+    totalSales: number;
+    orderCount: number;
+    avgOrderValue: number;
+    totalBonuses: number;
+    salesByDay: { name: string; sales: number }[];
+    salesByCategory: { name: string; value: number }[];
+  }> {
+    const orders = await this.sql`SELECT total, final_total, created_at FROM orders WHERE status != 'cancelled'`;
+    const totalSales = orders.reduce((sum: number, o: any) => sum + Number(o.final_total || o.total), 0);
+    const orderCount = orders.length;
+    const avgOrderValue = orderCount > 0 ? totalSales / orderCount : 0;
+
+    const users = await this.sql`SELECT bonuses FROM users`;
+    const totalBonuses = users.reduce((sum: number, u: any) => sum + Number(u.bonuses), 0);
+
+    // Sales by day (last 7 days)
+    const days = ['Нд', 'Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб'];
+    const last7Days = Array.from({ length: 7 }, (_, i) => {
+      const d = new Date();
+      d.setDate(d.getDate() - (6 - i));
+      return { 
+        name: days[d.getDay()], 
+        dateStr: d.toISOString().split('T')[0],
+        sales: 0 
+      };
+    });
+
+    orders.forEach((o: any) => {
+      const dateStr = new Date(o.created_at).toISOString().split('T')[0];
+      const day = last7Days.find(d => d.dateStr === dateStr);
+      if (day) day.sales += Number(o.final_total || o.total);
+    });
+
+    // Sales by category
+    const categorySales = await this.sql`
+      SELECT p.category as name, SUM(oi.price * oi.quantity) as value
+      FROM order_items oi
+      JOIN products p ON oi.product_id = p.id
+      JOIN orders o ON oi.order_id = o.id
+      WHERE o.status != 'cancelled'
+      GROUP BY p.category
+    `;
+
+    return {
+      totalSales,
+      orderCount,
+      avgOrderValue,
+      totalBonuses,
+      salesByDay: last7Days.map(d => ({ name: d.name, sales: d.sales })),
+      salesByCategory: categorySales.map((c: any) => ({ name: c.name, value: Number(c.value) }))
+    };
   }
 }

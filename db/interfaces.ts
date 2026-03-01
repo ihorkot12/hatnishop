@@ -31,8 +31,14 @@ export interface Order {
   user_id?: string;
   customer_name: string;
   customer_phone: string;
+  customer_email?: string;
+  customer_city?: string;
   customer_address: string;
+  delivery_method?: string;
+  warehouse?: string;
   total: number;
+  bonus_used?: number;
+  final_total?: number;
   payment_method: string;
   status: string;
   created_at?: string;
@@ -110,4 +116,14 @@ export interface DatabaseAdapter {
   markNotificationRead(id: string, userId: string): Promise<void>;
   createNotification(notif: Partial<Notification>): Promise<void>;
   getAllUsers(): Promise<User[]>;
+  getAdminStats(): Promise<{
+    totalSales: number;
+    orderCount: number;
+    avgOrderValue: number;
+    totalBonuses: number;
+    salesByDay: { name: string; sales: number }[];
+    salesByCategory: { name: string; value: number }[];
+  }>;
+  updateUserBonuses(id: string, bonuses: number): Promise<void>;
+  resetStats(): Promise<void>;
 }

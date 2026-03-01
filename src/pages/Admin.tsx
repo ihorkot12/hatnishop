@@ -32,14 +32,19 @@ export const Admin = () => {
   const [products, setProducts] = useState<any[]>([]);
   const [categories, setCategories] = useState<any[]>([]);
   const [users, setUsers] = useState<User[]>([]);
+  const [stats, setStats] = useState<any>(null);
+  const [isStatsLoading, setIsStatsLoading] = useState(false);
   const [isUserLoading, setIsUserLoading] = useState(false);
   const [isProductLoading, setIsProductLoading] = useState(false);
   const [isOrderLoading, setIsOrderLoading] = useState(false);
   const [isCategoryLoading, setIsCategoryLoading] = useState(false);
   const [showProductModal, setShowProductModal] = useState(false);
   const [showCategoryModal, setShowCategoryModal] = useState(false);
+  const [showOrderModal, setShowOrderModal] = useState(false);
   const [editingProduct, setEditingProduct] = useState<any>(null);
   const [editingCategory, setEditingCategory] = useState<any>(null);
+  const [editingOrder, setEditingOrder] = useState<any>(null);
+  const [manualOrderItems, setManualOrderItems] = useState<any[]>([]);
 
   useEffect(() => {
     if (!loading && (!user || user.role !== 'admin')) {
@@ -52,16 +57,48 @@ export const Admin = () => {
     if (activeTab === 'products') fetchProducts();
     if (activeTab === 'orders') fetchOrders();
     if (activeTab === 'categories') fetchCategories();
+    if (activeTab === 'analytics') fetchStats();
   }, [activeTab]);
+
+  const fetchStats = async () => {
+    setIsStatsLoading(true);
+    try {
+      const res = await fetch('/api/admin/stats');
+      if (!res.ok) throw new Error('Failed to fetch stats');
+      const data = await res.json();
+      setStats(data);
+    } catch (err) {
+      console.error('Error fetching stats:', err);
+    } finally {
+      setIsStatsLoading(false);
+    }
+  };
+
+  const resetStats = async () => {
+    if (!window.confirm('Ви впевнені, що хочете скинути всю статистику? Це видалить усі замовлення з бази даних!')) return;
+    try {
+      const res = await fetch('/api/admin/stats/reset', { method: 'POST' });
+      if (res.ok) fetchStats();
+    } catch (err) {
+      console.error(err);
+    }
+  };
 
   const fetchCategories = async () => {
     setIsCategoryLoading(true);
     try {
       const res = await fetch('/api/categories');
+      if (!res.ok) throw new Error('Failed to fetch categories');
       const data = await res.json();
-      setCategories(data);
+      if (Array.isArray(data)) {
+        setCategories(data);
+      } else {
+        console.error('Categories data is not an array:', data);
+        setCategories([]);
+      }
     } catch (err) {
-      console.error(err);
+      console.error('Error fetching categories:', err);
+      setCategories([]);
     } finally {
       setIsCategoryLoading(false);
     }
@@ -71,10 +108,17 @@ export const Admin = () => {
     setIsUserLoading(true);
     try {
       const res = await fetch('/api/admin/users');
+      if (!res.ok) throw new Error('Failed to fetch users');
       const data = await res.json();
-      setUsers(data);
+      if (Array.isArray(data)) {
+        setUsers(data);
+      } else {
+        console.error('Users data is not an array:', data);
+        setUsers([]);
+      }
     } catch (err) {
-      console.error(err);
+      console.error('Error fetching users:', err);
+      setUsers([]);
     } finally {
       setIsUserLoading(false);
     }
@@ -86,6 +130,22 @@ export const Admin = () => {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ role: newRole })
+      });
+      if (res.ok) fetchUsers();
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const updateUserBonuses = async (userId: string, currentBonuses: number) => {
+    const amount = window.prompt('Введіть нову кількість бонусів:', currentBonuses.toString());
+    if (amount === null) return;
+    
+    try {
+      const res = await fetch(`/api/admin/users/${userId}/bonuses`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ bonuses: Number(amount) })
       });
       if (res.ok) fetchUsers();
     } catch (err) {
@@ -127,14 +187,75 @@ export const Admin = () => {
     }
   };
 
+  const handleOrderSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const formData = new FormData(e.currentTarget);
+    const customer = {
+      name: formData.get('customerName'),
+      email: formData.get('customerEmail'),
+      phone: formData.get('customerPhone'),
+      city: formData.get('customerCity'),
+      deliveryMethod: formData.get('deliveryMethod'),
+    };
+
+    const total = manualOrderItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
+
+    const orderData = {
+      id: `ORD-${Date.now()}`,
+      customer,
+      items: manualOrderItems,
+      total,
+      paymentMethod: formData.get('paymentMethod'),
+      bonusUsed: 0,
+      finalTotal: total,
+      userId: null
+    };
+
+    try {
+      const res = await fetch('/api/orders', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(orderData)
+      });
+      if (res.ok) {
+        setShowOrderModal(false);
+        setManualOrderItems([]);
+        fetchOrders();
+        fetchStats();
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const addManualItem = (productId: string) => {
+    const product = products.find(p => p.id === productId);
+    if (!product) return;
+    
+    setManualOrderItems(prev => {
+      const existing = prev.find(item => item.id === productId);
+      if (existing) {
+        return prev.map(item => item.id === productId ? { ...item, quantity: item.quantity + 1 } : item);
+      }
+      return [...prev, { id: product.id, name: product.name, price: product.price, quantity: 1, image: product.image }];
+    });
+  };
+
   const fetchProducts = async () => {
     setIsProductLoading(true);
     try {
       const res = await fetch('/api/products');
+      if (!res.ok) throw new Error('Failed to fetch products');
       const data = await res.json();
-      setProducts(data);
+      if (Array.isArray(data)) {
+        setProducts(data);
+      } else {
+        console.error('Products data is not an array:', data);
+        setProducts([]);
+      }
     } catch (err) {
-      console.error(err);
+      console.error('Error fetching products:', err);
+      setProducts([]);
     } finally {
       setIsProductLoading(false);
     }
@@ -144,10 +265,17 @@ export const Admin = () => {
     setIsOrderLoading(true);
     try {
       const res = await fetch('/api/admin/orders');
+      if (!res.ok) throw new Error('Failed to fetch orders');
       const data = await res.json();
-      setOrders(data);
+      if (Array.isArray(data)) {
+        setOrders(data);
+      } else {
+        console.error('Orders data is not an array:', data);
+        setOrders([]);
+      }
     } catch (err) {
-      console.error(err);
+      console.error('Error fetching orders:', err);
+      setOrders([]);
     } finally {
       setIsOrderLoading(false);
     }
@@ -270,7 +398,7 @@ export const Admin = () => {
           <div className="h-px bg-slate-100 my-4" />
           <div className="p-6 bg-tiffany/5 rounded-3xl border border-tiffany/10">
             <div className="text-xs text-slate-400 uppercase font-bold mb-1">Баланс бонусів</div>
-            <div className="text-2xl font-bold text-slate-900">45,200</div>
+            <div className="text-2xl font-bold text-slate-900">{stats?.totalBonuses?.toLocaleString() || '0'}</div>
             <div className="text-[10px] text-slate-400">Нараховано клієнтам</div>
           </div>
         </aside>
@@ -279,11 +407,28 @@ export const Admin = () => {
         <main className="flex-1 space-y-8">
           {activeTab === 'analytics' ? (
             <div className="space-y-8">
+              <div className="flex justify-between items-center">
+                <h2 className="text-2xl font-bold">Аналітика</h2>
+                <div className="flex gap-2">
+                  <button 
+                    onClick={fetchStats}
+                    className="flex items-center gap-2 px-4 py-2 bg-slate-100 hover:bg-slate-200 rounded-xl text-sm font-bold transition-all"
+                  >
+                    <Clock size={16} /> Оновити
+                  </button>
+                  <button 
+                    onClick={resetStats}
+                    className="flex items-center gap-2 px-4 py-2 bg-red-50 text-red-500 hover:bg-red-100 rounded-xl text-sm font-bold transition-all"
+                  >
+                    <Trash2 size={16} /> Скинути
+                  </button>
+                </div>
+              </div>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 {[
-                  { label: 'Продажі', value: '45,200 грн', change: '+12%', color: 'text-tiffany' },
-                  { label: 'Замовлення', value: '124', change: '+5%', color: 'text-slate-900' },
-                  { label: 'Середній чек', value: '840 грн', change: '+8%', color: 'text-gold' }
+                  { label: 'Продажі', value: `${stats?.totalSales?.toLocaleString() || '0'} грн`, change: '+12%', color: 'text-tiffany' },
+                  { label: 'Замовлення', value: stats?.orderCount?.toString() || '0', change: '+5%', color: 'text-slate-900' },
+                  { label: 'Середній чек', value: `${Math.round(stats?.avgOrderValue || 0).toLocaleString()} грн`, change: '+8%', color: 'text-gold' }
                 ].map((stat, i) => (
                   <div key={i} className="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-sm">
                     <div className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">{stat.label}</div>
@@ -297,7 +442,7 @@ export const Admin = () => {
                 <h3 className="text-xl font-bold mb-8">Динаміка продажів</h3>
                 <div className="h-[300px] w-full">
                   <ResponsiveContainer width="100%" height="100%">
-                    <AreaChart data={salesData}>
+                    <AreaChart data={stats?.salesByDay || []}>
                       <defs>
                         <linearGradient id="colorSales" x1="0" y1="0" x2="0" y2="1">
                           <stop offset="5%" stopColor="#81D8D0" stopOpacity={0.3}/>
@@ -321,11 +466,11 @@ export const Admin = () => {
                   <h3 className="text-xl font-bold mb-8">Продажі за категоріями</h3>
                   <div className="h-[250px]">
                     <ResponsiveContainer width="100%" height="100%">
-                      <BarChart data={categoryData}>
+                      <BarChart data={stats?.salesByCategory || []}>
                         <XAxis dataKey="name" axisLine={false} tickLine={false} />
                         <Tooltip />
                         <Bar dataKey="value" radius={[10, 10, 0, 0]}>
-                          {categoryData.map((entry, index) => (
+                          {(stats?.salesByCategory || []).map((entry: any, index: number) => (
                             <Cell key={`cell-${index}`} fill={['#81D8D0', '#D4AF37', '#0f172a', '#94a3b8'][index % 4]} />
                           ))}
                         </Bar>
@@ -364,6 +509,14 @@ export const Admin = () => {
                    activeTab === 'users' ? 'Керування користувачами' : 
                    activeTab === 'categories' ? 'Керування категоріями' : 'Каталог товарів'}
                 </h2>
+                {activeTab === 'orders' && (
+                  <button 
+                    onClick={() => { setEditingOrder(null); setShowOrderModal(true); }}
+                    className="bg-tiffany text-white px-6 py-3 rounded-xl font-bold flex items-center gap-2 hover:bg-slate-900 transition-all"
+                  >
+                    <Plus size={20} /> Створити замовлення
+                  </button>
+                )}
                 {activeTab === 'products' && (
                   <button 
                     onClick={() => { setEditingProduct(null); setShowProductModal(true); }}
@@ -462,7 +615,15 @@ export const Admin = () => {
                             </span>
                           </td>
                           <td className="px-8 py-6">
-                            <div className="font-bold text-slate-900">{u.bonuses} бонуси</div>
+                            <div className="flex items-center gap-2">
+                              <div className="font-bold text-slate-900">{u.bonuses || 0}</div>
+                              <button 
+                                onClick={() => updateUserBonuses(u.id, u.bonuses || 0)}
+                                className="p-1 text-tiffany hover:bg-tiffany/10 rounded-lg transition-colors"
+                              >
+                                <Edit2 size={14} />
+                              </button>
+                            </div>
                             <div className="text-xs text-slate-400">{u.total_spent || 0} грн витрачено</div>
                           </td>
                           <td className="px-8 py-6">
@@ -654,6 +815,135 @@ export const Admin = () => {
                 <div className="flex gap-4 pt-4">
                   <button type="button" onClick={() => setShowCategoryModal(false)} className="flex-1 px-6 py-4 rounded-xl font-bold text-slate-500 hover:bg-slate-50 transition-all">Скасувати</button>
                   <button type="submit" className="flex-1 bg-slate-900 text-white px-6 py-4 rounded-xl font-bold hover:bg-tiffany transition-all">Зберегти</button>
+                </div>
+              </form>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+      {/* Order Modal */}
+      <AnimatePresence>
+        {showOrderModal && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setShowOrderModal(false)}
+              className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm"
+            />
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className="relative w-full max-w-3xl bg-white rounded-[2.5rem] shadow-2xl p-8 overflow-y-auto max-h-[90vh]"
+            >
+              <h2 className="text-2xl font-bold mb-8">Створити замовлення вручну</h2>
+              <form onSubmit={handleOrderSubmit} className="space-y-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="space-y-2">
+                    <label className="text-xs font-bold text-slate-400 uppercase">Ім'я клієнта</label>
+                    <input name="customerName" required className="w-full bg-slate-50 border-none rounded-xl p-4 focus:ring-2 focus:ring-tiffany" />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-xs font-bold text-slate-400 uppercase">Email</label>
+                    <input name="customerEmail" type="email" className="w-full bg-slate-50 border-none rounded-xl p-4 focus:ring-2 focus:ring-tiffany" />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-xs font-bold text-slate-400 uppercase">Телефон</label>
+                    <input name="customerPhone" required className="w-full bg-slate-50 border-none rounded-xl p-4 focus:ring-2 focus:ring-tiffany" />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-xs font-bold text-slate-400 uppercase">Місто</label>
+                    <input name="customerCity" required className="w-full bg-slate-50 border-none rounded-xl p-4 focus:ring-2 focus:ring-tiffany" />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-xs font-bold text-slate-400 uppercase">Спосіб доставки</label>
+                    <select name="deliveryMethod" className="w-full bg-slate-50 border-none rounded-xl p-4 focus:ring-2 focus:ring-tiffany">
+                      <option value="nova-poshta">Нова Пошта</option>
+                      <option value="ukr-poshta">Укрпошта</option>
+                    </select>
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-xs font-bold text-slate-400 uppercase">Спосіб оплати</label>
+                    <select name="paymentMethod" className="w-full bg-slate-50 border-none rounded-xl p-4 focus:ring-2 focus:ring-tiffany">
+                      <option value="card">Карта</option>
+                      <option value="cash">Накладений платіж</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div className="space-y-4">
+                  <div className="flex justify-between items-center">
+                    <h3 className="font-bold">Товари у замовленні</h3>
+                    <select 
+                      onChange={(e) => {
+                        if (e.target.value) {
+                          addManualItem(e.target.value);
+                          e.target.value = '';
+                        }
+                      }}
+                      className="bg-slate-100 border-none rounded-lg px-4 py-2 text-sm focus:ring-2 focus:ring-tiffany"
+                    >
+                      <option value="">Додати товар...</option>
+                      {products.map(p => (
+                        <option key={p.id} value={p.id}>{p.name} - {p.price} грн</option>
+                      ))}
+                    </select>
+                  </div>
+                  
+                  <div className="space-y-2">
+                    {manualOrderItems.map((item, idx) => (
+                      <div key={idx} className="flex items-center justify-between bg-slate-50 p-4 rounded-xl">
+                        <div className="flex items-center gap-4">
+                          <img src={item.image} className="w-10 h-10 rounded-lg object-cover" alt="" referrerPolicy="no-referrer" />
+                          <div>
+                            <div className="font-bold text-sm">{item.name}</div>
+                            <div className="text-xs text-slate-400">{item.price} грн</div>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-4">
+                          <div className="flex items-center gap-2">
+                            <button 
+                              type="button"
+                              onClick={() => setManualOrderItems(prev => prev.map((it, i) => i === idx ? { ...it, quantity: Math.max(1, it.quantity - 1) } : it))}
+                              className="w-6 h-6 flex items-center justify-center bg-white rounded-md shadow-sm"
+                            >-</button>
+                            <span className="text-sm font-bold w-4 text-center">{item.quantity}</span>
+                            <button 
+                              type="button"
+                              onClick={() => setManualOrderItems(prev => prev.map((it, i) => i === idx ? { ...it, quantity: it.quantity + 1 } : it))}
+                              className="w-6 h-6 flex items-center justify-center bg-white rounded-md shadow-sm"
+                            >+</button>
+                          </div>
+                          <button 
+                            type="button"
+                            onClick={() => setManualOrderItems(prev => prev.filter((_, i) => i !== idx))}
+                            className="text-red-500 hover:bg-red-50 p-2 rounded-lg"
+                          >
+                            <Trash2 size={16} />
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                    {manualOrderItems.length === 0 && (
+                      <div className="text-center py-8 text-slate-400 text-sm border-2 border-dashed border-slate-100 rounded-2xl">
+                        Додайте товари до замовлення
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                <div className="flex justify-between items-center p-6 bg-slate-900 text-white rounded-2xl">
+                  <div className="text-sm font-medium opacity-70">Загальна сума:</div>
+                  <div className="text-2xl font-bold">
+                    {manualOrderItems.reduce((sum, item) => sum + item.price * item.quantity, 0)} грн
+                  </div>
+                </div>
+
+                <div className="flex gap-4 pt-4">
+                  <button type="button" onClick={() => setShowOrderModal(false)} className="flex-1 px-6 py-4 rounded-xl font-bold text-slate-500 hover:bg-slate-50 transition-all">Скасувати</button>
+                  <button type="submit" disabled={manualOrderItems.length === 0} className="flex-1 bg-tiffany text-white px-6 py-4 rounded-xl font-bold hover:bg-slate-900 transition-all disabled:opacity-50">Створити замовлення</button>
                 </div>
               </form>
             </motion.div>

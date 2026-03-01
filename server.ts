@@ -334,6 +334,25 @@ app.get("/api/admin/users", authenticate, asyncHandler(async (req: any, res: any
     res.json({ success: true });
   }));
 
+  app.get("/api/admin/stats", authenticate, asyncHandler(async (req: any, res: any) => {
+    if (req.user.role !== 'admin') return res.status(403).json({ error: "Forbidden" });
+    const stats = await db.getAdminStats();
+    res.json(stats);
+  }));
+
+  app.put("/api/admin/users/:id/bonuses", authenticate, asyncHandler(async (req: any, res: any) => {
+    if (req.user.role !== 'admin') return res.status(403).json({ error: "Forbidden" });
+    const { bonuses } = req.body;
+    await db.updateUserBonuses(req.params.id, bonuses);
+    res.json({ success: true });
+  }));
+
+  app.post("/api/admin/stats/reset", authenticate, asyncHandler(async (req: any, res: any) => {
+    if (req.user.role !== 'admin') return res.status(403).json({ error: "Forbidden" });
+    await db.resetStats();
+    res.json({ success: true });
+  }));
+
   app.post("/api/orders", asyncHandler(async (req: any, res: any) => {
     const { id, customer, items, total, paymentMethod, bonusUsed, finalTotal, userId } = req.body;
     
@@ -349,8 +368,12 @@ app.get("/api/admin/users", authenticate, asyncHandler(async (req: any, res: any
       user_id: userId,
       customer_name: customer.name,
       customer_phone: customer.phone,
-      customer_address: customer.city + ", " + customer.warehouse,
-      total: finalTotal,
+      customer_email: customer.email,
+      customer_city: customer.city,
+      customer_address: customer.city + (customer.warehouse ? ", " + customer.warehouse : ""),
+      delivery_method: customer.deliveryMethod,
+      warehouse: customer.warehouse,
+      total: total,
       payment_method: paymentMethod
     }, orderItems, bonusUsed, finalTotal);
 
