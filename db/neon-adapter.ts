@@ -1,5 +1,5 @@
 import { neon } from '@neondatabase/serverless';
-import { DatabaseAdapter, User, Product, Order, OrderItem, Review, PriceSubscription, Notification, Category } from "./interfaces";
+import { DatabaseAdapter, User, Product, Order, OrderItem, Review, PriceSubscription, Notification, Category } from "./interfaces.js";
 
 export class NeonAdapter implements DatabaseAdapter {
   private sql: any;

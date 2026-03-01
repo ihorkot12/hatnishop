@@ -1,5 +1,5 @@
 import { sql, db } from "@vercel/postgres";
-import { DatabaseAdapter, User, Product, Order, OrderItem, Review, PriceSubscription, Notification, Category } from "./interfaces";
+import { DatabaseAdapter, User, Product, Order, OrderItem, Review, PriceSubscription, Notification, Category } from "./interfaces.js";
 
 export class PostgresAdapter implements DatabaseAdapter {
   async init(): Promise<void> {

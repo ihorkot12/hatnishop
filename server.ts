@@ -5,7 +5,7 @@ import { fileURLToPath } from "url";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import cookieParser from "cookie-parser";
-import { db } from "./db";
+import { db } from "./db/index.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
