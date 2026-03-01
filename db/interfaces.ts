@@ -73,6 +73,13 @@ export interface Notification {
   created_at?: string;
 }
 
+export interface Category {
+  id: string;
+  name: string;
+  slug: string;
+  image: string;
+}
+
 export interface DatabaseAdapter {
   init(): Promise<void>;
   getUserByEmail(email: string): Promise<User | null>;
@@ -90,6 +97,10 @@ export interface DatabaseAdapter {
   createOrder(order: Partial<Order>, items: OrderItem[], bonusUsed: number, finalTotal: number): Promise<void>;
   getAllOrders(): Promise<any[]>;
   updateOrderStatus(id: string, status: string): Promise<void>;
+  getCategories(): Promise<Category[]>;
+  createCategory(category: Partial<Category>): Promise<void>;
+  updateCategory(id: string, category: Partial<Category>): Promise<void>;
+  deleteCategory(id: string): Promise<void>;
   getReviews(productId: string): Promise<Review[]>;
   createReview(review: Partial<Review>): Promise<void>;
   getPriceSubscriptions(userId: string): Promise<any[]>;

@@ -1,5 +1,5 @@
 import { sql, db } from "@vercel/postgres";
-import { DatabaseAdapter, User, Product, Order, OrderItem, Review, PriceSubscription, Notification } from "./interfaces";
+import { DatabaseAdapter, User, Product, Order, OrderItem, Review, PriceSubscription, Notification, Category } from "./interfaces";
 
 export class PostgresAdapter implements DatabaseAdapter {
   async init(): Promise<void> {
@@ -151,6 +151,37 @@ export class PostgresAdapter implements DatabaseAdapter {
     await sql`UPDATE products SET ai_description = ${description} WHERE id = ${id}`;
   }
 
+  async createProduct(product: Partial<Product>): Promise<void> {
+    await sql`
+      INSERT INTO products (id, name, category, price, image, description, material, brand, isPopular, isBundle, stock)
+      VALUES (${product.id}, ${product.name}, ${product.category}, ${product.price}, ${product.image}, ${product.description}, ${product.material}, ${product.brand}, ${product.isPopular ? 1 : 0}, ${product.isBundle ? 1 : 0}, ${product.stock})
+    `;
+  }
+
+  async updateProduct(id: string, product: Partial<Product>): Promise<void> {
+    // Dynamic update is tricky with tagged template literals in vercel/postgres without a helper.
+    // We'll update all fields for simplicity or use a more verbose approach.
+    // Since we don't have a dynamic query builder here, let's just update all fields that are typically editable.
+    await sql`
+      UPDATE products SET 
+        name = ${product.name}, 
+        category = ${product.category}, 
+        price = ${product.price}, 
+        image = ${product.image}, 
+        description = ${product.description}, 
+        material = ${product.material}, 
+        brand = ${product.brand}, 
+        isPopular = ${product.isPopular ? 1 : 0}, 
+        isBundle = ${product.isBundle ? 1 : 0}, 
+        stock = ${product.stock}
+      WHERE id = ${id}
+    `;
+  }
+
+  async deleteProduct(id: string): Promise<void> {
+    await sql`DELETE FROM products WHERE id = ${id}`;
+  }
+
   async createOrder(order: Partial<Order>, items: OrderItem[], bonusUsed: number, finalTotal: number): Promise<void> {
     const client = await db.connect();
     
@@ -197,6 +228,41 @@ export class PostgresAdapter implements DatabaseAdapter {
     } finally {
       client.release();
     }
+  }
+
+  async getAllOrders(): Promise<any[]> {
+    const { rows } = await sql`SELECT * FROM orders ORDER BY created_at DESC`;
+    return rows;
+  }
+
+  async updateOrderStatus(id: string, status: string): Promise<void> {
+    await sql`UPDATE orders SET status = ${status} WHERE id = ${id}`;
+  }
+
+  async getCategories(): Promise<Category[]> {
+    const { rows } = await sql`SELECT * FROM categories`;
+    return rows as Category[];
+  }
+
+  async createCategory(category: Partial<Category>): Promise<void> {
+    await sql`
+      INSERT INTO categories (id, name, slug, image)
+      VALUES (${category.id}, ${category.name}, ${category.slug}, ${category.image})
+    `;
+  }
+
+  async updateCategory(id: string, category: Partial<Category>): Promise<void> {
+    await sql`
+      UPDATE categories SET 
+        name = ${category.name}, 
+        slug = ${category.slug}, 
+        image = ${category.image}
+      WHERE id = ${id}
+    `;
+  }
+
+  async deleteCategory(id: string): Promise<void> {
+    await sql`DELETE FROM categories WHERE id = ${id}`;
   }
 
   async getReviews(productId: string): Promise<Review[]> {

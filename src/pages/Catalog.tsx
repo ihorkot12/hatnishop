@@ -1,8 +1,7 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Filter, X, Search, SlidersHorizontal, ChevronDown } from 'lucide-react';
-import { MOCK_PRODUCTS, CATEGORIES } from '../constants';
 import { ProductCard } from '../components/ProductCard';
 import { QuickView } from '../components/QuickView';
 import { Product } from '../types';
@@ -11,14 +10,40 @@ export const Catalog = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const categoryFilter = searchParams.get('category');
   const searchUrlQuery = searchParams.get('search');
+  const [products, setProducts] = useState<Product[]>([]);
+  const [categories, setCategories] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [priceRange, setPriceRange] = useState(5000);
   const [showFilters, setShowFilters] = useState(false);
   const [searchQuery, setSearchQuery] = useState(searchUrlQuery || '');
   const [sortBy, setSortBy] = useState<'default' | 'price-asc' | 'price-desc' | 'popular'>('default');
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
 
+  useEffect(() => {
+    const fetchData = async () => {
+      setIsLoading(true);
+      try {
+        const [prodRes, catRes] = await Promise.all([
+          fetch('/api/products'),
+          fetch('/api/categories')
+        ]);
+        const [prodData, catData] = await Promise.all([
+          prodRes.json(),
+          catRes.json()
+        ]);
+        setProducts(prodData);
+        setCategories(catData);
+      } catch (err) {
+        console.error('Failed to fetch data:', err);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    fetchData();
+  }, []);
+
   const filteredProducts = useMemo(() => {
-    let result = MOCK_PRODUCTS.filter(p => {
+    let result = products.filter(p => {
       if (categoryFilter && p.category !== categoryFilter) return false;
       if (p.price > priceRange) return false;
       if (searchQuery && !p.name.toLowerCase().includes(searchQuery.toLowerCase())) return false;
@@ -41,7 +66,7 @@ export const Catalog = () => {
             <div className="max-w-2xl">
               <div className="text-tiffany font-bold text-[10px] uppercase tracking-[0.3em] mb-4">Колекція 2024</div>
               <h1 className="text-5xl md:text-7xl font-serif font-bold text-slate-900 mb-6 leading-tight">
-                {categoryFilter ? CATEGORIES.find(c => c.slug === categoryFilter)?.name : 'Весь каталог'}
+                {categoryFilter ? categories.find(c => c.slug === categoryFilter)?.name : 'Весь каталог'}
               </h1>
               <p className="text-slate-500 text-lg leading-relaxed">
                 Обирайте предмети, що створюють настрій. Від витонченого посуду до затишного текстилю — ми зібрали найкраще для вашого дому.
@@ -174,7 +199,7 @@ export const Catalog = () => {
                     >
                       Всі товари
                     </button>
-                    {CATEGORIES.map(cat => (
+                    {categories.map(cat => (
                       <button 
                         key={cat.id}
                         onClick={() => setSearchParams({ category: cat.slug })}

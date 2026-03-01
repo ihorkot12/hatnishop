@@ -54,11 +54,11 @@ async function ensureDb() {
   // Seed Admins
   const admins = [
     { email: "admin@homecraft.com", pass: "admin123", name: "Адміністратор", id: "admin-1" },
-    { email: "ihorKot12@gmail.com", pass: "4756500", name: "Ihor Kot", id: "admin-2" }
+    { email: "ihorkot12@gmail.com", pass: "4756500", name: "Ihor Kot", id: "admin-2" }
   ];
 
   for (const admin of admins) {
-    const exists = await db.getUserById(admin.id);
+    const exists = await db.getUserByEmail(admin.email);
     if (!exists) {
       const hashed = await bcrypt.hash(admin.pass, 10);
       await db.createUser({
@@ -68,9 +68,6 @@ async function ensureDb() {
         name: admin.name,
         role: "admin"
       });
-    } else if (exists.email.toLowerCase() !== admin.email.toLowerCase()) {
-      // Update email if it changed in seed - logic moved to adapter or just skipped for now as it's edge case
-      // We can add updateUserEmail to adapter if strictly needed.
     }
   }
 
@@ -266,6 +263,64 @@ app.post("/api/auth/register", asyncHandler(async (req: any, res: any) => {
     res.json(products);
   }));
 
+  app.post("/api/admin/products", authenticate, asyncHandler(async (req: any, res: any) => {
+    if (req.user.role !== 'admin') return res.status(403).json({ error: "Forbidden" });
+    const product = req.body;
+    if (!product.id) product.id = Math.random().toString(36).substr(2, 9);
+    await db.createProduct(product);
+    res.json({ success: true, product });
+  }));
+
+  app.put("/api/admin/products/:id", authenticate, asyncHandler(async (req: any, res: any) => {
+    if (req.user.role !== 'admin') return res.status(403).json({ error: "Forbidden" });
+    await db.updateProduct(req.params.id, req.body);
+    res.json({ success: true });
+  }));
+
+  app.delete("/api/admin/products/:id", authenticate, asyncHandler(async (req: any, res: any) => {
+    if (req.user.role !== 'admin') return res.status(403).json({ error: "Forbidden" });
+    await db.deleteProduct(req.params.id);
+    res.json({ success: true });
+  }));
+
+  app.get("/api/admin/orders", authenticate, asyncHandler(async (req: any, res: any) => {
+    if (req.user.role !== 'admin') return res.status(403).json({ error: "Forbidden" });
+    const orders = await db.getAllOrders();
+    res.json(orders);
+  }));
+
+  app.post("/api/admin/orders/:id/status", authenticate, asyncHandler(async (req: any, res: any) => {
+    if (req.user.role !== 'admin') return res.status(403).json({ error: "Forbidden" });
+    const { status } = req.body;
+    await db.updateOrderStatus(req.params.id, status);
+    res.json({ success: true });
+  }));
+
+  app.get("/api/categories", asyncHandler(async (req: any, res: any) => {
+    const categories = await db.getCategories();
+    res.json(categories);
+  }));
+
+  app.post("/api/admin/categories", authenticate, asyncHandler(async (req: any, res: any) => {
+    if (req.user.role !== 'admin') return res.status(403).json({ error: "Forbidden" });
+    const category = req.body;
+    if (!category.id) category.id = Math.random().toString(36).substr(2, 9);
+    await db.createCategory(category);
+    res.json({ success: true, category });
+  }));
+
+  app.put("/api/admin/categories/:id", authenticate, asyncHandler(async (req: any, res: any) => {
+    if (req.user.role !== 'admin') return res.status(403).json({ error: "Forbidden" });
+    await db.updateCategory(req.params.id, req.body);
+    res.json({ success: true });
+  }));
+
+  app.delete("/api/admin/categories/:id", authenticate, asyncHandler(async (req: any, res: any) => {
+    if (req.user.role !== 'admin') return res.status(403).json({ error: "Forbidden" });
+    await db.deleteCategory(req.params.id);
+    res.json({ success: true });
+  }));
+
 // Admin & Order Routes
 app.get("/api/admin/users", authenticate, asyncHandler(async (req: any, res: any) => {
     if (req.user.role !== 'admin') return res.status(403).json({ error: "Forbidden" });
@@ -273,7 +328,7 @@ app.get("/api/admin/users", authenticate, asyncHandler(async (req: any, res: any
     res.json(users);
   }));
 
-  app.post("/api/admin/users/:id/role", authenticate, asyncHandler(async (req: any, res: any) => {
+  app.put("/api/admin/users/:id/role", authenticate, asyncHandler(async (req: any, res: any) => {
     if (req.user.role !== 'admin') return res.status(403).json({ error: "Forbidden" });
     const { role } = req.body;
     await db.updateUserRole(req.params.id, role);

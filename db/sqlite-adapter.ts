@@ -1,7 +1,7 @@
 import Database from "better-sqlite3";
 import path from "path";
 import { fileURLToPath } from "url";
-import { DatabaseAdapter, User, Product, Order, OrderItem, Review, PriceSubscription, Notification } from "./interfaces";
+import { DatabaseAdapter, User, Product, Order, OrderItem, Review, PriceSubscription, Notification, Category } from "./interfaces";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -214,6 +214,34 @@ export class SqliteAdapter implements DatabaseAdapter {
     });
 
     transaction();
+  }
+
+  async getAllOrders(): Promise<any[]> {
+    return this.db.prepare("SELECT * FROM orders ORDER BY created_at DESC").all();
+  }
+
+  async updateOrderStatus(id: string, status: string): Promise<void> {
+    this.db.prepare("UPDATE orders SET status = ? WHERE id = ?").run(status, id);
+  }
+
+  async getCategories(): Promise<Category[]> {
+    return this.db.prepare("SELECT * FROM categories").all() as Category[];
+  }
+
+  async createCategory(category: Partial<Category>): Promise<void> {
+    this.db.prepare("INSERT INTO categories (id, name, slug, image) VALUES (?, ?, ?, ?)").run(
+      category.id, category.name, category.slug, category.image
+    );
+  }
+
+  async updateCategory(id: string, category: Partial<Category>): Promise<void> {
+    this.db.prepare("UPDATE categories SET name = ?, slug = ?, image = ? WHERE id = ?").run(
+      category.name, category.slug, category.image, id
+    );
+  }
+
+  async deleteCategory(id: string): Promise<void> {
+    this.db.prepare("DELETE FROM categories WHERE id = ?").run(id);
   }
 
   async getReviews(productId: string): Promise<Review[]> {
