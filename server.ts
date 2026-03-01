@@ -1,5 +1,4 @@
 import express from "express";
-import { createServer as createViteServer } from "vite";
 import path from "path";
 import { fileURLToPath } from "url";
 import bcrypt from "bcryptjs";
@@ -360,6 +359,7 @@ app.get("/api/admin/users", authenticate, asyncHandler(async (req: any, res: any
 
 async function startViteAndListen() {
   if (process.env.NODE_ENV !== "production" && !process.env.VERCEL) {
+    const { createServer: createViteServer } = await import("vite");
     const vite = await createViteServer({
       server: { middlewareMode: true },
       appType: "spa",
