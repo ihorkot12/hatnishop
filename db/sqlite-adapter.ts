@@ -57,6 +57,7 @@ export class SqliteAdapter implements DatabaseAdapter {
         total REAL,
         bonus_used REAL DEFAULT 0,
         final_total REAL,
+        bonuses_credited INTEGER DEFAULT 0,
         payment_method TEXT,
         status TEXT,
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
@@ -69,6 +70,16 @@ export class SqliteAdapter implements DatabaseAdapter {
         quantity INTEGER,
         price REAL,
         FOREIGN KEY(order_id) REFERENCES orders(id)
+      );
+
+      CREATE TABLE IF NOT EXISTS bonus_codes (
+        id TEXT PRIMARY KEY,
+        code TEXT UNIQUE,
+        discount_amount REAL,
+        discount_type TEXT,
+        min_order_amount REAL DEFAULT 0,
+        is_active INTEGER DEFAULT 1,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
       );
 
       CREATE TABLE IF NOT EXISTS reviews (
@@ -250,6 +261,7 @@ export class SqliteAdapter implements DatabaseAdapter {
         paymentMethod: order.payment_method,
         status: order.status,
         createdAt: order.created_at,
+        bonusesCredited: !!order.bonuses_credited,
         customer: {
           name: order.customer_name,
           phone: order.customer_phone,
@@ -273,6 +285,10 @@ export class SqliteAdapter implements DatabaseAdapter {
 
   async updateOrderStatus(id: string, status: string): Promise<void> {
     this.db.prepare("UPDATE orders SET status = ? WHERE id = ?").run(status, id);
+  }
+
+  async markOrderBonusesCredited(id: string): Promise<void> {
+    this.db.prepare("UPDATE orders SET bonuses_credited = 1 WHERE id = ?").run(id);
   }
 
   async getCategories(): Promise<Category[]> {

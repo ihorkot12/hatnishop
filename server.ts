@@ -291,7 +291,33 @@ app.post("/api/auth/register", asyncHandler(async (req: any, res: any) => {
   app.post("/api/admin/orders/:id/status", authenticate, asyncHandler(async (req: any, res: any) => {
     if (req.user.role !== 'admin') return res.status(403).json({ error: "Forbidden" });
     const { status } = req.body;
-    await db.updateOrderStatus(req.params.id, status);
+    const orderId = req.params.id;
+    
+    // Get order details to check if bonuses should be credited
+    const orders = await db.getAllOrders();
+    const order = orders.find(o => o.id === orderId);
+    
+    if (!order) return res.status(404).json({ error: "Order not found" });
+
+    await db.updateOrderStatus(orderId, status);
+
+    // Credit bonuses if status is paid or completed and not already credited
+    if ((status === 'paid' || status === 'completed') && !order.bonusesCredited && order.user_id) {
+      const bonusRate = 0.05; // 5% cashback
+      const earnedBonuses = Math.floor(order.finalTotal * bonusRate);
+      
+      const user = await db.getUserById(order.user_id);
+      if (user) {
+        await db.updateUserBonuses(order.user_id, (user.bonuses || 0) + earnedBonuses);
+        // We need a way to mark bonuses as credited in the DB
+        // I'll add a method to the adapter or use a raw query if possible
+        // For now, let's assume we need to add markOrderBonusesCredited to the interface
+        if ((db as any).markOrderBonusesCredited) {
+          await (db as any).markOrderBonusesCredited(orderId);
+        }
+      }
+    }
+
     res.json({ success: true });
   }));
 
@@ -351,6 +377,40 @@ app.get("/api/admin/users", authenticate, asyncHandler(async (req: any, res: any
     if (req.user.role !== 'admin') return res.status(403).json({ error: "Forbidden" });
     await db.resetStats();
     res.json({ success: true });
+  }));
+
+  // AI Assistant Chat
+  app.post("/api/ai/chat", asyncHandler(async (req: any, res: any) => {
+    const { message, history } = req.body;
+    const { GoogleGenAI } = await import("@google/genai");
+    const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+    
+    const products = await db.getProducts();
+    const productsContext = products.map(p => `${p.name} (${p.category}): ${p.price} грн. ${p.description}`).join('\n');
+
+    const response = await ai.models.generateContent({
+      model: "gemini-1.5-flash",
+      contents: [
+        { 
+          role: "user", 
+          parts: [{ text: `Ти - Штучка-Помічник, AI асистент магазину "Хатні Штучки". 
+          Твоя мета - допомагати клієнтам обирати товари для дому, відповідати на питання про асортимент та допомагати з оформленням.
+          Будь привітним, використовуй емодзі. 
+          Ось наш асортимент:\n${productsContext}\n\nКлієнт каже: ${message}` }] 
+        }
+      ],
+      config: {
+        systemInstruction: "Ти - Штучка-Помічник, AI асистент магазину 'Хатні Штучки'. Відповідай українською мовою."
+      }
+    });
+
+    res.json({ text: response.text });
+  }));
+
+  app.get("/api/user/orders", authenticate, asyncHandler(async (req: any, res: any) => {
+    const orders = await db.getAllOrders();
+    const userOrders = orders.filter(o => o.user_id === req.user.id);
+    res.json(userOrders);
   }));
 
   app.post("/api/orders", asyncHandler(async (req: any, res: any) => {

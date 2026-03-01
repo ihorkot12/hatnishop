@@ -19,6 +19,7 @@ export const Cart = () => {
   });
 
   const [useBonuses, setUseBonuses] = useState(false);
+  const [isQuickOrder, setIsQuickOrder] = useState(false);
 
   const finalTotal = totalPrice - (useBonuses ? appliedBonuses : 0);
 
@@ -116,6 +117,35 @@ export const Cart = () => {
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-12">
         {/* Left Side: Cart + Form */}
         <div className="lg:col-span-8 space-y-12">
+          {!user && (
+            <motion.div 
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="bg-slate-900 text-white p-8 rounded-[2.5rem] shadow-xl flex flex-col md:flex-row items-center justify-between gap-6"
+            >
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 bg-tiffany/20 text-tiffany rounded-full flex items-center justify-center shrink-0">
+                  <Star size={24} fill="currentColor" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-lg">Отримайте {Math.floor(totalPrice * 0.05)} бонусів!</h3>
+                  <p className="text-white/50 text-sm">Зареєструйтесь зараз, щоб отримати кешбек та доступ до системи бонусів.</p>
+                </div>
+              </div>
+              <div className="flex gap-3 shrink-0">
+                <Link to="/login" className="bg-white text-slate-900 px-6 py-3 rounded-xl font-bold text-sm hover:bg-tiffany hover:text-white transition-all">
+                  Увійти / Реєстрація
+                </Link>
+                <button 
+                  onClick={() => setIsQuickOrder(true)}
+                  className="bg-white/10 text-white px-6 py-3 rounded-xl font-bold text-sm hover:bg-white/20 transition-all border border-white/10"
+                >
+                  Швидке замовлення
+                </button>
+              </div>
+            </motion.div>
+          )}
+
           {/* Cart Items */}
           <section>
             <h2 className="text-xl font-bold text-slate-900 mb-6 flex items-center gap-2">
@@ -172,7 +202,7 @@ export const Cart = () => {
             <section>
               <h2 className="text-xl font-bold text-slate-900 mb-6 flex items-center gap-2">
                 <span className="w-8 h-8 bg-slate-900 text-white rounded-full flex items-center justify-center text-sm">2</span>
-                Контактні дані
+                {isQuickOrder ? 'Швидке замовлення (тільки контакти)' : 'Контактні дані'}
               </h2>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6 bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-sm">
                 <div className="space-y-2">
@@ -197,83 +227,106 @@ export const Cart = () => {
                     onChange={e => setFormData({...formData, phone: e.target.value})}
                   />
                 </div>
+                {!isQuickOrder && (
+                  <div className="space-y-2 md:col-span-2">
+                    <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400 ml-1">Email (для бонусів)</label>
+                    <input 
+                      type="email" 
+                      placeholder="example@mail.com"
+                      className="w-full bg-slate-50 border-none rounded-2xl p-4 focus:ring-2 focus:ring-tiffany transition-all"
+                      value={(formData as any).email || ''}
+                      onChange={e => setFormData({...formData, email: e.target.value} as any)}
+                    />
+                  </div>
+                )}
               </div>
             </section>
 
             {/* Delivery */}
-            <section>
-              <h2 className="text-xl font-bold text-slate-900 mb-6 flex items-center gap-2">
-                <span className="w-8 h-8 bg-slate-900 text-white rounded-full flex items-center justify-center text-sm">3</span>
-                Доставка
-              </h2>
-              <div className="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-sm space-y-8">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {[
-                    { id: 'nova-poshta', name: 'Нова Пошта', icon: <Truck size={20} /> },
-                    { id: 'ukr-poshta', name: 'Укрпошта', icon: <Truck size={20} /> }
-                  ].map(method => (
-                    <button
-                      key={method.id}
-                      type="button"
-                      onClick={() => setFormData({...formData, deliveryMethod: method.id as any})}
-                      className={`flex items-center gap-3 p-4 rounded-2xl border-2 transition-all ${formData.deliveryMethod === method.id ? 'border-tiffany bg-tiffany/5 text-tiffany' : 'border-slate-100 text-slate-500 hover:border-slate-200'}`}
-                    >
-                      {method.icon}
-                      <span className="font-bold text-sm">{method.name}</span>
-                    </button>
-                  ))}
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400 ml-1">Місто</label>
-                    <input 
-                      required
-                      type="text" 
-                      placeholder="Київ"
-                      className="w-full bg-slate-50 border-none rounded-2xl p-4 focus:ring-2 focus:ring-tiffany transition-all"
-                      value={formData.city}
-                      onChange={e => setFormData({...formData, city: e.target.value})}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400 ml-1">Відділення / Поштомат</label>
-                    <input 
-                      required
-                      type="text" 
-                      placeholder="№1 або вул. Лесі Українки, 1"
-                      className="w-full bg-slate-50 border-none rounded-2xl p-4 focus:ring-2 focus:ring-tiffany transition-all"
-                      value={formData.warehouse}
-                      onChange={e => setFormData({...formData, warehouse: e.target.value})}
-                    />
-                  </div>
-                </div>
-              </div>
-            </section>
+            <AnimatePresence>
+              {!isQuickOrder && (
+                <motion.div
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: 'auto' }}
+                  exit={{ opacity: 0, height: 0 }}
+                  className="overflow-hidden"
+                >
+                  <section className="pt-12">
+                    <h2 className="text-xl font-bold text-slate-900 mb-6 flex items-center gap-2">
+                      <span className="w-8 h-8 bg-slate-900 text-white rounded-full flex items-center justify-center text-sm">3</span>
+                      Доставка
+                    </h2>
+                    <div className="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-sm space-y-8">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {[
+                          { id: 'nova-poshta', name: 'Нова Пошта', icon: <Truck size={20} /> },
+                          { id: 'ukr-poshta', name: 'Укрпошта', icon: <Truck size={20} /> }
+                        ].map(method => (
+                          <button
+                            key={method.id}
+                            type="button"
+                            onClick={() => setFormData({...formData, deliveryMethod: method.id as any})}
+                            className={`flex items-center gap-3 p-4 rounded-2xl border-2 transition-all ${formData.deliveryMethod === method.id ? 'border-tiffany bg-tiffany/5 text-tiffany' : 'border-slate-100 text-slate-500 hover:border-slate-200'}`}
+                          >
+                            {method.icon}
+                            <span className="font-bold text-sm">{method.name}</span>
+                          </button>
+                        ))}
+                      </div>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div className="space-y-2">
+                          <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400 ml-1">Місто</label>
+                          <input 
+                            required={!isQuickOrder}
+                            type="text" 
+                            placeholder="Київ"
+                            className="w-full bg-slate-50 border-none rounded-2xl p-4 focus:ring-2 focus:ring-tiffany transition-all"
+                            value={formData.city}
+                            onChange={e => setFormData({...formData, city: e.target.value})}
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400 ml-1">Відділення / Поштомат</label>
+                          <input 
+                            required={!isQuickOrder}
+                            type="text" 
+                            placeholder="№1 або вул. Лесі Українки, 1"
+                            className="w-full bg-slate-50 border-none rounded-2xl p-4 focus:ring-2 focus:ring-tiffany transition-all"
+                            value={formData.warehouse}
+                            onChange={e => setFormData({...formData, warehouse: e.target.value})}
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  </section>
 
-            {/* Payment */}
-            <section>
-              <h2 className="text-xl font-bold text-slate-900 mb-6 flex items-center gap-2">
-                <span className="w-8 h-8 bg-slate-900 text-white rounded-full flex items-center justify-center text-sm">4</span>
-                Оплата
-              </h2>
-              <div className="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-sm grid grid-cols-1 md:grid-cols-3 gap-4">
-                {[
-                  { id: 'mono', name: 'Mono Pay', icon: <CreditCard size={20} /> },
-                  { id: 'liqpay', name: 'LiqPay', icon: <CreditCard size={20} /> },
-                  { id: 'cash', name: 'Накладений платіж', icon: <Truck size={20} /> }
-                ].map(method => (
-                  <button
-                    key={method.id}
-                    type="button"
-                    onClick={() => setFormData({...formData, paymentMethod: method.id as any})}
-                    className={`flex items-center gap-3 p-4 rounded-2xl border-2 transition-all ${formData.paymentMethod === method.id ? 'border-tiffany bg-tiffany/5 text-tiffany' : 'border-slate-100 text-slate-500 hover:border-slate-200'}`}
-                  >
-                    {method.icon}
-                    <span className="font-bold text-sm">{method.name}</span>
-                  </button>
-                ))}
-              </div>
-            </section>
+                  {/* Payment */}
+                  <section className="pt-12">
+                    <h2 className="text-xl font-bold text-slate-900 mb-6 flex items-center gap-2">
+                      <span className="w-8 h-8 bg-slate-900 text-white rounded-full flex items-center justify-center text-sm">4</span>
+                      Оплата
+                    </h2>
+                    <div className="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-sm grid grid-cols-1 md:grid-cols-3 gap-4">
+                      {[
+                        { id: 'mono', name: 'Mono Pay', icon: <CreditCard size={20} /> },
+                        { id: 'liqpay', name: 'LiqPay', icon: <CreditCard size={20} /> },
+                        { id: 'cash', name: 'Накладений платіж', icon: <Truck size={20} /> }
+                      ].map(method => (
+                        <button
+                          key={method.id}
+                          type="button"
+                          onClick={() => setFormData({...formData, paymentMethod: method.id as any})}
+                          className={`flex items-center gap-3 p-4 rounded-2xl border-2 transition-all ${formData.paymentMethod === method.id ? 'border-tiffany bg-tiffany/5 text-tiffany' : 'border-slate-100 text-slate-500 hover:border-slate-200'}`}
+                        >
+                          {method.icon}
+                          <span className="font-bold text-sm">{method.name}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </section>
+                </motion.div>
+              )}
+            </AnimatePresence>
           </form>
         </div>
 

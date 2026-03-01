@@ -49,6 +49,7 @@ export class PostgresAdapter implements DatabaseAdapter {
         total REAL,
         bonus_used REAL DEFAULT 0,
         final_total REAL,
+        bonuses_credited INTEGER DEFAULT 0,
         payment_method TEXT,
         status TEXT,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -262,6 +263,7 @@ export class PostgresAdapter implements DatabaseAdapter {
         paymentMethod: order.payment_method,
         status: order.status,
         createdAt: order.created_at,
+        bonusesCredited: !!order.bonuses_credited,
         customer: {
           name: order.customer_name,
           phone: order.customer_phone,
@@ -285,6 +287,10 @@ export class PostgresAdapter implements DatabaseAdapter {
 
   async updateOrderStatus(id: string, status: string): Promise<void> {
     await sql`UPDATE orders SET status = ${status} WHERE id = ${id}`;
+  }
+
+  async markOrderBonusesCredited(id: string): Promise<void> {
+    await sql`UPDATE orders SET bonuses_credited = 1 WHERE id = ${id}`;
   }
 
   async getCategories(): Promise<Category[]> {

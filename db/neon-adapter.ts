@@ -66,6 +66,7 @@ export class NeonAdapter implements DatabaseAdapter {
         total NUMERIC,
         bonus_used NUMERIC DEFAULT 0,
         final_total NUMERIC,
+        bonuses_credited BOOLEAN DEFAULT FALSE,
         payment_method TEXT,
         status TEXT,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -80,6 +81,7 @@ export class NeonAdapter implements DatabaseAdapter {
       await this.sql`ALTER TABLE orders ADD COLUMN IF NOT EXISTS warehouse TEXT`;
       await this.sql`ALTER TABLE orders ADD COLUMN IF NOT EXISTS bonus_used NUMERIC DEFAULT 0`;
       await this.sql`ALTER TABLE orders ADD COLUMN IF NOT EXISTS final_total NUMERIC`;
+      await this.sql`ALTER TABLE orders ADD COLUMN IF NOT EXISTS bonuses_credited BOOLEAN DEFAULT FALSE`;
     } catch (e) {
       console.log("Columns might already exist or error adding them:", e);
     }
@@ -90,6 +92,18 @@ export class NeonAdapter implements DatabaseAdapter {
         product_id TEXT,
         quantity INTEGER,
         price NUMERIC
+      );
+    `;
+
+    await this.sql`
+      CREATE TABLE IF NOT EXISTS bonus_codes (
+        id TEXT PRIMARY KEY,
+        code TEXT UNIQUE,
+        discount_amount NUMERIC,
+        discount_type TEXT,
+        min_order_amount NUMERIC DEFAULT 0,
+        is_active BOOLEAN DEFAULT TRUE,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
     `;
 
@@ -304,6 +318,7 @@ export class NeonAdapter implements DatabaseAdapter {
         paymentMethod: order.payment_method,
         status: order.status,
         createdAt: order.created_at,
+        bonusesCredited: order.bonuses_credited,
         customer: {
           name: order.customer_name,
           phone: order.customer_phone,
@@ -327,6 +342,10 @@ export class NeonAdapter implements DatabaseAdapter {
 
   async updateOrderStatus(id: string, status: string): Promise<void> {
     await this.sql`UPDATE orders SET status = ${status} WHERE id = ${id}`;
+  }
+
+  async markOrderBonusesCredited(id: string): Promise<void> {
+    await this.sql`UPDATE orders SET bonuses_credited = TRUE WHERE id = ${id}`;
   }
 
   async getCategories(): Promise<Category[]> {

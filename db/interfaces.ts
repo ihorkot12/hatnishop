@@ -103,6 +103,7 @@ export interface DatabaseAdapter {
   createOrder(order: Partial<Order>, items: OrderItem[], bonusUsed: number, finalTotal: number): Promise<void>;
   getAllOrders(): Promise<any[]>;
   updateOrderStatus(id: string, status: string): Promise<void>;
+  markOrderBonusesCredited(id: string): Promise<void>;
   getCategories(): Promise<Category[]>;
   createCategory(category: Partial<Category>): Promise<void>;
   updateCategory(id: string, category: Partial<Category>): Promise<void>;
