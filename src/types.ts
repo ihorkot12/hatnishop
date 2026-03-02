@@ -44,8 +44,10 @@ export interface Order {
     warehouse: string;
   };
   paymentMethod: 'mono' | 'liqpay' | 'cash';
-  status: 'pending' | 'paid' | 'shipped' | 'completed';
+  status: 'pending' | 'paid' | 'shipped' | 'completed' | 'cancelled';
   createdAt: string;
+  comment?: string;
+  trackingNumber?: string;
 }
 
 export interface UserProfile {

@@ -58,6 +58,8 @@ export class SqliteAdapter implements DatabaseAdapter {
         bonus_used REAL DEFAULT 0,
         final_total REAL,
         bonuses_credited INTEGER DEFAULT 0,
+        tracking_number TEXT,
+        comment TEXT,
         payment_method TEXT,
         status TEXT,
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
@@ -190,9 +192,9 @@ export class SqliteAdapter implements DatabaseAdapter {
       INSERT INTO orders (
         id, user_id, customer_name, customer_phone, customer_email, 
         customer_city, customer_address, delivery_method, warehouse, 
-        total, bonus_used, final_total, payment_method, status
+        total, bonus_used, final_total, payment_method, status, comment
       )
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
 
     const insertItem = this.db.prepare(`
@@ -218,7 +220,8 @@ export class SqliteAdapter implements DatabaseAdapter {
         bonusUsed,
         finalTotal,
         order.payment_method,
-        'pending'
+        'pending',
+        order.comment || null
       );
 
       for (const item of items) {
@@ -262,6 +265,8 @@ export class SqliteAdapter implements DatabaseAdapter {
         status: order.status,
         createdAt: order.created_at,
         bonusesCredited: !!order.bonuses_credited,
+        trackingNumber: order.tracking_number,
+        comment: order.comment,
         customer: {
           name: order.customer_name,
           phone: order.customer_phone,
@@ -287,6 +292,10 @@ export class SqliteAdapter implements DatabaseAdapter {
     this.db.prepare("UPDATE orders SET status = ? WHERE id = ?").run(status, id);
   }
 
+  async updateOrderTrackingNumber(id: string, trackingNumber: string): Promise<void> {
+    this.db.prepare("UPDATE orders SET tracking_number = ? WHERE id = ?").run(trackingNumber, id);
+  }
+
   async markOrderBonusesCredited(id: string): Promise<void> {
     this.db.prepare("UPDATE orders SET bonuses_credited = 1 WHERE id = ?").run(id);
   }
@@ -309,6 +318,33 @@ export class SqliteAdapter implements DatabaseAdapter {
 
   async deleteCategory(id: string): Promise<void> {
     this.db.prepare("DELETE FROM categories WHERE id = ?").run(id);
+  }
+
+  async getBonusCodes(): Promise<any[]> {
+    return this.db.prepare("SELECT * FROM bonus_codes").all();
+  }
+
+  async createBonusCode(bonusCode: any): Promise<void> {
+    this.db.prepare(`
+      INSERT INTO bonus_codes (id, code, discount_amount, discount_type, min_order_amount, is_active)
+      VALUES (?, ?, ?, ?, ?, ?)
+    `).run(bonusCode.id, bonusCode.code, bonusCode.discount_amount, bonusCode.discount_type, bonusCode.min_order_amount || 0, bonusCode.is_active ? 1 : 0);
+  }
+
+  async updateBonusCode(id: string, bonusCode: any): Promise<void> {
+    const fields = [];
+    const values = [];
+    if (bonusCode.code) { fields.push("code = ?"); values.push(bonusCode.code); }
+    if (bonusCode.discount_amount !== undefined) { fields.push("discount_amount = ?"); values.push(bonusCode.discount_amount); }
+    if (bonusCode.discount_type) { fields.push("discount_type = ?"); values.push(bonusCode.discount_type); }
+    if (bonusCode.min_order_amount !== undefined) { fields.push("min_order_amount = ?"); values.push(bonusCode.min_order_amount); }
+    if (bonusCode.is_active !== undefined) { fields.push("is_active = ?"); values.push(bonusCode.is_active ? 1 : 0); }
+    values.push(id);
+    this.db.prepare(`UPDATE bonus_codes SET ${fields.join(', ')} WHERE id = ?`).run(...values);
+  }
+
+  async deleteBonusCode(id: string): Promise<void> {
+    this.db.prepare("DELETE FROM bonus_codes WHERE id = ?").run(id);
   }
 
   async getReviews(productId: string): Promise<Review[]> {

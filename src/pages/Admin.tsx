@@ -27,7 +27,7 @@ const categoryData = [
 export const Admin = () => {
   const { user, loading } = useAuth();
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState<'products' | 'orders' | 'analytics' | 'users' | 'categories'>('analytics');
+  const [activeTab, setActiveTab] = useState<'products' | 'orders' | 'analytics' | 'users' | 'categories' | 'bonus-codes'>('analytics');
   const [orders, setOrders] = useState<Order[]>([]);
   const [products, setProducts] = useState<any[]>([]);
   const [categories, setCategories] = useState<any[]>([]);
@@ -35,6 +35,15 @@ export const Admin = () => {
   const [stats, setStats] = useState<any>(null);
   const [isStatsLoading, setIsStatsLoading] = useState(false);
   const [isUserLoading, setIsUserLoading] = useState(false);
+  const [isBonusCodesLoading, setIsBonusCodesLoading] = useState(false);
+  const [bonusCodes, setBonusCodes] = useState<any[]>([]);
+  const [newBonusCode, setNewBonusCode] = useState({
+    code: '',
+    discount_amount: 0,
+    discount_type: 'fixed',
+    min_order_amount: 0,
+    is_active: true
+  });
   const [isProductLoading, setIsProductLoading] = useState(false);
   const [isOrderLoading, setIsOrderLoading] = useState(false);
   const [isCategoryLoading, setIsCategoryLoading] = useState(false);
@@ -58,7 +67,45 @@ export const Admin = () => {
     if (activeTab === 'orders') fetchOrders();
     if (activeTab === 'categories') fetchCategories();
     if (activeTab === 'analytics') fetchStats();
+    if (activeTab === 'bonus-codes') fetchBonusCodes();
   }, [activeTab]);
+
+  const fetchBonusCodes = async () => {
+    setIsBonusCodesLoading(true);
+    try {
+      const res = await fetch('/api/admin/bonus-codes');
+      if (res.ok) {
+        const data = await res.json();
+        setBonusCodes(Array.isArray(data) ? data : []);
+      }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setIsBonusCodesLoading(false);
+    }
+  };
+
+  const createBonusCode = async () => {
+    try {
+      const res = await fetch('/api/admin/bonus-codes', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newBonusCode)
+      });
+      if (res.ok) {
+        fetchBonusCodes();
+        setNewBonusCode({
+          code: '',
+          discount_amount: 0,
+          discount_type: 'fixed',
+          min_order_amount: 0,
+          is_active: true
+        });
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
 
   const fetchStats = async () => {
     setIsStatsLoading(true);
@@ -282,11 +329,18 @@ export const Admin = () => {
   };
 
   const updateOrderStatus = async (orderId: string, newStatus: string) => {
+    let trackingNumber = '';
+    if (newStatus === 'shipped') {
+      const input = window.prompt('Введіть номер ТТН:');
+      if (input === null) return; // Cancelled
+      trackingNumber = input;
+    }
+
     try {
       const res = await fetch(`/api/admin/orders/${orderId}/status`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status: newStatus })
+        body: JSON.stringify({ status: newStatus, trackingNumber })
       });
       if (res.ok) fetchOrders();
     } catch (err) {
@@ -395,6 +449,12 @@ export const Admin = () => {
           >
             <Users size={20} /> Користувачі
           </button>
+          <button 
+            onClick={() => setActiveTab('bonus-codes')}
+            className={`w-full flex items-center gap-3 px-6 py-4 rounded-2xl font-bold transition-all ${activeTab === 'bonus-codes' ? 'bg-slate-900 text-white shadow-lg' : 'text-slate-500 hover:bg-slate-100'}`}
+          >
+            <Star size={20} /> Промокоди
+          </button>
           <div className="h-px bg-slate-100 my-4" />
           <div className="p-6 bg-tiffany/5 rounded-3xl border border-tiffany/10">
             <div className="text-xs text-slate-400 uppercase font-bold mb-1">Баланс бонусів</div>
@@ -501,6 +561,93 @@ export const Admin = () => {
                 </div>
               </div>
             </div>
+          ) : activeTab === 'bonus-codes' ? (
+            <div className="space-y-8">
+              <div className="flex justify-between items-center">
+                <h2 className="text-2xl font-bold">Промокоди</h2>
+              </div>
+              <div className="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-sm">
+                <h3 className="text-lg font-bold mb-6">Створити новий промокод</h3>
+                <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-bold text-slate-400 uppercase ml-1">Код</label>
+                    <input 
+                      type="text" 
+                      placeholder="SALE20"
+                      className="w-full bg-slate-50 border-none rounded-xl p-3 text-sm focus:ring-2 focus:ring-tiffany"
+                      value={newBonusCode.code}
+                      onChange={e => setNewBonusCode({...newBonusCode, code: e.target.value.toUpperCase()})}
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-bold text-slate-400 uppercase ml-1">Знижка</label>
+                    <input 
+                      type="number" 
+                      className="w-full bg-slate-50 border-none rounded-xl p-3 text-sm focus:ring-2 focus:ring-tiffany"
+                      value={newBonusCode.discount_amount}
+                      onChange={e => setNewBonusCode({...newBonusCode, discount_amount: Number(e.target.value)})}
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-bold text-slate-400 uppercase ml-1">Тип</label>
+                    <select 
+                      className="w-full bg-slate-50 border-none rounded-xl p-3 text-sm focus:ring-2 focus:ring-tiffany"
+                      value={newBonusCode.discount_type}
+                      onChange={e => setNewBonusCode({...newBonusCode, discount_type: e.target.value})}
+                    >
+                      <option value="fixed">Грн</option>
+                      <option value="percent">%</option>
+                    </select>
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-bold text-slate-400 uppercase ml-1">Мін. сума</label>
+                    <input 
+                      type="number" 
+                      className="w-full bg-slate-50 border-none rounded-xl p-3 text-sm focus:ring-2 focus:ring-tiffany"
+                      value={newBonusCode.min_order_amount}
+                      onChange={e => setNewBonusCode({...newBonusCode, min_order_amount: Number(e.target.value)})}
+                    />
+                  </div>
+                  <div className="flex items-end">
+                    <button 
+                      onClick={createBonusCode}
+                      className="w-full bg-slate-900 text-white h-[46px] rounded-xl font-bold text-sm hover:bg-tiffany transition-all"
+                    >
+                      Додати
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              <div className="bg-white rounded-[2.5rem] border border-slate-100 shadow-sm overflow-hidden">
+                <table className="w-full text-left">
+                  <thead className="bg-slate-50 text-slate-400 text-[10px] uppercase tracking-widest font-bold">
+                    <tr>
+                      <th className="px-8 py-4">Код</th>
+                      <th className="px-8 py-4">Знижка</th>
+                      <th className="px-8 py-4">Мін. сума</th>
+                      <th className="px-8 py-4">Статус</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-50">
+                    {bonusCodes.map(bc => (
+                      <tr key={bc.id} className="hover:bg-slate-50/50 transition-colors">
+                        <td className="px-8 py-6 font-bold text-slate-900">{bc.code}</td>
+                        <td className="px-8 py-6 text-slate-500">
+                          {bc.discount_amount} {bc.discount_type === 'percent' ? '%' : 'грн'}
+                        </td>
+                        <td className="px-8 py-6 text-slate-500">{bc.min_order_amount} грн</td>
+                        <td className="px-8 py-6">
+                          <span className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase ${bc.is_active ? 'bg-emerald-100 text-emerald-600' : 'bg-red-100 text-red-600'}`}>
+                            {bc.is_active ? 'Активний' : 'Неактивний'}
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
           ) : (
             <div className="bg-white rounded-[2.5rem] border border-slate-100 shadow-sm overflow-hidden">
               <div className="p-8 border-b border-slate-50 flex justify-between items-center">
@@ -564,6 +711,16 @@ export const Admin = () => {
                             <div className="text-xs text-slate-400 flex items-center gap-1">
                               <Truck size={10} /> {order.customer.deliveryMethod === 'nova-poshta' ? 'НП' : 'УП'}, {order.customer.city}
                             </div>
+                            {order.comment && (
+                              <div className="mt-1 text-[10px] text-amber-600 italic">
+                                Коментар: {order.comment}
+                              </div>
+                            )}
+                            {order.trackingNumber && (
+                              <div className="mt-1 text-[10px] text-tiffany font-bold">
+                                ТТН: {order.trackingNumber}
+                              </div>
+                            )}
                           </td>
                           <td className="px-8 py-6">
                             <div className="font-bold text-slate-900">{order.finalTotal} грн</div>

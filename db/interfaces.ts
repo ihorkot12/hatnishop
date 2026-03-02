@@ -41,6 +41,9 @@ export interface Order {
   final_total?: number;
   payment_method: string;
   status: string;
+  comment?: string;
+  trackingNumber?: string;
+  bonusesCredited?: boolean;
   created_at?: string;
 }
 
@@ -103,11 +106,16 @@ export interface DatabaseAdapter {
   createOrder(order: Partial<Order>, items: OrderItem[], bonusUsed: number, finalTotal: number): Promise<void>;
   getAllOrders(): Promise<any[]>;
   updateOrderStatus(id: string, status: string): Promise<void>;
+  updateOrderTrackingNumber(id: string, trackingNumber: string): Promise<void>;
   markOrderBonusesCredited(id: string): Promise<void>;
   getCategories(): Promise<Category[]>;
   createCategory(category: Partial<Category>): Promise<void>;
   updateCategory(id: string, category: Partial<Category>): Promise<void>;
   deleteCategory(id: string): Promise<void>;
+  getBonusCodes(): Promise<any[]>;
+  createBonusCode(bonusCode: any): Promise<void>;
+  updateBonusCode(id: string, bonusCode: any): Promise<void>;
+  deleteBonusCode(id: string): Promise<void>;
   getReviews(productId: string): Promise<Review[]>;
   createReview(review: Partial<Review>): Promise<void>;
   getPriceSubscriptions(userId: string): Promise<any[]>;

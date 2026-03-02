@@ -12,16 +12,51 @@ export const Cart = () => {
   const [formData, setFormData] = useState({
     name: user?.name || '',
     phone: '',
+    email: user?.email || '',
     city: '',
     deliveryMethod: 'nova-poshta' as 'nova-poshta' | 'ukr-poshta',
     warehouse: '',
-    paymentMethod: 'cash' as 'mono' | 'liqpay' | 'cash'
+    paymentMethod: 'cash' as 'mono' | 'liqpay' | 'cash',
+    comment: ''
   });
 
   const [useBonuses, setUseBonuses] = useState(false);
   const [isQuickOrder, setIsQuickOrder] = useState(false);
+  const [bonusCode, setBonusCode] = useState('');
+  const [appliedBonusCode, setAppliedBonusCode] = useState<any>(null);
+  const [bonusCodeError, setBonusCodeError] = useState('');
 
-  const finalTotal = totalPrice - (useBonuses ? appliedBonuses : 0);
+  const calculateDiscount = () => {
+    if (!appliedBonusCode) return 0;
+    if (appliedBonusCode.discount_type === 'percent') {
+      return (totalPrice * appliedBonusCode.discount_amount) / 100;
+    }
+    return appliedBonusCode.discount_amount;
+  };
+
+  const discount = calculateDiscount();
+  const finalTotal = totalPrice - (useBonuses ? appliedBonuses : 0) - discount;
+
+  const handleApplyBonusCode = async () => {
+    if (!bonusCode.trim()) return;
+    setBonusCodeError('');
+    try {
+      const res = await fetch(`/api/bonus-codes/validate/${bonusCode}`);
+      if (res.ok) {
+        const data = await res.json();
+        if (totalPrice < data.min_order_amount) {
+          setBonusCodeError(`Мінімальна сума замовлення для цього коду: ${data.min_order_amount} грн`);
+          return;
+        }
+        setAppliedBonusCode(data);
+      } else {
+        const data = await res.json();
+        setBonusCodeError(data.error || 'Невірний промокод');
+      }
+    } catch (err) {
+      setBonusCodeError('Помилка при перевірці промокоду');
+    }
+  };
 
   const handleCheckout = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -31,6 +66,7 @@ export const Cart = () => {
       customer: {
         name: formData.name,
         phone: formData.phone,
+        email: formData.email,
         city: formData.city,
         deliveryMethod: formData.deliveryMethod,
         warehouse: formData.warehouse,
@@ -40,7 +76,8 @@ export const Cart = () => {
       total: totalPrice,
       bonusUsed: useBonuses ? appliedBonuses : 0,
       finalTotal: finalTotal,
-      paymentMethod: formData.paymentMethod
+      paymentMethod: formData.paymentMethod,
+      comment: formData.comment
     };
 
     try {
@@ -77,12 +114,14 @@ export const Cart = () => {
             <CheckCircle2 size={48} />
           </div>
           <h1 className="text-4xl font-bold text-slate-900 mb-4">Дякуємо за замовлення!</h1>
-          <p className="text-slate-500 text-lg mb-4">
-            Ми вже почали готувати ваші "Хатні Штучки" до відправки.
+          <p className="text-slate-500 text-lg mb-6 leading-relaxed">
+            Ми вже почали готувати ваші "Хатні Штучки" до відправки. 
+            <br />
+            <span className="text-slate-900 font-bold">Наш менеджер зв'яжеться з вами у Viber або Telegram</span> для підтвердження та надання реквізитів для оплати.
           </p>
-          <div className="bg-tiffany/5 p-4 rounded-2xl mb-10">
-            <p className="text-tiffany font-bold">Ви отримали +{Math.floor(finalTotal * 0.05)} бонусів за цю покупку!</p>
-            <p className="text-xs text-slate-400">Бонуси стануть доступні після отримання замовлення.</p>
+          <div className="bg-tiffany/5 p-6 rounded-3xl mb-10 border border-tiffany/10">
+            <p className="text-tiffany font-bold text-lg mb-1">Ви отримаєте +{Math.floor(finalTotal * 0.05)} бонусів!</p>
+            <p className="text-xs text-slate-400">Бонуси будуть нараховані на ваш рахунок після того, як замовлення отримає статус "Виконано".</p>
           </div>
           <Link to="/" className="inline-block bg-slate-900 text-white px-10 py-4 rounded-2xl font-bold hover:bg-tiffany transition-all">
             На головну
@@ -227,18 +266,27 @@ export const Cart = () => {
                     onChange={e => setFormData({...formData, phone: e.target.value})}
                   />
                 </div>
-                {!isQuickOrder && (
-                  <div className="space-y-2 md:col-span-2">
-                    <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400 ml-1">Email (для бонусів)</label>
-                    <input 
-                      type="email" 
-                      placeholder="example@mail.com"
-                      className="w-full bg-slate-50 border-none rounded-2xl p-4 focus:ring-2 focus:ring-tiffany transition-all"
-                      value={(formData as any).email || ''}
-                      onChange={e => setFormData({...formData, email: e.target.value} as any)}
-                    />
-                  </div>
-                )}
+                <div className="space-y-2 md:col-span-2">
+                  <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400 ml-1">Email (обов'язково)</label>
+                  <input 
+                    required
+                    type="email" 
+                    placeholder="example@mail.com"
+                    className="w-full bg-slate-50 border-none rounded-2xl p-4 focus:ring-2 focus:ring-tiffany transition-all"
+                    value={formData.email}
+                    onChange={e => setFormData({...formData, email: e.target.value})}
+                  />
+                </div>
+                <div className="space-y-2 md:col-span-2">
+                  <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400 ml-1">Коментар до замовлення</label>
+                  <textarea 
+                    placeholder="Наприклад: Передзвоніть мені після 18:00"
+                    rows={3}
+                    className="w-full bg-slate-50 border-none rounded-2xl p-4 focus:ring-2 focus:ring-tiffany transition-all resize-none"
+                    value={formData.comment}
+                    onChange={e => setFormData({...formData, comment: e.target.value})}
+                  />
+                </div>
               </div>
             </section>
 
@@ -334,32 +382,61 @@ export const Cart = () => {
         <div className="lg:col-span-4">
           <div className="sticky top-32 space-y-6">
             {/* Bonus Widget */}
-            {user && (
-              <div className="bg-white p-8 rounded-[2rem] border border-slate-100 shadow-sm">
-                <div className="flex items-center justify-between mb-4">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 bg-gold/10 text-gold rounded-full flex items-center justify-center">
-                      <Star size={20} fill="currentColor" />
+            <div className="bg-white p-8 rounded-[2rem] border border-slate-100 shadow-sm space-y-6">
+              {user && (
+                <div className="pb-6 border-b border-slate-50">
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 bg-gold/10 text-gold rounded-full flex items-center justify-center">
+                        <Star size={20} fill="currentColor" />
+                      </div>
+                      <div>
+                        <h3 className="font-bold text-slate-900 text-sm">Ваші бонуси</h3>
+                        <p className="text-xs text-slate-500">{userBonuses} доступно</p>
+                      </div>
                     </div>
-                    <div>
-                      <h3 className="font-bold text-slate-900 text-sm">Ваші бонуси</h3>
-                      <p className="text-xs text-slate-500">{userBonuses} доступно</p>
-                    </div>
+                    <button 
+                      onClick={toggleBonuses}
+                      className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${useBonuses ? 'bg-gold text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
+                    >
+                      {useBonuses ? 'Застосовано' : 'Застосувати'}
+                    </button>
                   </div>
+                  {useBonuses && (
+                    <div className="text-[10px] text-gold font-bold uppercase tracking-widest">
+                      Знижка: -{appliedBonuses} грн
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Promo Code */}
+              <div>
+                <h3 className="font-bold text-slate-900 text-sm mb-3">Промокод</h3>
+                <div className="flex gap-2">
+                  <input 
+                    type="text" 
+                    placeholder="Введіть код"
+                    value={bonusCode}
+                    onChange={e => setBonusCode(e.target.value)}
+                    className="flex-1 bg-slate-50 border-none rounded-xl px-4 py-2 text-sm focus:ring-2 focus:ring-tiffany transition-all"
+                  />
                   <button 
-                    onClick={toggleBonuses}
-                    className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${useBonuses ? 'bg-gold text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
+                    onClick={handleApplyBonusCode}
+                    className="bg-slate-900 text-white px-4 py-2 rounded-xl text-xs font-bold hover:bg-tiffany transition-all"
                   >
-                    {useBonuses ? 'Застосовано' : 'Застосувати'}
+                    Застосувати
                   </button>
                 </div>
-                {useBonuses && (
-                  <div className="text-[10px] text-gold font-bold uppercase tracking-widest">
-                    Знижка: -{appliedBonuses} грн
+                {bonusCodeError && <p className="text-red-500 text-[10px] mt-2 font-bold">{bonusCodeError}</p>}
+                {appliedBonusCode && (
+                  <div className="mt-2 flex items-center justify-between bg-emerald-50 p-2 rounded-lg border border-emerald-100">
+                    <span className="text-[10px] text-emerald-600 font-bold uppercase tracking-widest">Код застосовано: {appliedBonusCode.code}</span>
+                    <span className="text-[10px] text-emerald-600 font-bold">-{discount} грн</span>
                   </div>
                 )}
               </div>
-            )}
+            </div>
 
             {/* Order Summary */}
             <div className="bg-slate-900 text-white p-10 rounded-[2.5rem] shadow-2xl shadow-slate-900/20">
@@ -373,6 +450,12 @@ export const Cart = () => {
                   <div className="flex justify-between text-gold text-sm">
                     <span>Бонуси</span>
                     <span>-{appliedBonuses} грн</span>
+                  </div>
+                )}
+                {appliedBonusCode && (
+                  <div className="flex justify-between text-emerald-400 text-sm">
+                    <span>Промокод ({appliedBonusCode.code})</span>
+                    <span>-{discount} грн</span>
                   </div>
                 )}
                 <div className="flex justify-between text-white/60 text-sm">

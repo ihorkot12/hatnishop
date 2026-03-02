@@ -50,10 +50,24 @@ export class PostgresAdapter implements DatabaseAdapter {
         bonus_used REAL DEFAULT 0,
         final_total REAL,
         bonuses_credited INTEGER DEFAULT 0,
+        tracking_number TEXT,
+        comment TEXT,
         payment_method TEXT,
         status TEXT,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY(user_id) REFERENCES users(id)
+      );
+    `;
+
+    await sql`
+      CREATE TABLE IF NOT EXISTS bonus_codes (
+        id TEXT PRIMARY KEY,
+        code TEXT UNIQUE,
+        discount_amount REAL,
+        discount_type TEXT,
+        min_order_amount REAL DEFAULT 0,
+        is_active INTEGER DEFAULT 1,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
     `;
 
@@ -199,12 +213,12 @@ export class PostgresAdapter implements DatabaseAdapter {
         INSERT INTO orders (
           id, user_id, customer_name, customer_phone, customer_email, 
           customer_city, customer_address, delivery_method, warehouse, 
-          total, bonus_used, final_total, payment_method, status
+          total, bonus_used, final_total, payment_method, status, comment
         )
         VALUES (
           ${order.id}, ${order.user_id || null}, ${order.customer_name}, ${order.customer_phone}, ${order.customer_email || null},
           ${order.customer_city || null}, ${order.customer_address}, ${order.delivery_method || null}, ${order.warehouse || null},
-          ${order.total}, ${bonusUsed}, ${finalTotal}, ${order.payment_method}, 'pending'
+          ${order.total}, ${bonusUsed}, ${finalTotal}, ${order.payment_method}, 'pending', ${order.comment || null}
         )
       `;
 
@@ -264,6 +278,8 @@ export class PostgresAdapter implements DatabaseAdapter {
         status: order.status,
         createdAt: order.created_at,
         bonusesCredited: !!order.bonuses_credited,
+        trackingNumber: order.tracking_number,
+        comment: order.comment,
         customer: {
           name: order.customer_name,
           phone: order.customer_phone,
@@ -287,6 +303,10 @@ export class PostgresAdapter implements DatabaseAdapter {
 
   async updateOrderStatus(id: string, status: string): Promise<void> {
     await sql`UPDATE orders SET status = ${status} WHERE id = ${id}`;
+  }
+
+  async updateOrderTrackingNumber(id: string, trackingNumber: string): Promise<void> {
+    await sql`UPDATE orders SET tracking_number = ${trackingNumber} WHERE id = ${id}`;
   }
 
   async markOrderBonusesCredited(id: string): Promise<void> {
@@ -317,6 +337,34 @@ export class PostgresAdapter implements DatabaseAdapter {
 
   async deleteCategory(id: string): Promise<void> {
     await sql`DELETE FROM categories WHERE id = ${id}`;
+  }
+
+  async getBonusCodes(): Promise<any[]> {
+    const { rows } = await sql`SELECT * FROM bonus_codes`;
+    return rows;
+  }
+
+  async createBonusCode(bonusCode: any): Promise<void> {
+    await sql`
+      INSERT INTO bonus_codes (id, code, discount_amount, discount_type, min_order_amount, is_active)
+      VALUES (${bonusCode.id}, ${bonusCode.code}, ${bonusCode.discount_amount}, ${bonusCode.discount_type}, ${bonusCode.min_order_amount || 0}, ${bonusCode.is_active ? 1 : 0})
+    `;
+  }
+
+  async updateBonusCode(id: string, bonusCode: any): Promise<void> {
+    await sql`
+      UPDATE bonus_codes SET 
+        code = ${bonusCode.code}, 
+        discount_amount = ${bonusCode.discount_amount}, 
+        discount_type = ${bonusCode.discount_type}, 
+        min_order_amount = ${bonusCode.min_order_amount}, 
+        is_active = ${bonusCode.is_active ? 1 : 0}
+      WHERE id = ${id}
+    `;
+  }
+
+  async deleteBonusCode(id: string): Promise<void> {
+    await sql`DELETE FROM bonus_codes WHERE id = ${id}`;
   }
 
   async getReviews(productId: string): Promise<Review[]> {

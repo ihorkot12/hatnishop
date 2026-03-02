@@ -290,7 +290,7 @@ app.post("/api/auth/register", asyncHandler(async (req: any, res: any) => {
 
   app.post("/api/admin/orders/:id/status", authenticate, asyncHandler(async (req: any, res: any) => {
     if (req.user.role !== 'admin') return res.status(403).json({ error: "Forbidden" });
-    const { status } = req.body;
+    const { status, trackingNumber } = req.body;
     const orderId = req.params.id;
     
     // Get order details to check if bonuses should be credited
@@ -300,6 +300,11 @@ app.post("/api/auth/register", asyncHandler(async (req: any, res: any) => {
     if (!order) return res.status(404).json({ error: "Order not found" });
 
     await db.updateOrderStatus(orderId, status);
+    
+    // Update tracking number if provided
+    if (trackingNumber && (db as any).updateOrderTrackingNumber) {
+      await (db as any).updateOrderTrackingNumber(orderId, trackingNumber);
+    }
 
     // Credit bonuses if status is paid or completed and not already credited
     if ((status === 'paid' || status === 'completed') && !order.bonusesCredited && order.user_id) {
@@ -414,7 +419,7 @@ app.get("/api/admin/users", authenticate, asyncHandler(async (req: any, res: any
   }));
 
   app.post("/api/orders", asyncHandler(async (req: any, res: any) => {
-    const { id, customer, items, total, paymentMethod, bonusUsed, finalTotal, userId } = req.body;
+    const { id, customer, items, total, paymentMethod, bonusUsed, finalTotal, userId, comment } = req.body;
     
     // Map items to OrderItem interface
     const orderItems = items.map((item: any) => ({
@@ -434,10 +439,38 @@ app.get("/api/admin/users", authenticate, asyncHandler(async (req: any, res: any
       delivery_method: customer.deliveryMethod,
       warehouse: customer.warehouse,
       total: total,
-      payment_method: paymentMethod
+      payment_method: paymentMethod,
+      comment: comment
     }, orderItems, bonusUsed, finalTotal);
 
     res.json({ success: true, orderId: id });
+  }));
+
+  // Bonus Codes
+  app.get("/api/bonus-codes/validate/:code", asyncHandler(async (req: any, res: any) => {
+    const { code } = req.params;
+    const bonusCodes = await (db as any).getBonusCodes();
+    const bonusCode = bonusCodes.find((bc: any) => bc.code.toLowerCase() === code.toLowerCase() && bc.is_active);
+    
+    if (!bonusCode) {
+      return res.status(404).json({ error: "Промокод не знайдено або він неактивний" });
+    }
+    
+    res.json(bonusCode);
+  }));
+
+  app.get("/api/admin/bonus-codes", authenticate, asyncHandler(async (req: any, res: any) => {
+    if (req.user.role !== 'admin') return res.status(403).json({ error: "Forbidden" });
+    const bonusCodes = await (db as any).getBonusCodes();
+    res.json(bonusCodes);
+  }));
+
+  app.post("/api/admin/bonus-codes", authenticate, asyncHandler(async (req: any, res: any) => {
+    if (req.user.role !== 'admin') return res.status(403).json({ error: "Forbidden" });
+    const bonusCode = req.body;
+    if (!bonusCode.id) bonusCode.id = Math.random().toString(36).substr(2, 9);
+    await (db as any).createBonusCode(bonusCode);
+    res.json({ success: true, bonusCode });
   }));
 
 async function startViteAndListen() {

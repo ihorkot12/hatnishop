@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '../store/AuthContext';
-import { Package, Truck, CheckCircle2, Clock, XCircle, Star, LogOut, User as UserIcon, Settings, ChevronRight, CreditCard, ShoppingBag } from 'lucide-react';
+import { Package, Truck, CheckCircle2, Clock, XCircle, Star, LogOut, User as UserIcon, Settings, ChevronRight, CreditCard, ShoppingBag, Copy, Check } from 'lucide-react';
 import { Link, Navigate } from 'react-router-dom';
 
 interface Order {
@@ -11,6 +11,8 @@ interface Order {
   finalTotal: number;
   bonusUsed: number;
   createdAt: string;
+  trackingNumber?: string;
+  comment?: string;
   items: {
     id: string;
     name: string;
@@ -24,6 +26,13 @@ export const Profile = () => {
   const { user, logout } = useAuth();
   const [orders, setOrders] = useState<Order[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [copiedId, setCopiedId] = useState<string | null>(null);
+
+  const copyToClipboard = (text: string, id: string) => {
+    navigator.clipboard.writeText(text);
+    setCopiedId(id);
+    setTimeout(() => setCopiedId(null), 2000);
+  };
 
   useEffect(() => {
     if (user) {
@@ -202,6 +211,37 @@ export const Profile = () => {
                         </div>
                       ))}
                     </div>
+
+                    {(order.trackingNumber || order.comment) && (
+                      <div className="mt-6 flex flex-col gap-3">
+                        {order.trackingNumber && (
+                          <div className="flex items-center justify-between bg-tiffany/5 p-4 rounded-2xl border border-tiffany/10">
+                            <div className="flex items-center gap-3">
+                              <div className="w-8 h-8 bg-tiffany text-white rounded-full flex items-center justify-center">
+                                <Truck size={16} />
+                              </div>
+                              <div>
+                                <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Трек-номер (ТТН)</p>
+                                <p className="text-sm font-bold text-slate-900">{order.trackingNumber}</p>
+                              </div>
+                            </div>
+                            <button 
+                              onClick={() => copyToClipboard(order.trackingNumber!, order.id)}
+                              className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all ${copiedId === order.id ? 'bg-emerald-500 text-white' : 'bg-white text-slate-900 hover:bg-slate-50 border border-slate-100'}`}
+                            >
+                              {copiedId === order.id ? <Check size={14} /> : <Copy size={14} />}
+                              {copiedId === order.id ? 'Скопійовано' : 'Копіювати'}
+                            </button>
+                          </div>
+                        )}
+                        {order.comment && (
+                          <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100">
+                            <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mb-1">Ваш коментар</p>
+                            <p className="text-sm text-slate-600 italic">"{order.comment}"</p>
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
                   
                   <div className="bg-slate-50 p-6 flex items-center justify-between">
