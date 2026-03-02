@@ -15,6 +15,7 @@ export interface Product {
   rating: number;
   reviewCount: number;
   aiDescription?: string;
+  images?: string[];
 }
 
 export interface Category {

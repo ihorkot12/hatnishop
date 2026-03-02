@@ -41,7 +41,9 @@ export class SqliteAdapter implements DatabaseAdapter {
         stock INTEGER DEFAULT 10,
         rating REAL DEFAULT 5.0,
         review_count INTEGER DEFAULT 0,
-        ai_description TEXT
+        ai_description TEXT,
+        images TEXT,
+        bonus_points INTEGER DEFAULT 0
       );
 
       CREATE TABLE IF NOT EXISTS orders (
@@ -81,8 +83,19 @@ export class SqliteAdapter implements DatabaseAdapter {
         discount_type TEXT,
         min_order_amount REAL DEFAULT 0,
         is_active INTEGER DEFAULT 1,
+        title TEXT,
+        description TEXT,
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP
       );
+
+      CREATE TABLE IF NOT EXISTS site_settings (
+        id TEXT PRIMARY KEY,
+        free_delivery_min REAL DEFAULT 1500,
+        return_days INTEGER DEFAULT 14,
+        cashback_percent INTEGER DEFAULT 5
+      );
+
+      INSERT OR IGNORE INTO site_settings (id, free_delivery_min, return_days, cashback_percent) VALUES ('default', 1500, 14, 5);
 
       CREATE TABLE IF NOT EXISTS reviews (
         id TEXT PRIMARY KEY,
@@ -162,11 +175,11 @@ export class SqliteAdapter implements DatabaseAdapter {
 
   async createProduct(product: Partial<Product>): Promise<void> {
     this.db.prepare(`
-      INSERT INTO products (id, name, category, price, image, description, material, brand, isPopular, isBundle, stock)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO products (id, name, category, price, image, description, material, brand, isPopular, isBundle, stock, images, bonus_points)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).run(
       product.id, product.name, product.category, product.price, product.image,
-      product.description, product.material, product.brand, product.isPopular ? 1 : 0, product.isBundle ? 1 : 0, product.stock
+      product.description, product.material, product.brand, product.isPopular ? 1 : 0, product.isBundle ? 1 : 0, product.stock, product.images || '[]', product.bonusPoints || 0
     );
   }
 
@@ -326,9 +339,9 @@ export class SqliteAdapter implements DatabaseAdapter {
 
   async createBonusCode(bonusCode: any): Promise<void> {
     this.db.prepare(`
-      INSERT INTO bonus_codes (id, code, discount_amount, discount_type, min_order_amount, is_active)
-      VALUES (?, ?, ?, ?, ?, ?)
-    `).run(bonusCode.id, bonusCode.code, bonusCode.discount_amount, bonusCode.discount_type, bonusCode.min_order_amount || 0, bonusCode.is_active ? 1 : 0);
+      INSERT INTO bonus_codes (id, code, discount_amount, discount_type, min_order_amount, is_active, title, description)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    `).run(bonusCode.id, bonusCode.code, bonusCode.discount_amount, bonusCode.discount_type, bonusCode.min_order_amount || 0, bonusCode.is_active ? 1 : 0, bonusCode.title, bonusCode.description);
   }
 
   async updateBonusCode(id: string, bonusCode: any): Promise<void> {
@@ -339,12 +352,28 @@ export class SqliteAdapter implements DatabaseAdapter {
     if (bonusCode.discount_type) { fields.push("discount_type = ?"); values.push(bonusCode.discount_type); }
     if (bonusCode.min_order_amount !== undefined) { fields.push("min_order_amount = ?"); values.push(bonusCode.min_order_amount); }
     if (bonusCode.is_active !== undefined) { fields.push("is_active = ?"); values.push(bonusCode.is_active ? 1 : 0); }
+    if (bonusCode.title) { fields.push("title = ?"); values.push(bonusCode.title); }
+    if (bonusCode.description) { fields.push("description = ?"); values.push(bonusCode.description); }
     values.push(id);
     this.db.prepare(`UPDATE bonus_codes SET ${fields.join(', ')} WHERE id = ?`).run(...values);
   }
 
   async deleteBonusCode(id: string): Promise<void> {
     this.db.prepare("DELETE FROM bonus_codes WHERE id = ?").run(id);
+  }
+
+  async getSiteSettings(): Promise<any> {
+    return this.db.prepare("SELECT * FROM site_settings WHERE id = 'default'").get();
+  }
+
+  async updateSiteSettings(settings: any): Promise<void> {
+    this.db.prepare(`
+      UPDATE site_settings SET 
+        free_delivery_min = ?, 
+        return_days = ?, 
+        cashback_percent = ?
+      WHERE id = 'default'
+    `).run(settings.free_delivery_min, settings.return_days, settings.cashback_percent);
   }
 
   async getReviews(productId: string): Promise<Review[]> {

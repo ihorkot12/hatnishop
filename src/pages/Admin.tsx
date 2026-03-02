@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Package, ShoppingCart, TrendingUp, Plus, Edit2, Trash2, CheckCircle, Clock, Star, Truck, Users, Shield, UserPlus, Filter } from 'lucide-react';
+import { Package, ShoppingCart, TrendingUp, Plus, Edit2, Trash2, CheckCircle, Clock, Star, Truck, Users, Shield, UserPlus, Filter, Settings } from 'lucide-react';
 import { MOCK_PRODUCTS } from '../constants';
 import { Order, User } from '../types';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, Cell } from 'recharts';
@@ -27,7 +27,7 @@ const categoryData = [
 export const Admin = () => {
   const { user, loading } = useAuth();
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState<'products' | 'orders' | 'analytics' | 'users' | 'categories' | 'bonus-codes'>('analytics');
+  const [activeTab, setActiveTab] = useState<'products' | 'orders' | 'analytics' | 'users' | 'categories' | 'bonus-codes' | 'settings'>('analytics');
   const [orders, setOrders] = useState<Order[]>([]);
   const [products, setProducts] = useState<any[]>([]);
   const [categories, setCategories] = useState<any[]>([]);
@@ -36,13 +36,21 @@ export const Admin = () => {
   const [isStatsLoading, setIsStatsLoading] = useState(false);
   const [isUserLoading, setIsUserLoading] = useState(false);
   const [isBonusCodesLoading, setIsBonusCodesLoading] = useState(false);
+  const [isSettingsLoading, setIsSettingsLoading] = useState(false);
   const [bonusCodes, setBonusCodes] = useState<any[]>([]);
+  const [siteSettings, setSiteSettings] = useState({
+    free_delivery_min: 1500,
+    return_days: 14,
+    cashback_percent: 5
+  });
   const [newBonusCode, setNewBonusCode] = useState({
     code: '',
     discount_amount: 0,
     discount_type: 'fixed',
     min_order_amount: 0,
-    is_active: true
+    is_active: true,
+    title: '',
+    description: ''
   });
   const [isProductLoading, setIsProductLoading] = useState(false);
   const [isOrderLoading, setIsOrderLoading] = useState(false);
@@ -54,6 +62,27 @@ export const Admin = () => {
   const [editingCategory, setEditingCategory] = useState<any>(null);
   const [editingOrder, setEditingOrder] = useState<any>(null);
   const [manualOrderItems, setManualOrderItems] = useState<any[]>([]);
+  const [mainImage, setMainImage] = useState<string>('');
+  const [galleryImages, setGalleryImages] = useState<string[]>([]);
+
+  const fileToBase64 = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = () => resolve(reader.result as string);
+      reader.onerror = error => reject(error);
+    });
+  };
+
+  useEffect(() => {
+    if (editingProduct) {
+      setMainImage(editingProduct.image || '');
+      setGalleryImages(editingProduct.images || []);
+    } else {
+      setMainImage('');
+      setGalleryImages([]);
+    }
+  }, [editingProduct, showProductModal]);
 
   useEffect(() => {
     if (!loading && (!user || user.role !== 'admin')) {
@@ -68,7 +97,39 @@ export const Admin = () => {
     if (activeTab === 'categories') fetchCategories();
     if (activeTab === 'analytics') fetchStats();
     if (activeTab === 'bonus-codes') fetchBonusCodes();
+    if (activeTab === 'settings') fetchSiteSettings();
   }, [activeTab]);
+
+  const fetchSiteSettings = async () => {
+    setIsSettingsLoading(true);
+    try {
+      const res = await fetch('/api/site-settings');
+      if (res.ok) {
+        const data = await res.json();
+        setSiteSettings(data);
+      }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setIsSettingsLoading(false);
+    }
+  };
+
+  const handleSettingsSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      const res = await fetch('/api/admin/site-settings', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(siteSettings)
+      });
+      if (res.ok) {
+        alert('Налаштування збережено');
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
 
   const fetchBonusCodes = async () => {
     setIsBonusCodesLoading(true);
@@ -361,7 +422,18 @@ export const Admin = () => {
   const handleProductSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
-    const productData = Object.fromEntries(formData.entries());
+    const productData = {
+      ...Object.fromEntries(formData.entries()),
+      image: mainImage,
+      images: galleryImages,
+      isPopular: formData.get('isPopular') === 'on',
+      isBundle: formData.get('isBundle') === 'on',
+      price: Number(formData.get('price')),
+      stock: Number(formData.get('stock')),
+      bonusPoints: Number(formData.get('bonusPoints')),
+      reviewCount: editingProduct?.reviewCount || 0,
+      rating: editingProduct?.rating || 5,
+    };
     
     const url = editingProduct ? `/api/admin/products/${editingProduct.id}` : '/api/admin/products';
     const method = editingProduct ? 'PUT' : 'POST';
@@ -453,7 +525,13 @@ export const Admin = () => {
             onClick={() => setActiveTab('bonus-codes')}
             className={`w-full flex items-center gap-3 px-6 py-4 rounded-2xl font-bold transition-all ${activeTab === 'bonus-codes' ? 'bg-slate-900 text-white shadow-lg' : 'text-slate-500 hover:bg-slate-100'}`}
           >
-            <Star size={20} /> Промокоди
+            <Star size={20} /> Акції
+          </button>
+          <button 
+            onClick={() => setActiveTab('settings')}
+            className={`w-full flex items-center gap-3 px-6 py-4 rounded-2xl font-bold transition-all ${activeTab === 'settings' ? 'bg-slate-900 text-white shadow-lg' : 'text-slate-500 hover:bg-slate-100'}`}
+          >
+            <Settings size={20} /> Налаштування
           </button>
           <div className="h-px bg-slate-100 my-4" />
           <div className="p-6 bg-tiffany/5 rounded-3xl border border-tiffany/10">
@@ -567,7 +645,29 @@ export const Admin = () => {
                 <h2 className="text-2xl font-bold">Промокоди</h2>
               </div>
               <div className="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-sm">
-                <h3 className="text-lg font-bold mb-6">Створити новий промокод</h3>
+                <h3 className="text-lg font-bold mb-6">Створити нову акцію / промокод</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-bold text-slate-400 uppercase ml-1">Заголовок (для вікна акцій)</label>
+                    <input 
+                      type="text" 
+                      placeholder="200 бонусів на перше замовлення"
+                      className="w-full bg-slate-50 border-none rounded-xl p-3 text-sm focus:ring-2 focus:ring-tiffany"
+                      value={newBonusCode.title}
+                      onChange={e => setNewBonusCode({...newBonusCode, title: e.target.value})}
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-bold text-slate-400 uppercase ml-1">Опис (для вікна акцій)</label>
+                    <input 
+                      type="text" 
+                      placeholder="Використовуйте при оформленні"
+                      className="w-full bg-slate-50 border-none rounded-xl p-3 text-sm focus:ring-2 focus:ring-tiffany"
+                      value={newBonusCode.description}
+                      onChange={e => setNewBonusCode({...newBonusCode, description: e.target.value})}
+                    />
+                  </div>
+                </div>
                 <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
                   <div className="space-y-1">
                     <label className="text-[10px] font-bold text-slate-400 uppercase ml-1">Код</label>
@@ -646,6 +746,49 @@ export const Admin = () => {
                     ))}
                   </tbody>
                 </table>
+              </div>
+            </div>
+          ) : activeTab === 'settings' ? (
+            <div className="space-y-8">
+              <div className="flex justify-between items-center">
+                <h2 className="text-2xl font-bold">Налаштування сайту</h2>
+              </div>
+              <div className="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-sm max-w-2xl">
+                <form onSubmit={handleSettingsSubmit} className="space-y-6">
+                  <div className="space-y-2">
+                    <label className="text-sm font-bold text-slate-700">Безкоштовна доставка від (грн)</label>
+                    <input 
+                      type="number" 
+                      className="w-full bg-slate-50 border-none rounded-xl p-4 focus:ring-2 focus:ring-tiffany"
+                      value={siteSettings.free_delivery_min}
+                      onChange={e => setSiteSettings({...siteSettings, free_delivery_min: Number(e.target.value)})}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-sm font-bold text-slate-700">Днів на повернення</label>
+                    <input 
+                      type="number" 
+                      className="w-full bg-slate-50 border-none rounded-xl p-4 focus:ring-2 focus:ring-tiffany"
+                      value={siteSettings.return_days}
+                      onChange={e => setSiteSettings({...siteSettings, return_days: Number(e.target.value)})}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-sm font-bold text-slate-700">Кешбек (%)</label>
+                    <input 
+                      type="number" 
+                      className="w-full bg-slate-50 border-none rounded-xl p-4 focus:ring-2 focus:ring-tiffany"
+                      value={siteSettings.cashback_percent}
+                      onChange={e => setSiteSettings({...siteSettings, cashback_percent: Number(e.target.value)})}
+                    />
+                  </div>
+                  <button 
+                    type="submit"
+                    className="w-full bg-slate-900 text-white py-4 rounded-xl font-bold hover:bg-tiffany transition-all"
+                  >
+                    Зберегти зміни
+                  </button>
+                </form>
               </div>
             </div>
           ) : (
@@ -894,11 +1037,11 @@ export const Admin = () => {
               initial={{ opacity: 0, scale: 0.95, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 20 }}
-              className="relative w-full max-w-2xl bg-white rounded-[2.5rem] shadow-2xl p-8 overflow-y-auto max-h-[90vh]"
+              className="relative w-full max-w-4xl bg-white rounded-[2.5rem] shadow-2xl p-8 overflow-y-auto max-h-[90vh]"
             >
               <h2 className="text-2xl font-bold mb-8">{editingProduct ? 'Редагувати товар' : 'Додати новий товар'}</h2>
               <form onSubmit={handleProductSubmit} className="space-y-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                   <div className="space-y-2">
                     <label className="text-xs font-bold text-slate-400 uppercase">Назва</label>
                     <input name="name" defaultValue={editingProduct?.name} required className="w-full bg-slate-50 border-none rounded-xl p-4 focus:ring-2 focus:ring-tiffany" />
@@ -919,15 +1062,144 @@ export const Admin = () => {
                     <label className="text-xs font-bold text-slate-400 uppercase">Залишок</label>
                     <input name="stock" type="number" defaultValue={editingProduct?.stock || 10} required className="w-full bg-slate-50 border-none rounded-xl p-4 focus:ring-2 focus:ring-tiffany" />
                   </div>
+                  <div className="space-y-2">
+                    <label className="text-xs font-bold text-slate-400 uppercase">Матеріал</label>
+                    <input name="material" defaultValue={editingProduct?.material} className="w-full bg-slate-50 border-none rounded-xl p-4 focus:ring-2 focus:ring-tiffany" />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-xs font-bold text-slate-400 uppercase">Бренд</label>
+                    <input name="brand" defaultValue={editingProduct?.brand} className="w-full bg-slate-50 border-none rounded-xl p-4 focus:ring-2 focus:ring-tiffany" />
+                  </div>
                 </div>
-                <div className="space-y-2">
-                  <label className="text-xs font-bold text-slate-400 uppercase">URL зображення</label>
-                  <input name="image" defaultValue={editingProduct?.image} required className="w-full bg-slate-50 border-none rounded-xl p-4 focus:ring-2 focus:ring-tiffany" />
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                  <div className="space-y-4">
+                    <label className="text-xs font-bold text-slate-400 uppercase">Головне зображення</label>
+                    <div className="flex items-center gap-4 p-4 bg-slate-50 rounded-2xl border-2 border-dashed border-slate-200">
+                      {mainImage ? (
+                        <div className="relative group">
+                          <img src={mainImage} className="w-24 h-24 rounded-xl object-cover" alt="" />
+                          <button 
+                            type="button"
+                            onClick={() => setMainImage('')}
+                            className="absolute -top-2 -right-2 bg-red-500 text-white p-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                          >
+                            <Trash2 size={12} />
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="w-24 h-24 bg-slate-100 rounded-xl flex items-center justify-center text-slate-300">
+                          <Package size={32} />
+                        </div>
+                      )}
+                      <div className="flex-1">
+                        <input 
+                          type="file" 
+                          accept="image/*"
+                          onChange={async (e) => {
+                            const file = e.target.files?.[0];
+                            if (file) {
+                              const base64 = await fileToBase64(file);
+                              setMainImage(base64);
+                            }
+                          }}
+                          className="hidden"
+                          id="main-image-upload"
+                        />
+                        <label 
+                          htmlFor="main-image-upload"
+                          className="inline-block bg-white border border-slate-200 px-4 py-2 rounded-lg text-xs font-bold cursor-pointer hover:bg-slate-50 transition-colors"
+                        >
+                          Завантажити фото
+                        </label>
+                        <div className="mt-2">
+                          <input 
+                            placeholder="Або вставте URL"
+                            className="w-full bg-white border border-slate-200 rounded-lg p-2 text-xs"
+                            value={mainImage}
+                            onChange={(e) => setMainImage(e.target.value)}
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="space-y-4">
+                    <label className="text-xs font-bold text-slate-400 uppercase">Галерея зображень</label>
+                    <div className="grid grid-cols-4 gap-2">
+                      {galleryImages.map((img, idx) => (
+                        <div key={idx} className="relative group aspect-square">
+                          <img src={img} className="w-full h-full rounded-lg object-cover" alt="" />
+                          <button 
+                            type="button"
+                            onClick={() => setGalleryImages(prev => prev.filter((_, i) => i !== idx))}
+                            className="absolute -top-1 -right-1 bg-red-500 text-white p-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                          >
+                            <Trash2 size={10} />
+                          </button>
+                        </div>
+                      ))}
+                      <label className="aspect-square bg-slate-50 border-2 border-dashed border-slate-200 rounded-lg flex items-center justify-center cursor-pointer hover:bg-slate-100 transition-colors">
+                        <input 
+                          type="file" 
+                          accept="image/*"
+                          multiple
+                          onChange={async (e) => {
+                            const files = Array.from(e.target.files || []);
+                            const base64s = await Promise.all(files.map(fileToBase64));
+                            setGalleryImages(prev => [...prev, ...base64s]);
+                          }}
+                          className="hidden"
+                        />
+                        <Plus size={20} className="text-slate-300" />
+                      </label>
+                    </div>
+                    <div className="flex gap-2">
+                      <input 
+                        id="gallery-url-input"
+                        placeholder="Додати URL зображення"
+                        className="flex-1 bg-slate-50 border-none rounded-lg p-2 text-xs focus:ring-2 focus:ring-tiffany"
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            e.preventDefault();
+                            const val = (e.target as HTMLInputElement).value;
+                            if (val) {
+                              setGalleryImages(prev => [...prev, val]);
+                              (e.target as HTMLInputElement).value = '';
+                            }
+                          }
+                        }}
+                      />
+                    </div>
+                  </div>
                 </div>
-                <div className="space-y-2">
-                  <label className="text-xs font-bold text-slate-400 uppercase">Опис</label>
-                  <textarea name="description" defaultValue={editingProduct?.description} rows={4} className="w-full bg-slate-50 border-none rounded-xl p-4 focus:ring-2 focus:ring-tiffany" />
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="space-y-2">
+                    <label className="text-xs font-bold text-slate-400 uppercase">Опис</label>
+                    <textarea name="description" defaultValue={editingProduct?.description} rows={4} className="w-full bg-slate-50 border-none rounded-xl p-4 focus:ring-2 focus:ring-tiffany" />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-xs font-bold text-slate-400 uppercase">Порада від ШІ (AI Advice)</label>
+                    <textarea name="aiDescription" defaultValue={editingProduct?.aiDescription} rows={4} className="w-full bg-slate-50 border-none rounded-xl p-4 focus:ring-2 focus:ring-tiffany" />
+                  </div>
                 </div>
+
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-6 bg-slate-50 p-6 rounded-3xl">
+                  <div className="flex items-center gap-3">
+                    <input type="checkbox" name="isPopular" defaultChecked={editingProduct?.isPopular} className="w-5 h-5 rounded border-slate-300 text-tiffany focus:ring-tiffany" />
+                    <label className="text-xs font-bold text-slate-700">Популярний</label>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <input type="checkbox" name="isBundle" defaultChecked={editingProduct?.isBundle} className="w-5 h-5 rounded border-slate-300 text-tiffany focus:ring-tiffany" />
+                    <label className="text-xs font-bold text-slate-700">Набір (Bundle)</label>
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-bold text-slate-400 uppercase">Бонусні бали</label>
+                    <input name="bonusPoints" type="number" defaultValue={editingProduct?.bonusPoints || 0} className="w-full bg-white border-none rounded-lg p-2 text-xs focus:ring-2 focus:ring-tiffany" />
+                  </div>
+                </div>
+
                 <div className="flex gap-4 pt-4">
                   <button type="button" onClick={() => setShowProductModal(false)} className="flex-1 px-6 py-4 rounded-xl font-bold text-slate-500 hover:bg-slate-50 transition-all">Скасувати</button>
                   <button type="submit" className="flex-1 bg-slate-900 text-white px-6 py-4 rounded-xl font-bold hover:bg-tiffany transition-all">Зберегти</button>

@@ -31,7 +31,9 @@ export class PostgresAdapter implements DatabaseAdapter {
         stock INTEGER DEFAULT 10,
         rating REAL DEFAULT 5.0,
         review_count INTEGER DEFAULT 0,
-        ai_description TEXT
+        ai_description TEXT,
+        images TEXT,
+        bonus_points INTEGER DEFAULT 0
       );
     `;
 
@@ -174,8 +176,8 @@ export class PostgresAdapter implements DatabaseAdapter {
 
   async createProduct(product: Partial<Product>): Promise<void> {
     await sql`
-      INSERT INTO products (id, name, category, price, image, description, material, brand, isPopular, isBundle, stock)
-      VALUES (${product.id}, ${product.name}, ${product.category}, ${product.price}, ${product.image}, ${product.description}, ${product.material}, ${product.brand}, ${product.isPopular ? 1 : 0}, ${product.isBundle ? 1 : 0}, ${product.stock})
+      INSERT INTO products (id, name, category, price, image, description, material, brand, isPopular, isBundle, stock, images, bonus_points)
+      VALUES (${product.id}, ${product.name}, ${product.category}, ${product.price}, ${product.image}, ${product.description}, ${product.material}, ${product.brand}, ${product.isPopular ? 1 : 0}, ${product.isBundle ? 1 : 0}, ${product.stock}, ${product.images || '[]'}, ${product.bonusPoints || 0})
     `;
   }
 
@@ -194,7 +196,9 @@ export class PostgresAdapter implements DatabaseAdapter {
         brand = ${product.brand}, 
         isPopular = ${product.isPopular ? 1 : 0}, 
         isBundle = ${product.isBundle ? 1 : 0}, 
-        stock = ${product.stock}
+        stock = ${product.stock},
+        images = ${product.images || '[]'},
+        bonus_points = ${product.bonusPoints || 0}
       WHERE id = ${id}
     `;
   }

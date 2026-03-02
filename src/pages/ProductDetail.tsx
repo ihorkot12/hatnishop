@@ -15,10 +15,32 @@ export const ProductDetail = () => {
   const { addToCart } = useCart();
   const { user } = useAuth();
   const { toggleWishlist, isInWishlist } = useWishlist();
-  const product = MOCK_PRODUCTS.find(p => p.id === id);
-  const isWishlisted = product ? isInWishlist(product.id) : false;
+  const [product, setProduct] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [isSubscribed, setIsSubscribed] = useState(false);
   const [subscribing, setSubscribing] = useState(false);
+
+  useEffect(() => {
+    const fetchProduct = async () => {
+      try {
+        const res = await fetch('/api/products');
+        const products = await res.json();
+        const found = products.find((p: any) => p.id === id);
+        if (found) {
+          setProduct(found);
+          setSelectedImage(found.image);
+        }
+      } catch (err) {
+        console.error(err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchProduct();
+  }, [id]);
+
+  const isWishlisted = product ? isInWishlist(product.id) : false;
 
   useEffect(() => {
     if (user && product) {
@@ -108,9 +130,14 @@ export const ProductDetail = () => {
     }
   };
 
+  if (loading) return (
+    <div className="min-h-screen flex items-center justify-center">
+      <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-tiffany"></div>
+    </div>
+  );
   if (!product) return <div className="text-center py-20">Товар не знайдено</div>;
 
-  const relatedProducts = MOCK_PRODUCTS.filter(p => p.category === product.category && p.id !== product.id).slice(0, 4);
+  const relatedProducts = product ? [] : []; // We'll handle this later or keep empty for now
   const averageRating = reviews.length > 0 
     ? (reviews.reduce((acc, r) => acc + r.rating, 0) / reviews.length).toFixed(1)
     : '5.0';
@@ -126,16 +153,26 @@ export const ProductDetail = () => {
             className="aspect-square rounded-[2.5rem] overflow-hidden shadow-lg border border-slate-100"
           >
             <img 
-              src={product.image} 
+              src={selectedImage || product.image} 
               alt={product.name} 
               className="w-full h-full object-cover"
               referrerPolicy="no-referrer"
             />
           </motion.div>
           <div className="grid grid-cols-4 gap-4">
-            {[1, 2, 3, 4].map(i => (
-              <div key={i} className="aspect-square rounded-2xl overflow-hidden border border-slate-200 cursor-pointer hover:border-tiffany transition-colors">
-                <img src={`https://picsum.photos/seed/${product.id}-${i}/400/400`} alt="" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+            <div 
+              onClick={() => setSelectedImage(product.image)}
+              className={`aspect-square rounded-2xl overflow-hidden border cursor-pointer transition-colors ${selectedImage === product.image ? 'border-tiffany' : 'border-slate-200 hover:border-tiffany'}`}
+            >
+              <img src={product.image} alt="" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+            </div>
+            {product.images && product.images.map((img: string, i: number) => (
+              <div 
+                key={i} 
+                onClick={() => setSelectedImage(img)}
+                className={`aspect-square rounded-2xl overflow-hidden border cursor-pointer transition-colors ${selectedImage === img ? 'border-tiffany' : 'border-slate-200 hover:border-tiffany'}`}
+              >
+                <img src={img} alt="" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
               </div>
             ))}
           </div>

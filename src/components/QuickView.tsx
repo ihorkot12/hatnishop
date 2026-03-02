@@ -17,6 +17,13 @@ export const QuickView: React.FC<QuickViewProps> = ({ product, onClose }) => {
   const { toggleWishlist, isInWishlist } = useWishlist();
   const [isSubscribed, setIsSubscribed] = useState(false);
   const [subscribing, setSubscribing] = useState(false);
+  const [selectedImage, setSelectedImage] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (product) {
+      setSelectedImage(product.image);
+    }
+  }, [product]);
 
   useEffect(() => {
     if (user && product) {
@@ -77,8 +84,27 @@ export const QuickView: React.FC<QuickViewProps> = ({ product, onClose }) => {
             <X size={24} />
           </button>
 
-          <div className="md:w-1/2 aspect-square">
-            <img src={product.image} alt={product.name} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+          <div className="md:w-1/2 flex flex-col">
+            <div className="aspect-square overflow-hidden">
+              <img src={selectedImage || product.image} alt={product.name} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+            </div>
+            <div className="flex gap-2 p-4 overflow-x-auto bg-slate-50">
+              <div 
+                onClick={() => setSelectedImage(product.image)}
+                className={`w-16 h-16 rounded-lg overflow-hidden border-2 cursor-pointer shrink-0 ${selectedImage === product.image ? 'border-tiffany' : 'border-transparent'}`}
+              >
+                <img src={product.image} className="w-full h-full object-cover" alt="" />
+              </div>
+              {product.images && product.images.map((img, i) => (
+                <div 
+                  key={i}
+                  onClick={() => setSelectedImage(img)}
+                  className={`w-16 h-16 rounded-lg overflow-hidden border-2 cursor-pointer shrink-0 ${selectedImage === img ? 'border-tiffany' : 'border-transparent'}`}
+                >
+                  <img src={img} className="w-full h-full object-cover" alt="" />
+                </div>
+              ))}
+            </div>
           </div>
 
           <div className="md:w-1/2 p-12 flex flex-col">

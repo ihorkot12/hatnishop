@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Gift, X, ArrowRight, Tag, Sparkles, ShoppingBag } from 'lucide-react';
 import { MOCK_PRODUCTS } from '../constants';
@@ -7,13 +7,21 @@ import { Link } from 'react-router-dom';
 
 export const SpecialOffers = () => {
   const [isOpen, setIsOpen] = useState(false);
+  const [promos, setPromos] = useState<any[]>([]);
   const { addToCart } = useCart();
   const bundles = MOCK_PRODUCTS.filter(p => p.isBundle);
 
-  const promos = [
-    { code: 'WELCOME200', desc: '200 бонусів на перше замовлення', color: 'bg-tiffany' },
-    { code: 'HOMEFORALL', desc: 'Безкоштовна доставка від 1500 грн', color: 'bg-gold' },
-  ];
+  useEffect(() => {
+    fetch('/api/bonus-codes')
+      .then(res => res.json())
+      .then(data => {
+        if (Array.isArray(data)) {
+          // Only show active codes that have title/description
+          setPromos(data.filter(bc => bc.is_active && bc.title));
+        }
+      })
+      .catch(err => console.error(err));
+  }, []);
 
   return (
     <>
@@ -24,7 +32,7 @@ export const SpecialOffers = () => {
         whileHover={{ scale: 1.1 }}
         whileTap={{ scale: 0.9 }}
         onClick={() => setIsOpen(true)}
-        className="fixed bottom-8 right-8 z-40 bg-slate-900 text-white p-5 rounded-full shadow-2xl flex items-center gap-3 group overflow-hidden"
+        className="fixed bottom-8 left-8 z-40 bg-slate-900 text-white p-5 rounded-full shadow-2xl flex items-center gap-3 group overflow-hidden"
       >
         <div className="relative z-10 flex items-center gap-3">
           <Gift className="group-hover:rotate-12 transition-transform" />
@@ -80,13 +88,14 @@ export const SpecialOffers = () => {
                   <div className="space-y-4">
                     {promos.map((promo, i) => (
                       <div key={i} className="relative group">
-                        <div className={`absolute inset-0 ${promo.color} opacity-10 rounded-2xl blur-xl group-hover:opacity-20 transition-opacity`} />
+                        <div className={`absolute inset-0 bg-tiffany opacity-10 rounded-2xl blur-xl group-hover:opacity-20 transition-opacity`} />
                         <div className="relative bg-white border border-slate-100 p-6 rounded-2xl flex items-center justify-between">
                           <div>
-                            <div className={`text-xs font-bold uppercase tracking-widest mb-1 ${promo.color.replace('bg-', 'text-')}`}>
+                            <div className={`text-xs font-bold uppercase tracking-widest mb-1 text-tiffany`}>
                               {promo.code}
                             </div>
-                            <div className="text-slate-700 font-medium">{promo.desc}</div>
+                            <div className="text-slate-900 font-bold text-sm mb-1">{promo.title}</div>
+                            <div className="text-slate-500 text-xs">{promo.description}</div>
                           </div>
                           <button 
                             onClick={() => {
@@ -100,6 +109,12 @@ export const SpecialOffers = () => {
                         </div>
                       </div>
                     ))}
+                    {promos.length === 0 && (
+                      <div className="text-center py-8 bg-slate-50 rounded-2xl border border-dashed border-slate-200">
+                        <Tag size={24} className="mx-auto text-slate-300 mb-2" />
+                        <p className="text-slate-400 text-xs">Наразі активних акцій немає</p>
+                      </div>
+                    )}
                   </div>
                 </section>
 

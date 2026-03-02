@@ -39,7 +39,9 @@ export class NeonAdapter implements DatabaseAdapter {
         stock INTEGER DEFAULT 10,
         rating NUMERIC DEFAULT 5.0,
         review_count INTEGER DEFAULT 0,
-        ai_description TEXT
+        ai_description TEXT,
+        images TEXT,
+        bonus_points INTEGER DEFAULT 0
       );
     `;
 
@@ -107,9 +109,26 @@ export class NeonAdapter implements DatabaseAdapter {
         discount_type TEXT,
         min_order_amount NUMERIC DEFAULT 0,
         is_active BOOLEAN DEFAULT TRUE,
+        title TEXT,
+        description TEXT,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
     `;
+
+    await this.sql`
+      CREATE TABLE IF NOT EXISTS site_settings (
+        id TEXT PRIMARY KEY,
+        free_delivery_min NUMERIC DEFAULT 1500,
+        return_days INTEGER DEFAULT 14,
+        cashback_percent INTEGER DEFAULT 5
+      );
+    `;
+
+    // Ensure initial site settings exist
+    const settings = await this.sql`SELECT * FROM site_settings WHERE id = 'default'`;
+    if (settings.length === 0) {
+      await this.sql`INSERT INTO site_settings (id, free_delivery_min, return_days, cashback_percent) VALUES ('default', 1500, 14, 5)`;
+    }
 
     await this.sql`
       CREATE TABLE IF NOT EXISTS reviews (
@@ -232,8 +251,8 @@ export class NeonAdapter implements DatabaseAdapter {
 
   async createProduct(product: Partial<Product>): Promise<void> {
     await this.sql`
-      INSERT INTO products (id, name, category, price, image, description, material, brand, isPopular, isBundle, stock)
-      VALUES (${product.id}, ${product.name}, ${product.category}, ${product.price}, ${product.image}, ${product.description}, ${product.material}, ${product.brand}, ${product.isPopular || false}, ${product.isBundle || false}, ${product.stock || 0})
+      INSERT INTO products (id, name, category, price, image, description, material, brand, isPopular, isBundle, stock, images, bonus_points)
+      VALUES (${product.id}, ${product.name}, ${product.category}, ${product.price}, ${product.image}, ${product.description}, ${product.material}, ${product.brand}, ${product.isPopular || false}, ${product.isBundle || false}, ${product.stock || 0}, ${product.images || '[]'}, ${product.bonusPoints || 0})
     `;
   }
 
@@ -249,7 +268,9 @@ export class NeonAdapter implements DatabaseAdapter {
         brand = ${product.brand}, 
         isPopular = ${product.isPopular || false}, 
         isBundle = ${product.isBundle || false}, 
-        stock = ${product.stock || 0}
+        stock = ${product.stock || 0},
+        images = ${product.images || '[]'},
+        bonus_points = ${product.bonusPoints || 0}
       WHERE id = ${id}
     `;
   }
@@ -389,8 +410,8 @@ export class NeonAdapter implements DatabaseAdapter {
 
   async createBonusCode(bonusCode: any): Promise<void> {
     await this.sql`
-      INSERT INTO bonus_codes (id, code, discount_amount, discount_type, min_order_amount, is_active)
-      VALUES (${bonusCode.id}, ${bonusCode.code}, ${bonusCode.discount_amount}, ${bonusCode.discount_type}, ${bonusCode.min_order_amount || 0}, ${bonusCode.is_active})
+      INSERT INTO bonus_codes (id, code, discount_amount, discount_type, min_order_amount, is_active, title, description)
+      VALUES (${bonusCode.id}, ${bonusCode.code}, ${bonusCode.discount_amount}, ${bonusCode.discount_type}, ${bonusCode.min_order_amount || 0}, ${bonusCode.is_active}, ${bonusCode.title}, ${bonusCode.description})
     `;
   }
 
@@ -401,13 +422,30 @@ export class NeonAdapter implements DatabaseAdapter {
         discount_amount = ${bonusCode.discount_amount}, 
         discount_type = ${bonusCode.discount_type}, 
         min_order_amount = ${bonusCode.min_order_amount}, 
-        is_active = ${bonusCode.is_active}
+        is_active = ${bonusCode.is_active},
+        title = ${bonusCode.title},
+        description = ${bonusCode.description}
       WHERE id = ${id}
     `;
   }
 
   async deleteBonusCode(id: string): Promise<void> {
     await this.sql`DELETE FROM bonus_codes WHERE id = ${id}`;
+  }
+
+  async getSiteSettings(): Promise<any> {
+    const settings = await this.sql`SELECT * FROM site_settings WHERE id = 'default'`;
+    return settings[0];
+  }
+
+  async updateSiteSettings(settings: any): Promise<void> {
+    await this.sql`
+      UPDATE site_settings SET 
+        free_delivery_min = ${settings.free_delivery_min}, 
+        return_days = ${settings.return_days}, 
+        cashback_percent = ${settings.cashback_percent}
+      WHERE id = 'default'
+    `;
   }
 
   async getReviews(productId: string): Promise<Review[]> {

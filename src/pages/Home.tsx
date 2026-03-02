@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { ArrowRight, Star, ShoppingBag, TrendingUp, Users, CheckCircle2 } from 'lucide-react';
 import { Link } from 'react-router-dom';
@@ -14,7 +14,19 @@ import { Product } from '../types';
 
 export const Home = () => {
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
-  const bestSellers = MOCK_PRODUCTS.filter(p => p.isPopular).slice(0, 4);
+  const [products, setProducts] = useState<Product[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetch('/api/products')
+      .then(res => res.json())
+      .then(data => {
+        setProducts(data);
+        setLoading(false);
+      });
+  }, []);
+
+  const bestSellers = products.filter(p => p.isPopular).slice(0, 4);
 
   return (
     <div className="bg-white pb-24">

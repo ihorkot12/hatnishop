@@ -24,6 +24,8 @@ export interface Product {
   rating: number;
   review_count: number;
   ai_description?: string;
+  images?: string;
+  bonusPoints?: number;
 }
 
 export interface Order {
@@ -116,6 +118,8 @@ export interface DatabaseAdapter {
   createBonusCode(bonusCode: any): Promise<void>;
   updateBonusCode(id: string, bonusCode: any): Promise<void>;
   deleteBonusCode(id: string): Promise<void>;
+  getSiteSettings(): Promise<any>;
+  updateSiteSettings(settings: any): Promise<void>;
   getReviews(productId: string): Promise<Review[]>;
   createReview(review: Partial<Review>): Promise<void>;
   getPriceSubscriptions(userId: string): Promise<any[]>;

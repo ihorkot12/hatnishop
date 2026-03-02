@@ -259,12 +259,19 @@ app.post("/api/auth/register", asyncHandler(async (req: any, res: any) => {
   // API Routes
   app.get("/api/products", asyncHandler(async (req: any, res: any) => {
     const products = await db.getProducts();
-    res.json(products);
+    const formattedProducts = products.map(p => ({
+      ...p,
+      images: p.images ? (typeof p.images === 'string' ? JSON.parse(p.images) : p.images) : []
+    }));
+    res.json(formattedProducts);
   }));
 
   app.post("/api/admin/products", authenticate, asyncHandler(async (req: any, res: any) => {
     if (req.user.role !== 'admin') return res.status(403).json({ error: "Forbidden" });
-    const product = req.body;
+    const product = { ...req.body };
+    if (product.images && Array.isArray(product.images)) {
+      product.images = JSON.stringify(product.images);
+    }
     if (!product.id) product.id = Math.random().toString(36).substr(2, 9);
     await db.createProduct(product);
     res.json({ success: true, product });
@@ -272,7 +279,11 @@ app.post("/api/auth/register", asyncHandler(async (req: any, res: any) => {
 
   app.put("/api/admin/products/:id", authenticate, asyncHandler(async (req: any, res: any) => {
     if (req.user.role !== 'admin') return res.status(403).json({ error: "Forbidden" });
-    await db.updateProduct(req.params.id, req.body);
+    const product = { ...req.body };
+    if (product.images && Array.isArray(product.images)) {
+      product.images = JSON.stringify(product.images);
+    }
+    await db.updateProduct(req.params.id, product);
     res.json({ success: true });
   }));
 
@@ -410,6 +421,22 @@ app.get("/api/admin/users", authenticate, asyncHandler(async (req: any, res: any
     });
 
     res.json({ text: response.text });
+  }));
+
+  app.get("/api/site-settings", asyncHandler(async (req: any, res: any) => {
+    const settings = await db.getSiteSettings();
+    res.json(settings);
+  }));
+
+  app.put("/api/admin/site-settings", authenticate, asyncHandler(async (req: any, res: any) => {
+    if (req.user.role !== 'admin') return res.status(403).json({ error: "Forbidden" });
+    await db.updateSiteSettings(req.body);
+    res.json({ success: true });
+  }));
+
+  app.get("/api/bonus-codes", asyncHandler(async (req: any, res: any) => {
+    const codes = await db.getBonusCodes();
+    res.json(codes);
   }));
 
   app.get("/api/user/orders", authenticate, asyncHandler(async (req: any, res: any) => {
