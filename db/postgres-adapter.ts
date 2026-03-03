@@ -69,9 +69,30 @@ export class PostgresAdapter implements DatabaseAdapter {
         discount_type TEXT,
         min_order_amount REAL DEFAULT 0,
         is_active INTEGER DEFAULT 1,
+        title TEXT,
+        description TEXT,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
     `;
+
+    await sql`
+      CREATE TABLE IF NOT EXISTS site_settings (
+        id TEXT PRIMARY KEY,
+        free_delivery_min REAL DEFAULT 1500,
+        return_days INTEGER DEFAULT 14,
+        cashback_percent INTEGER DEFAULT 5
+      );
+    `;
+
+    // Initialize default settings if not exists
+    try {
+      const { rows } = await sql`SELECT * FROM site_settings WHERE id = 'default'`;
+      if (rows.length === 0) {
+        await sql`INSERT INTO site_settings (id, free_delivery_min, return_days, cashback_percent) VALUES ('default', 1500, 14, 5)`;
+      }
+    } catch (e) {
+      console.error("Error initializing site settings:", e);
+    }
 
     await sql`
       CREATE TABLE IF NOT EXISTS order_items (
@@ -350,8 +371,8 @@ export class PostgresAdapter implements DatabaseAdapter {
 
   async createBonusCode(bonusCode: any): Promise<void> {
     await sql`
-      INSERT INTO bonus_codes (id, code, discount_amount, discount_type, min_order_amount, is_active)
-      VALUES (${bonusCode.id}, ${bonusCode.code}, ${bonusCode.discount_amount}, ${bonusCode.discount_type}, ${bonusCode.min_order_amount || 0}, ${bonusCode.is_active ? 1 : 0})
+      INSERT INTO bonus_codes (id, code, discount_amount, discount_type, min_order_amount, is_active, title, description)
+      VALUES (${bonusCode.id}, ${bonusCode.code}, ${bonusCode.discount_amount}, ${bonusCode.discount_type}, ${bonusCode.min_order_amount || 0}, ${bonusCode.is_active ? 1 : 0}, ${bonusCode.title}, ${bonusCode.description})
     `;
   }
 
@@ -362,13 +383,30 @@ export class PostgresAdapter implements DatabaseAdapter {
         discount_amount = ${bonusCode.discount_amount}, 
         discount_type = ${bonusCode.discount_type}, 
         min_order_amount = ${bonusCode.min_order_amount}, 
-        is_active = ${bonusCode.is_active ? 1 : 0}
+        is_active = ${bonusCode.is_active ? 1 : 0},
+        title = ${bonusCode.title},
+        description = ${bonusCode.description}
       WHERE id = ${id}
     `;
   }
 
   async deleteBonusCode(id: string): Promise<void> {
     await sql`DELETE FROM bonus_codes WHERE id = ${id}`;
+  }
+
+  async getSiteSettings(): Promise<any> {
+    const { rows } = await sql`SELECT * FROM site_settings WHERE id = 'default'`;
+    return rows[0];
+  }
+
+  async updateSiteSettings(settings: any): Promise<void> {
+    await sql`
+      UPDATE site_settings SET 
+        free_delivery_min = ${settings.free_delivery_min}, 
+        return_days = ${settings.return_days}, 
+        cashback_percent = ${settings.cashback_percent}
+      WHERE id = 'default'
+    `;
   }
 
   async getReviews(productId: string): Promise<Review[]> {

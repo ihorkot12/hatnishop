@@ -160,7 +160,9 @@ export const Admin = () => {
           discount_amount: 0,
           discount_type: 'fixed',
           min_order_amount: 0,
-          is_active: true
+          is_active: true,
+          title: '',
+          description: ''
         });
       }
     } catch (err) {
