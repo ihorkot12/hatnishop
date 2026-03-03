@@ -37,6 +37,13 @@ export class PostgresAdapter implements DatabaseAdapter {
       );
     `;
 
+    // Migration: Add missing columns to products if they don't exist
+    try {
+      await sql`ALTER TABLE products ADD COLUMN IF NOT EXISTS bonus_points INTEGER DEFAULT 0;`;
+    } catch (e) {
+      console.error("Migration error for products:", e);
+    }
+
     await sql`
       CREATE TABLE IF NOT EXISTS orders (
         id TEXT PRIMARY KEY,
@@ -75,6 +82,15 @@ export class PostgresAdapter implements DatabaseAdapter {
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
     `;
+
+    // Migration: Add missing columns to bonus_codes if they don't exist
+    try {
+      await sql`ALTER TABLE bonus_codes ADD COLUMN IF NOT EXISTS title TEXT;`;
+      await sql`ALTER TABLE bonus_codes ADD COLUMN IF NOT EXISTS description TEXT;`;
+      await sql`ALTER TABLE bonus_codes ADD COLUMN IF NOT EXISTS type TEXT DEFAULT 'promo';`;
+    } catch (e) {
+      console.error("Migration error for bonus_codes:", e);
+    }
 
     await sql`
       CREATE TABLE IF NOT EXISTS site_settings (
