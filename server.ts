@@ -496,8 +496,24 @@ app.get("/api/admin/users", authenticate, asyncHandler(async (req: any, res: any
     if (req.user.role !== 'admin') return res.status(403).json({ error: "Forbidden" });
     const bonusCode = req.body;
     if (!bonusCode.id) bonusCode.id = Math.random().toString(36).substr(2, 9);
+    if (!bonusCode.type) bonusCode.type = 'promo';
     await (db as any).createBonusCode(bonusCode);
     res.json({ success: true, bonusCode });
+  }));
+
+  app.delete("/api/admin/bonus-codes/:id", authenticate, asyncHandler(async (req: any, res: any) => {
+    if (req.user.role !== 'admin') return res.status(403).json({ error: "Forbidden" });
+    const { id } = req.params;
+    await (db as any).deleteBonusCode(id);
+    res.json({ success: true });
+  }));
+
+  app.put("/api/admin/bonus-codes/:id", authenticate, asyncHandler(async (req: any, res: any) => {
+    if (req.user.role !== 'admin') return res.status(403).json({ error: "Forbidden" });
+    const { id } = req.params;
+    const bonusCode = req.body;
+    await (db as any).updateBonusCode(id, bonusCode);
+    res.json({ success: true });
   }));
 
 async function startViteAndListen() {

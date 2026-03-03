@@ -50,7 +50,8 @@ export const Admin = () => {
     min_order_amount: 0,
     is_active: true,
     title: '',
-    description: ''
+    description: '',
+    type: 'promo'
   });
   const [isProductLoading, setIsProductLoading] = useState(false);
   const [isOrderLoading, setIsOrderLoading] = useState(false);
@@ -60,6 +61,8 @@ export const Admin = () => {
   const [showOrderModal, setShowOrderModal] = useState(false);
   const [editingProduct, setEditingProduct] = useState<any>(null);
   const [editingCategory, setEditingCategory] = useState<any>(null);
+  const [editingBonusCode, setEditingBonusCode] = useState<any>(null);
+  const [showBonusCodeModal, setShowBonusCodeModal] = useState(false);
   const [editingOrder, setEditingOrder] = useState<any>(null);
   const [manualOrderItems, setManualOrderItems] = useState<any[]>([]);
   const [mainImage, setMainImage] = useState<string>('');
@@ -147,6 +150,10 @@ export const Admin = () => {
   };
 
   const createBonusCode = async () => {
+    if (!newBonusCode.title || !newBonusCode.code) {
+      alert('Будь ласка, заповніть заголовок та код');
+      return;
+    }
     try {
       const res = await fetch('/api/admin/bonus-codes', {
         method: 'POST',
@@ -162,9 +169,57 @@ export const Admin = () => {
           min_order_amount: 0,
           is_active: true,
           title: '',
-          description: ''
+          description: '',
+          type: 'promo'
         });
+        alert('Акцію додано успішно');
+      } else {
+        const error = await res.json();
+        alert(`Помилка: ${error.error || 'Не вдалося додати акцію'}`);
       }
+    } catch (err) {
+      console.error(err);
+      alert('Помилка при з\'єднанні з сервером');
+    }
+  };
+
+  const handleBonusCodeUpdate = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      const res = await fetch(`/api/admin/bonus-codes/${editingBonusCode.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(editingBonusCode)
+      });
+      if (res.ok) {
+        setShowBonusCodeModal(false);
+        setEditingBonusCode(null);
+        fetchBonusCodes();
+        alert('Акцію оновлено');
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const deleteBonusCode = async (id: string) => {
+    if (!confirm('Ви впевнені, що хочете видалити цей промокод?')) return;
+    try {
+      const res = await fetch(`/api/admin/bonus-codes/${id}`, { method: 'DELETE' });
+      if (res.ok) fetchBonusCodes();
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const toggleBonusCodeStatus = async (id: string, currentStatus: boolean) => {
+    try {
+      const res = await fetch(`/api/admin/bonus-codes/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ is_active: !currentStatus })
+      });
+      if (res.ok) fetchBonusCodes();
     } catch (err) {
       console.error(err);
     }
@@ -648,9 +703,20 @@ export const Admin = () => {
               </div>
               <div className="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-sm">
                 <h3 className="text-lg font-bold mb-6">Створити нову акцію / промокод</h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
                   <div className="space-y-1">
-                    <label className="text-[10px] font-bold text-slate-400 uppercase ml-1">Заголовок (для вікна акцій)</label>
+                    <label className="text-[10px] font-bold text-slate-400 uppercase ml-1">Тип</label>
+                    <select 
+                      className="w-full bg-slate-50 border-none rounded-xl p-3 text-sm focus:ring-2 focus:ring-tiffany"
+                      value={newBonusCode.type}
+                      onChange={e => setNewBonusCode({...newBonusCode, type: e.target.value})}
+                    >
+                      <option value="promo">Промокод (для кошика)</option>
+                      <option value="offer">Спец. пропозиція (інфо)</option>
+                    </select>
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-bold text-slate-400 uppercase ml-1">Заголовок</label>
                     <input 
                       type="text" 
                       placeholder="200 бонусів на перше замовлення"
@@ -660,7 +726,7 @@ export const Admin = () => {
                     />
                   </div>
                   <div className="space-y-1">
-                    <label className="text-[10px] font-bold text-slate-400 uppercase ml-1">Опис (для вікна акцій)</label>
+                    <label className="text-[10px] font-bold text-slate-400 uppercase ml-1">Опис</label>
                     <input 
                       type="text" 
                       placeholder="Використовуйте при оформленні"
@@ -725,24 +791,50 @@ export const Admin = () => {
                 <table className="w-full text-left">
                   <thead className="bg-slate-50 text-slate-400 text-[10px] uppercase tracking-widest font-bold">
                     <tr>
+                      <th className="px-8 py-4">Тип</th>
                       <th className="px-8 py-4">Код</th>
                       <th className="px-8 py-4">Знижка</th>
                       <th className="px-8 py-4">Мін. сума</th>
                       <th className="px-8 py-4">Статус</th>
+                      <th className="px-8 py-4">Дії</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-50">
                     {bonusCodes.map(bc => (
                       <tr key={bc.id} className="hover:bg-slate-50/50 transition-colors">
+                        <td className="px-8 py-6">
+                          <span className={`text-[10px] font-bold uppercase px-2 py-1 rounded-md ${bc.type === 'offer' ? 'bg-amber-100 text-amber-600' : 'bg-blue-100 text-blue-600'}`}>
+                            {bc.type === 'offer' ? 'Спец' : 'Промо'}
+                          </span>
+                        </td>
                         <td className="px-8 py-6 font-bold text-slate-900">{bc.code}</td>
                         <td className="px-8 py-6 text-slate-500">
                           {bc.discount_amount} {bc.discount_type === 'percent' ? '%' : 'грн'}
                         </td>
                         <td className="px-8 py-6 text-slate-500">{bc.min_order_amount} грн</td>
                         <td className="px-8 py-6">
-                          <span className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase ${bc.is_active ? 'bg-emerald-100 text-emerald-600' : 'bg-red-100 text-red-600'}`}>
+                          <button 
+                            onClick={() => toggleBonusCodeStatus(bc.id, bc.is_active)}
+                            className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase transition-all ${bc.is_active ? 'bg-emerald-100 text-emerald-600 hover:bg-emerald-200' : 'bg-red-100 text-red-600 hover:bg-red-200'}`}
+                          >
                             {bc.is_active ? 'Активний' : 'Неактивний'}
-                          </span>
+                          </button>
+                        </td>
+                        <td className="px-8 py-6">
+                          <div className="flex gap-3">
+                            <button 
+                              onClick={() => { setEditingBonusCode(bc); setShowBonusCodeModal(true); }}
+                              className="p-2 text-slate-400 hover:text-tiffany transition-colors"
+                            >
+                              <Edit2 size={16} />
+                            </button>
+                            <button 
+                              onClick={() => deleteBonusCode(bc.id)}
+                              className="p-2 text-slate-400 hover:text-red-500 transition-colors"
+                            >
+                              <Trash2 size={16} />
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     ))}
@@ -1375,6 +1467,107 @@ export const Admin = () => {
                 <div className="flex gap-4 pt-4">
                   <button type="button" onClick={() => setShowOrderModal(false)} className="flex-1 px-6 py-4 rounded-xl font-bold text-slate-500 hover:bg-slate-50 transition-all">Скасувати</button>
                   <button type="submit" disabled={manualOrderItems.length === 0} className="flex-1 bg-tiffany text-white px-6 py-4 rounded-xl font-bold hover:bg-slate-900 transition-all disabled:opacity-50">Створити замовлення</button>
+                </div>
+              </form>
+            </motion.div>
+          </div>
+        )}
+
+        {showBonusCodeModal && editingBonusCode && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setShowBonusCodeModal(false)}
+              className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm"
+            />
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className="relative w-full max-w-2xl bg-white rounded-[2.5rem] shadow-2xl p-8 overflow-y-auto max-h-[90vh]"
+            >
+              <h2 className="text-2xl font-bold mb-8">Редагувати акцію / промокод</h2>
+              <form onSubmit={handleBonusCodeUpdate} className="space-y-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="space-y-2">
+                    <label className="text-sm font-bold text-slate-700">Заголовок</label>
+                    <input 
+                      value={editingBonusCode.title}
+                      onChange={e => setEditingBonusCode({...editingBonusCode, title: e.target.value})}
+                      required 
+                      className="w-full bg-slate-50 border-none rounded-xl p-4 focus:ring-2 focus:ring-tiffany" 
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-sm font-bold text-slate-700">Опис</label>
+                    <input 
+                      value={editingBonusCode.description}
+                      onChange={e => setEditingBonusCode({...editingBonusCode, description: e.target.value})}
+                      className="w-full bg-slate-50 border-none rounded-xl p-4 focus:ring-2 focus:ring-tiffany" 
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="space-y-2">
+                    <label className="text-sm font-bold text-slate-700">Код</label>
+                    <input 
+                      value={editingBonusCode.code}
+                      onChange={e => setEditingBonusCode({...editingBonusCode, code: e.target.value.toUpperCase()})}
+                      required 
+                      className="w-full bg-slate-50 border-none rounded-xl p-4 focus:ring-2 focus:ring-tiffany" 
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-sm font-bold text-slate-700">Тип акції</label>
+                    <select 
+                      value={editingBonusCode.type}
+                      onChange={e => setEditingBonusCode({...editingBonusCode, type: e.target.value})}
+                      className="w-full bg-slate-50 border-none rounded-xl p-4 focus:ring-2 focus:ring-tiffany"
+                    >
+                      <option value="promo">Промокод (для кошика)</option>
+                      <option value="offer">Спец. пропозиція (інфо)</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                  <div className="space-y-2">
+                    <label className="text-sm font-bold text-slate-700">Знижка</label>
+                    <input 
+                      type="number"
+                      value={editingBonusCode.discount_amount}
+                      onChange={e => setEditingBonusCode({...editingBonusCode, discount_amount: Number(e.target.value)})}
+                      className="w-full bg-slate-50 border-none rounded-xl p-4 focus:ring-2 focus:ring-tiffany" 
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-sm font-bold text-slate-700">Тип знижки</label>
+                    <select 
+                      value={editingBonusCode.discount_type}
+                      onChange={e => setEditingBonusCode({...editingBonusCode, discount_type: e.target.value})}
+                      className="w-full bg-slate-50 border-none rounded-xl p-4 focus:ring-2 focus:ring-tiffany"
+                    >
+                      <option value="fixed">Грн</option>
+                      <option value="percent">%</option>
+                    </select>
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-sm font-bold text-slate-700">Мін. сума</label>
+                    <input 
+                      type="number"
+                      value={editingBonusCode.min_order_amount}
+                      onChange={e => setEditingBonusCode({...editingBonusCode, min_order_amount: Number(e.target.value)})}
+                      className="w-full bg-slate-50 border-none rounded-xl p-4 focus:ring-2 focus:ring-tiffany" 
+                    />
+                  </div>
+                </div>
+
+                <div className="flex gap-4 pt-4">
+                  <button type="button" onClick={() => setShowBonusCodeModal(false)} className="flex-1 px-6 py-4 rounded-xl font-bold text-slate-500 hover:bg-slate-50 transition-all">Скасувати</button>
+                  <button type="submit" className="flex-1 bg-tiffany text-white px-6 py-4 rounded-xl font-bold hover:bg-slate-900 transition-all">Зберегти зміни</button>
                 </div>
               </form>
             </motion.div>

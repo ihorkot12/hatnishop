@@ -71,6 +71,7 @@ export class PostgresAdapter implements DatabaseAdapter {
         is_active INTEGER DEFAULT 1,
         title TEXT,
         description TEXT,
+        type TEXT DEFAULT 'promo',
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
     `;
@@ -371,8 +372,8 @@ export class PostgresAdapter implements DatabaseAdapter {
 
   async createBonusCode(bonusCode: any): Promise<void> {
     await sql`
-      INSERT INTO bonus_codes (id, code, discount_amount, discount_type, min_order_amount, is_active, title, description)
-      VALUES (${bonusCode.id}, ${bonusCode.code}, ${bonusCode.discount_amount}, ${bonusCode.discount_type}, ${bonusCode.min_order_amount || 0}, ${bonusCode.is_active ? 1 : 0}, ${bonusCode.title}, ${bonusCode.description})
+      INSERT INTO bonus_codes (id, code, discount_amount, discount_type, min_order_amount, is_active, title, description, type)
+      VALUES (${bonusCode.id}, ${bonusCode.code}, ${bonusCode.discount_amount}, ${bonusCode.discount_type}, ${bonusCode.min_order_amount || 0}, ${bonusCode.is_active ? 1 : 0}, ${bonusCode.title}, ${bonusCode.description}, ${bonusCode.type || 'promo'})
     `;
   }
 
@@ -385,7 +386,8 @@ export class PostgresAdapter implements DatabaseAdapter {
         min_order_amount = ${bonusCode.min_order_amount}, 
         is_active = ${bonusCode.is_active ? 1 : 0},
         title = ${bonusCode.title},
-        description = ${bonusCode.description}
+        description = ${bonusCode.description},
+        type = ${bonusCode.type}
       WHERE id = ${id}
     `;
   }

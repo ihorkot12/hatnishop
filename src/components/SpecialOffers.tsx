@@ -8,16 +8,28 @@ import { Link } from 'react-router-dom';
 export const SpecialOffers = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [promos, setPromos] = useState<any[]>([]);
+  const [offers, setOffers] = useState<any[]>([]);
+  const [bundles, setBundles] = useState<any[]>([]);
   const { addToCart } = useCart();
-  const bundles = MOCK_PRODUCTS.filter(p => p.isBundle);
 
   useEffect(() => {
+    // Fetch bonus codes
     fetch('/api/bonus-codes')
       .then(res => res.json())
       .then(data => {
         if (Array.isArray(data)) {
-          // Only show active codes that have title/description
-          setPromos(data.filter(bc => bc.is_active && bc.title));
+          setPromos(data.filter(bc => bc.is_active && bc.type === 'promo'));
+          setOffers(data.filter(bc => bc.is_active && bc.type === 'offer'));
+        }
+      })
+      .catch(err => console.error(err));
+
+    // Fetch products for bundles
+    fetch('/api/products')
+      .then(res => res.json())
+      .then(data => {
+        if (Array.isArray(data)) {
+          setBundles(data.filter(p => p.isBundle));
         }
       })
       .catch(err => console.error(err));
@@ -80,10 +92,30 @@ export const SpecialOffers = () => {
 
               {/* Content */}
               <div className="flex-1 overflow-y-auto p-8 space-y-10">
+                {/* Special Offers (Informational) */}
+                {offers.length > 0 && (
+                  <section>
+                    <h3 className="text-xs font-bold uppercase tracking-widest text-slate-400 mb-6 flex items-center gap-2">
+                      <Sparkles size={14} /> Спеціальні пропозиції
+                    </h3>
+                    <div className="space-y-4">
+                      {offers.map((offer, i) => (
+                        <div key={i} className="relative group">
+                          <div className="absolute inset-0 bg-emerald-500 opacity-5 rounded-2xl blur-xl group-hover:opacity-10 transition-opacity" />
+                          <div className="relative bg-white border border-slate-100 p-6 rounded-2xl">
+                            <div className="text-slate-900 font-bold text-sm mb-1">{offer.title}</div>
+                            <div className="text-slate-500 text-xs">{offer.description}</div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </section>
+                )}
+
                 {/* Promo Codes */}
                 <section>
                   <h3 className="text-xs font-bold uppercase tracking-widest text-slate-400 mb-6 flex items-center gap-2">
-                    <Tag size={14} /> Промокоди
+                    <Tag size={14} /> Промокоди на знижку
                   </h3>
                   <div className="space-y-4">
                     {promos.map((promo, i) => (
@@ -112,7 +144,7 @@ export const SpecialOffers = () => {
                     {promos.length === 0 && (
                       <div className="text-center py-8 bg-slate-50 rounded-2xl border border-dashed border-slate-200">
                         <Tag size={24} className="mx-auto text-slate-300 mb-2" />
-                        <p className="text-slate-400 text-xs">Наразі активних акцій немає</p>
+                        <p className="text-slate-400 text-xs">Наразі активних промокодів немає</p>
                       </div>
                     )}
                   </div>

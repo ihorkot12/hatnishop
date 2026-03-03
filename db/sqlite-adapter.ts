@@ -85,6 +85,7 @@ export class SqliteAdapter implements DatabaseAdapter {
         is_active INTEGER DEFAULT 1,
         title TEXT,
         description TEXT,
+        type TEXT DEFAULT 'promo',
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP
       );
 
@@ -339,9 +340,9 @@ export class SqliteAdapter implements DatabaseAdapter {
 
   async createBonusCode(bonusCode: any): Promise<void> {
     this.db.prepare(`
-      INSERT INTO bonus_codes (id, code, discount_amount, discount_type, min_order_amount, is_active, title, description)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-    `).run(bonusCode.id, bonusCode.code, bonusCode.discount_amount, bonusCode.discount_type, bonusCode.min_order_amount || 0, bonusCode.is_active ? 1 : 0, bonusCode.title, bonusCode.description);
+      INSERT INTO bonus_codes (id, code, discount_amount, discount_type, min_order_amount, is_active, title, description, type)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `).run(bonusCode.id, bonusCode.code, bonusCode.discount_amount, bonusCode.discount_type, bonusCode.min_order_amount || 0, bonusCode.is_active ? 1 : 0, bonusCode.title, bonusCode.description, bonusCode.type || 'promo');
   }
 
   async updateBonusCode(id: string, bonusCode: any): Promise<void> {
@@ -354,6 +355,7 @@ export class SqliteAdapter implements DatabaseAdapter {
     if (bonusCode.is_active !== undefined) { fields.push("is_active = ?"); values.push(bonusCode.is_active ? 1 : 0); }
     if (bonusCode.title) { fields.push("title = ?"); values.push(bonusCode.title); }
     if (bonusCode.description) { fields.push("description = ?"); values.push(bonusCode.description); }
+    if (bonusCode.type) { fields.push("type = ?"); values.push(bonusCode.type); }
     values.push(id);
     this.db.prepare(`UPDATE bonus_codes SET ${fields.join(', ')} WHERE id = ?`).run(...values);
   }

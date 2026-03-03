@@ -111,6 +111,7 @@ export class NeonAdapter implements DatabaseAdapter {
         is_active BOOLEAN DEFAULT TRUE,
         title TEXT,
         description TEXT,
+        type TEXT DEFAULT 'promo',
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
     `;
@@ -410,8 +411,8 @@ export class NeonAdapter implements DatabaseAdapter {
 
   async createBonusCode(bonusCode: any): Promise<void> {
     await this.sql`
-      INSERT INTO bonus_codes (id, code, discount_amount, discount_type, min_order_amount, is_active, title, description)
-      VALUES (${bonusCode.id}, ${bonusCode.code}, ${bonusCode.discount_amount}, ${bonusCode.discount_type}, ${bonusCode.min_order_amount || 0}, ${bonusCode.is_active}, ${bonusCode.title}, ${bonusCode.description})
+      INSERT INTO bonus_codes (id, code, discount_amount, discount_type, min_order_amount, is_active, title, description, type)
+      VALUES (${bonusCode.id}, ${bonusCode.code}, ${bonusCode.discount_amount}, ${bonusCode.discount_type}, ${bonusCode.min_order_amount || 0}, ${bonusCode.is_active}, ${bonusCode.title}, ${bonusCode.description}, ${bonusCode.type || 'promo'})
     `;
   }
 
@@ -424,7 +425,8 @@ export class NeonAdapter implements DatabaseAdapter {
         min_order_amount = ${bonusCode.min_order_amount}, 
         is_active = ${bonusCode.is_active},
         title = ${bonusCode.title},
-        description = ${bonusCode.description}
+        description = ${bonusCode.description},
+        type = ${bonusCode.type}
       WHERE id = ${id}
     `;
   }
