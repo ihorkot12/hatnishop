@@ -176,7 +176,11 @@ export class PostgresAdapter implements DatabaseAdapter {
     } catch (e) {
       // Ignore if column exists
     }
+  } catch (error) {
+    console.error("Database initialization failed:", error);
+    throw error;
   }
+}
 
   async getUserByEmail(email: string): Promise<User | null> {
     const { rows } = await sql`SELECT * FROM users WHERE LOWER(email) = LOWER(${email})`;

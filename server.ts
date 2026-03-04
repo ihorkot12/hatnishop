@@ -82,14 +82,6 @@ app.use(asyncHandler(async (req: any, res: any, next: any) => {
   next();
 }));
 
-// Manual DB Init Trigger (for debugging)
-app.get("/api/admin/db-init", authenticate, asyncHandler(async (req: any, res: any) => {
-  if (req.user.role !== 'admin') return res.status(403).json({ error: "Forbidden" });
-  dbInitialized = false; // Force re-init
-  await ensureDb();
-  res.json({ success: true, message: "Database initialization triggered" });
-}));
-
 // Auth Middleware
 const authenticate = (req: any, res: any, next: any) => {
   const token = req.cookies.token;
@@ -102,6 +94,14 @@ const authenticate = (req: any, res: any, next: any) => {
     res.status(401).json({ error: "Invalid token" });
   }
 };
+
+// Manual DB Init Trigger (for debugging)
+app.get("/api/admin/db-init", authenticate, asyncHandler(async (req: any, res: any) => {
+  if (req.user.role !== 'admin') return res.status(403).json({ error: "Forbidden" });
+  dbInitialized = false; // Force re-init
+  await ensureDb();
+  res.json({ success: true, message: "Database initialization triggered" });
+}));
 
 // --- API Routes ---
 // Auth Routes
