@@ -78,6 +78,20 @@ export const ProductDetail = () => {
   const [reviews, setReviews] = useState<Review[]>([]);
   const [newReview, setNewReview] = useState({ rating: 5, comment: '' });
   const [submittingReview, setSubmittingReview] = useState(false);
+  const [canReview, setCanReview] = useState(false);
+  const [reviewMessage, setReviewMessage] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (user && product) {
+      fetch('/api/orders')
+        .then(res => res.json())
+        .then(orders => {
+          const hasCompletedOrder = orders.some((o: any) => o.status === 'completed' || o.status === 'shipped');
+          setCanReview(hasCompletedOrder);
+        })
+        .catch(err => console.error(err));
+    }
+  }, [user, product]);
 
   useEffect(() => {
     if (product) {
@@ -113,18 +127,24 @@ export const ProductDetail = () => {
     e.preventDefault();
     if (!user) return;
     setSubmittingReview(true);
+    setReviewMessage(null);
     try {
       const res = await fetch('/api/reviews', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ productId: id, ...newReview }),
       });
+      const data = await res.json();
       if (res.ok) {
         setNewReview({ rating: 5, comment: '' });
+        setReviewMessage(data.message || "Відгук надіслано на модерацію");
         fetchReviews();
+      } else {
+        setReviewMessage(data.error || "Помилка при відправці відгуку");
       }
     } catch (err) {
       console.error(err);
+      setReviewMessage("Помилка при з'єднанні з сервером");
     } finally {
       setSubmittingReview(false);
     }
@@ -295,27 +315,36 @@ export const ProductDetail = () => {
               </div>
             </div>
 
-            {/* Dev Tool: Simulate Price Drop */}
-            <div className="pt-8 border-t border-dashed border-slate-100">
-              <button 
-                onClick={async () => {
-                  const newPrice = product.price - 50;
-                  const res = await fetch(`/api/admin/products/${product.id}/price`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ newPrice }),
-                  });
-                  if (res.ok) {
-                    alert(`Ціна знижена до ${newPrice} грн. Перевірте сповіщення через кілька секунд!`);
-                  } else {
-                    alert('Помилка: Ви повинні бути авторизовані для цього.');
-                  }
-                }}
-                className="text-[10px] font-bold text-slate-300 uppercase tracking-widest hover:text-tiffany transition-colors"
-              >
-                [Dev] Симулювати зниження ціни (-50 грн)
-              </button>
-            </div>
+            {/* Admin Tool: Simulate Price Drop (Visible only to admins) */}
+            {user?.role === 'admin' && (
+              <div className="pt-8 border-t border-dashed border-slate-100">
+                <button 
+                  onClick={async () => {
+                    const newPrice = product.price - 50;
+                    try {
+                      const res = await fetch(`/api/admin/products/${product.id}/price`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ newPrice }),
+                      });
+                      if (res.ok) {
+                        setProduct({ ...product, price: newPrice });
+                        alert(`Ціну знижено до ${newPrice} грн. Сповіщення підписникам надіслано!`);
+                      } else {
+                        const data = await res.json();
+                        alert(`Помилка: ${data.error || 'Недостатньо прав'}`);
+                      }
+                    } catch (err) {
+                      alert('Помилка з\'єднання з сервером');
+                    }
+                  }}
+                  className="text-[10px] font-bold text-slate-400 uppercase tracking-widest hover:text-tiffany transition-colors flex items-center gap-2"
+                >
+                  <span className="w-2 h-2 bg-tiffany rounded-full animate-pulse"></span>
+                  Адмін: Симулювати зниження ціни (-50 грн)
+                </button>
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -372,35 +401,46 @@ export const ProductDetail = () => {
               </div>
 
               {user ? (
-                <form onSubmit={handleReviewSubmit} className="space-y-4">
-                  <div className="text-sm font-bold text-slate-900 mb-2 uppercase tracking-widest">Залишити відгук</div>
-                  <div className="flex gap-2 mb-4">
-                    {[1, 2, 3, 4, 5].map(i => (
-                      <button 
-                        key={i} 
-                        type="button"
-                        onClick={() => setNewReview({ ...newReview, rating: i })}
-                        className={`p-1 transition-colors ${i <= newReview.rating ? 'text-gold' : 'text-slate-200'}`}
-                      >
-                        <Star size={24} fill="currentColor" />
-                      </button>
-                    ))}
+                canReview ? (
+                  <form onSubmit={handleReviewSubmit} className="space-y-4">
+                    <div className="text-sm font-bold text-slate-900 mb-2 uppercase tracking-widest">Залишити відгук</div>
+                    {reviewMessage && (
+                      <div className={`p-4 rounded-xl text-xs font-bold ${reviewMessage.includes('Помилка') ? 'bg-red-50 text-red-500' : 'bg-emerald-50 text-emerald-500'}`}>
+                        {reviewMessage}
+                      </div>
+                    )}
+                    <div className="flex gap-2 mb-4">
+                      {[1, 2, 3, 4, 5].map(i => (
+                        <button 
+                          key={i} 
+                          type="button"
+                          onClick={() => setNewReview({ ...newReview, rating: i })}
+                          className={`p-1 transition-colors ${i <= newReview.rating ? 'text-gold' : 'text-slate-200'}`}
+                        >
+                          <Star size={24} fill="currentColor" />
+                        </button>
+                      ))}
+                    </div>
+                    <textarea 
+                      placeholder="Поділіться вашими враженнями..."
+                      value={newReview.comment}
+                      onChange={(e) => setNewReview({ ...newReview, comment: e.target.value })}
+                      className="w-full bg-slate-50 border-none rounded-2xl p-4 text-sm focus:ring-2 focus:ring-tiffany transition-all min-h-[120px]"
+                      required
+                    />
+                    <button 
+                      type="submit"
+                      disabled={submittingReview}
+                      className="w-full bg-slate-900 text-white py-4 rounded-2xl font-bold hover:bg-tiffany transition-all flex items-center justify-center gap-2"
+                    >
+                      {submittingReview ? 'Надсилаємо...' : 'Надіслати відгук'} <Send size={18} />
+                    </button>
+                  </form>
+                ) : (
+                  <div className="text-center p-6 bg-slate-50 rounded-2xl">
+                    <p className="text-slate-500 text-sm">Ви можете залишити відгук тільки після того, як отримаєте замовлення з цим товаром.</p>
                   </div>
-                  <textarea 
-                    placeholder="Поділіться вашими враженнями..."
-                    value={newReview.comment}
-                    onChange={(e) => setNewReview({ ...newReview, comment: e.target.value })}
-                    className="w-full bg-slate-50 border-none rounded-2xl p-4 text-sm focus:ring-2 focus:ring-tiffany transition-all min-h-[120px]"
-                    required
-                  />
-                  <button 
-                    type="submit"
-                    disabled={submittingReview}
-                    className="w-full bg-slate-900 text-white py-4 rounded-2xl font-bold hover:bg-tiffany transition-all flex items-center justify-center gap-2"
-                  >
-                    {submittingReview ? 'Надсилаємо...' : 'Надіслати відгук'} <Send size={18} />
-                  </button>
-                </form>
+                )
               ) : (
                 <div className="text-center p-6 bg-slate-50 rounded-2xl">
                   <p className="text-slate-500 text-sm mb-4">Увійдіть, щоб залишити відгук</p>
@@ -425,8 +465,8 @@ export const ProductDetail = () => {
                         <User size={24} />
                       </div>
                       <div>
-                        <div className="font-bold text-slate-900">{review.userName}</div>
-                        <div className="text-xs text-slate-400">{new Date(review.createdAt).toLocaleDateString('uk-UA')}</div>
+                        <div className="font-bold text-slate-900">{review.user_name}</div>
+                        <div className="text-xs text-slate-400">{review.created_at ? new Date(review.created_at).toLocaleDateString('uk-UA') : ''}</div>
                       </div>
                     </div>
                     <div className="flex gap-1 text-gold">

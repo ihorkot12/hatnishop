@@ -18,8 +18,11 @@ export const SpecialOffers = () => {
       .then(res => res.json())
       .then(data => {
         if (Array.isArray(data)) {
-          setPromos(data.filter(bc => bc.is_active && bc.type === 'promo'));
-          setOffers(data.filter(bc => bc.is_active && bc.type === 'offer'));
+          // Show promo codes only if show_in_site is true
+          setPromos(data.filter(bc => bc.is_active && bc.type === 'promo' && bc.show_in_site));
+          // Show offers (info) always if active (assuming info type is inherently for display)
+          // Or we can also respect show_in_site for info type if we want full control
+          setOffers(data.filter(bc => bc.is_active && bc.type === 'offer' && bc.show_in_site));
         }
       })
       .catch(err => console.error(err));

@@ -82,6 +82,7 @@ export class PostgresAdapter implements DatabaseAdapter {
           discount_type TEXT,
           min_order_amount REAL DEFAULT 0,
           is_active INTEGER DEFAULT 1,
+          show_in_site INTEGER DEFAULT 1,
           title TEXT,
           description TEXT,
           type TEXT DEFAULT 'promo',
@@ -95,6 +96,7 @@ export class PostgresAdapter implements DatabaseAdapter {
         await sql`ALTER TABLE bonus_codes ADD COLUMN IF NOT EXISTS title TEXT;`;
         await sql`ALTER TABLE bonus_codes ADD COLUMN IF NOT EXISTS description TEXT;`;
         await sql`ALTER TABLE bonus_codes ADD COLUMN IF NOT EXISTS type TEXT DEFAULT 'promo';`;
+        await sql`ALTER TABLE bonus_codes ADD COLUMN IF NOT EXISTS show_in_site INTEGER DEFAULT 1;`;
         console.log("Bonus codes migration successful");
       } catch (e) {
         console.error("Migration error for bonus_codes:", e);
@@ -138,11 +140,19 @@ export class PostgresAdapter implements DatabaseAdapter {
         user_name TEXT,
         rating INTEGER,
         comment TEXT,
+        is_approved INTEGER DEFAULT 0,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY(product_id) REFERENCES products(id),
         FOREIGN KEY(user_id) REFERENCES users(id)
       );
     `;
+
+    // Migration: Add is_approved to reviews if it doesn't exist
+    try {
+      await sql`ALTER TABLE reviews ADD COLUMN IF NOT EXISTS is_approved INTEGER DEFAULT 0;`;
+    } catch (e) {
+      console.error("Migration error for reviews:", e);
+    }
 
     await sql`
       CREATE TABLE IF NOT EXISTS price_subscriptions (
@@ -401,8 +411,8 @@ export class PostgresAdapter implements DatabaseAdapter {
 
   async createBonusCode(bonusCode: any): Promise<void> {
     await sql`
-      INSERT INTO bonus_codes (id, code, discount_amount, discount_type, min_order_amount, is_active, title, description, type)
-      VALUES (${bonusCode.id}, ${bonusCode.code}, ${bonusCode.discount_amount}, ${bonusCode.discount_type}, ${bonusCode.min_order_amount || 0}, ${bonusCode.is_active ? 1 : 0}, ${bonusCode.title}, ${bonusCode.description}, ${bonusCode.type || 'promo'})
+      INSERT INTO bonus_codes (id, code, discount_amount, discount_type, min_order_amount, is_active, show_in_site, title, description, type)
+      VALUES (${bonusCode.id}, ${bonusCode.code}, ${bonusCode.discount_amount}, ${bonusCode.discount_type}, ${bonusCode.min_order_amount || 0}, ${bonusCode.is_active ? 1 : 0}, ${bonusCode.show_in_site ? 1 : 0}, ${bonusCode.title}, ${bonusCode.description}, ${bonusCode.type || 'promo'})
     `;
   }
 
@@ -414,6 +424,7 @@ export class PostgresAdapter implements DatabaseAdapter {
         discount_type = ${bonusCode.discount_type}, 
         min_order_amount = ${bonusCode.min_order_amount}, 
         is_active = ${bonusCode.is_active ? 1 : 0},
+        show_in_site = ${bonusCode.show_in_site ? 1 : 0},
         title = ${bonusCode.title},
         description = ${bonusCode.description},
         type = ${bonusCode.type}
@@ -441,15 +452,39 @@ export class PostgresAdapter implements DatabaseAdapter {
   }
 
   async getReviews(productId: string): Promise<Review[]> {
-    const { rows } = await sql`SELECT * FROM reviews WHERE product_id = ${productId} ORDER BY created_at DESC`;
+    const { rows } = await sql`SELECT * FROM reviews WHERE product_id = ${productId} AND is_approved = 1 ORDER BY created_at DESC`;
+    return rows as Review[];
+  }
+
+  async getAllReviews(): Promise<Review[]> {
+    const { rows } = await sql`SELECT * FROM reviews ORDER BY created_at DESC`;
     return rows as Review[];
   }
 
   async createReview(review: Partial<Review>): Promise<void> {
     await sql`
-      INSERT INTO reviews (id, product_id, user_id, user_name, rating, comment) 
-      VALUES (${review.id}, ${review.product_id}, ${review.user_id}, ${review.user_name}, ${review.rating}, ${review.comment})
+      INSERT INTO reviews (id, product_id, user_id, user_name, rating, comment, is_approved) 
+      VALUES (${review.id}, ${review.product_id}, ${review.user_id}, ${review.user_name}, ${review.rating}, ${review.comment}, ${review.is_approved || 0})
     `;
+  }
+
+  async updateReview(id: string, review: Partial<Review>): Promise<void> {
+    await sql`
+      UPDATE reviews SET 
+        comment = ${review.comment}, 
+        rating = ${review.rating}, 
+        is_approved = ${review.is_approved}
+      WHERE id = ${id}
+    `;
+  }
+
+  async deleteReview(id: string): Promise<void> {
+    await sql`DELETE FROM reviews WHERE id = ${id}`;
+  }
+
+  async getUserOrders(userId: string): Promise<any[]> {
+    const { rows } = await sql`SELECT * FROM orders WHERE user_id = ${userId}`;
+    return rows;
   }
 
   async getPriceSubscriptions(userId: string): Promise<any[]> {
@@ -471,6 +506,11 @@ export class PostgresAdapter implements DatabaseAdapter {
 
   async removePriceSubscription(userId: string, productId: string): Promise<void> {
     await sql`DELETE FROM price_subscriptions WHERE user_id = ${userId} AND product_id = ${productId}`;
+  }
+  
+  async getSubscriptionsByProductId(productId: string): Promise<PriceSubscription[]> {
+    const { rows } = await sql`SELECT * FROM price_subscriptions WHERE product_id = ${productId}`;
+    return rows as PriceSubscription[];
   }
 
   async getNotifications(userId: string): Promise<Notification[]> {

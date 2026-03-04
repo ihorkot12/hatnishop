@@ -63,6 +63,7 @@ export interface Review {
   user_name: string;
   rating: number;
   comment: string;
+  is_approved: number;
   created_at?: string;
 }
 
@@ -121,10 +122,15 @@ export interface DatabaseAdapter {
   getSiteSettings(): Promise<any>;
   updateSiteSettings(settings: any): Promise<void>;
   getReviews(productId: string): Promise<Review[]>;
+  getAllReviews(): Promise<Review[]>;
   createReview(review: Partial<Review>): Promise<void>;
+  updateReview(id: string, review: Partial<Review>): Promise<void>;
+  deleteReview(id: string): Promise<void>;
+  getUserOrders(userId: string): Promise<any[]>;
   getPriceSubscriptions(userId: string): Promise<any[]>;
   addPriceSubscription(sub: Partial<PriceSubscription>): Promise<void>;
   removePriceSubscription(userId: string, productId: string): Promise<void>;
+  getSubscriptionsByProductId(productId: string): Promise<PriceSubscription[]>;
   getNotifications(userId: string): Promise<Notification[]>;
   markNotificationRead(id: string, userId: string): Promise<void>;
   createNotification(notif: Partial<Notification>): Promise<void>;

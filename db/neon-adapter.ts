@@ -109,6 +109,7 @@ export class NeonAdapter implements DatabaseAdapter {
         discount_type TEXT,
         min_order_amount NUMERIC DEFAULT 0,
         is_active BOOLEAN DEFAULT TRUE,
+        show_in_site BOOLEAN DEFAULT TRUE,
         title TEXT,
         description TEXT,
         type TEXT DEFAULT 'promo',
@@ -121,6 +122,7 @@ export class NeonAdapter implements DatabaseAdapter {
       await this.sql`ALTER TABLE bonus_codes ADD COLUMN IF NOT EXISTS title TEXT;`;
       await this.sql`ALTER TABLE bonus_codes ADD COLUMN IF NOT EXISTS description TEXT;`;
       await this.sql`ALTER TABLE bonus_codes ADD COLUMN IF NOT EXISTS type TEXT DEFAULT 'promo';`;
+      await this.sql`ALTER TABLE bonus_codes ADD COLUMN IF NOT EXISTS show_in_site BOOLEAN DEFAULT TRUE;`;
     } catch (e) {
       console.log("Migration error for bonus_codes:", e);
     }
@@ -148,9 +150,17 @@ export class NeonAdapter implements DatabaseAdapter {
         user_name TEXT,
         rating INTEGER,
         comment TEXT,
+        is_approved BOOLEAN DEFAULT FALSE,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
     `;
+
+    // Migration: Add is_approved to reviews if it doesn't exist
+    try {
+      await this.sql`ALTER TABLE reviews ADD COLUMN IF NOT EXISTS is_approved BOOLEAN DEFAULT FALSE;`;
+    } catch (e) {
+      console.log("Migration error for reviews:", e);
+    }
 
     await this.sql`
       CREATE TABLE IF NOT EXISTS price_subscriptions (
@@ -420,8 +430,8 @@ export class NeonAdapter implements DatabaseAdapter {
 
   async createBonusCode(bonusCode: any): Promise<void> {
     await this.sql`
-      INSERT INTO bonus_codes (id, code, discount_amount, discount_type, min_order_amount, is_active, title, description, type)
-      VALUES (${bonusCode.id}, ${bonusCode.code}, ${bonusCode.discount_amount}, ${bonusCode.discount_type}, ${bonusCode.min_order_amount || 0}, ${bonusCode.is_active}, ${bonusCode.title}, ${bonusCode.description}, ${bonusCode.type || 'promo'})
+      INSERT INTO bonus_codes (id, code, discount_amount, discount_type, min_order_amount, is_active, show_in_site, title, description, type)
+      VALUES (${bonusCode.id}, ${bonusCode.code}, ${bonusCode.discount_amount}, ${bonusCode.discount_type}, ${bonusCode.min_order_amount || 0}, ${bonusCode.is_active}, ${bonusCode.show_in_site}, ${bonusCode.title}, ${bonusCode.description}, ${bonusCode.type || 'promo'})
     `;
   }
 
@@ -433,6 +443,7 @@ export class NeonAdapter implements DatabaseAdapter {
         discount_type = ${bonusCode.discount_type}, 
         min_order_amount = ${bonusCode.min_order_amount}, 
         is_active = ${bonusCode.is_active},
+        show_in_site = ${bonusCode.show_in_site},
         title = ${bonusCode.title},
         description = ${bonusCode.description},
         type = ${bonusCode.type}
@@ -460,14 +471,36 @@ export class NeonAdapter implements DatabaseAdapter {
   }
 
   async getReviews(productId: string): Promise<Review[]> {
-    return await this.sql`SELECT * FROM reviews WHERE product_id = ${productId} ORDER BY created_at DESC`;
+    return await this.sql`SELECT * FROM reviews WHERE product_id = ${productId} AND is_approved = TRUE ORDER BY created_at DESC`;
+  }
+
+  async getAllReviews(): Promise<Review[]> {
+    return await this.sql`SELECT * FROM reviews ORDER BY created_at DESC`;
   }
 
   async createReview(review: Partial<Review>): Promise<void> {
     await this.sql`
-      INSERT INTO reviews (id, product_id, user_id, user_name, rating, comment) 
-      VALUES (${review.id}, ${review.product_id}, ${review.user_id}, ${review.user_name}, ${review.rating}, ${review.comment})
+      INSERT INTO reviews (id, product_id, user_id, user_name, rating, comment, is_approved) 
+      VALUES (${review.id}, ${review.product_id}, ${review.user_id}, ${review.user_name}, ${review.rating}, ${review.comment}, ${review.is_approved || false})
     `;
+  }
+
+  async updateReview(id: string, review: Partial<Review>): Promise<void> {
+    await this.sql`
+      UPDATE reviews SET 
+        comment = ${review.comment}, 
+        rating = ${review.rating}, 
+        is_approved = ${review.is_approved}
+      WHERE id = ${id}
+    `;
+  }
+
+  async deleteReview(id: string): Promise<void> {
+    await this.sql`DELETE FROM reviews WHERE id = ${id}`;
+  }
+
+  async getUserOrders(userId: string): Promise<any[]> {
+    return await this.sql`SELECT * FROM orders WHERE user_id = ${userId}`;
   }
 
   async getPriceSubscriptions(userId: string): Promise<any[]> {
@@ -488,6 +521,10 @@ export class NeonAdapter implements DatabaseAdapter {
 
   async removePriceSubscription(userId: string, productId: string): Promise<void> {
     await this.sql`DELETE FROM price_subscriptions WHERE user_id = ${userId} AND product_id = ${productId}`;
+  }
+  
+  async getSubscriptionsByProductId(productId: string): Promise<PriceSubscription[]> {
+    return await this.sql`SELECT * FROM price_subscriptions WHERE product_id = ${productId}`;
   }
 
   async getNotifications(userId: string): Promise<Notification[]> {

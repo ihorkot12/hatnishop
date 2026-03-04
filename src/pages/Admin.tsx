@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Package, ShoppingCart, TrendingUp, Plus, Edit2, Trash2, CheckCircle, Clock, Star, Truck, Users, Shield, UserPlus, Filter, Settings } from 'lucide-react';
+import { Package, ShoppingCart, TrendingUp, Plus, Edit2, Trash2, CheckCircle, Clock, Star, Truck, Users, Shield, UserPlus, Filter, Settings, MessageSquare, Tag } from 'lucide-react';
 import { MOCK_PRODUCTS } from '../constants';
 import { Order, User } from '../types';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, Cell } from 'recharts';
@@ -27,11 +27,13 @@ const categoryData = [
 export const Admin = () => {
   const { user, loading } = useAuth();
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState<'products' | 'orders' | 'analytics' | 'users' | 'categories' | 'bonus-codes' | 'settings'>('analytics');
+  const [activeTab, setActiveTab] = useState<'products' | 'orders' | 'analytics' | 'users' | 'categories' | 'bonus-codes' | 'reviews' | 'settings'>('analytics');
   const [orders, setOrders] = useState<Order[]>([]);
   const [products, setProducts] = useState<any[]>([]);
   const [categories, setCategories] = useState<any[]>([]);
   const [users, setUsers] = useState<User[]>([]);
+  const [reviews, setReviews] = useState<any[]>([]);
+  const [isReviewsLoading, setIsReviewsLoading] = useState(false);
   const [stats, setStats] = useState<any>(null);
   const [isStatsLoading, setIsStatsLoading] = useState(false);
   const [isUserLoading, setIsUserLoading] = useState(false);
@@ -49,6 +51,7 @@ export const Admin = () => {
     discount_type: 'fixed',
     min_order_amount: 0,
     is_active: true,
+    show_in_site: true,
     title: '',
     description: '',
     type: 'promo'
@@ -63,6 +66,8 @@ export const Admin = () => {
   const [editingCategory, setEditingCategory] = useState<any>(null);
   const [editingBonusCode, setEditingBonusCode] = useState<any>(null);
   const [showBonusCodeModal, setShowBonusCodeModal] = useState(false);
+  const [editingReview, setEditingReview] = useState<any>(null);
+  const [showReviewModal, setShowReviewModal] = useState(false);
   const [editingOrder, setEditingOrder] = useState<any>(null);
   const [manualOrderItems, setManualOrderItems] = useState<any[]>([]);
   const [mainImage, setMainImage] = useState<string>('');
@@ -100,6 +105,7 @@ export const Admin = () => {
     if (activeTab === 'categories') fetchCategories();
     if (activeTab === 'analytics') fetchStats();
     if (activeTab === 'bonus-codes') fetchBonusCodes();
+    if (activeTab === 'reviews') fetchReviews();
     if (activeTab === 'settings') fetchSiteSettings();
   }, [activeTab]);
 
@@ -149,6 +155,21 @@ export const Admin = () => {
     }
   };
 
+  const fetchReviews = async () => {
+    setIsReviewsLoading(true);
+    try {
+      const res = await fetch('/api/admin/reviews');
+      if (res.ok) {
+        const data = await res.json();
+        setReviews(Array.isArray(data) ? data : []);
+      }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setIsReviewsLoading(false);
+    }
+  };
+
   const createBonusCode = async () => {
     if (!newBonusCode.title || !newBonusCode.code) {
       alert('Будь ласка, заповніть заголовок та код');
@@ -168,6 +189,7 @@ export const Admin = () => {
           discount_type: 'fixed',
           min_order_amount: 0,
           is_active: true,
+          show_in_site: true,
           title: '',
           description: '',
           type: 'promo'
@@ -220,6 +242,53 @@ export const Admin = () => {
         body: JSON.stringify({ is_active: !currentStatus })
       });
       if (res.ok) fetchBonusCodes();
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const updateReviewApproval = async (id: string, isApproved: number) => {
+    try {
+      const res = await fetch(`/api/admin/reviews/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ is_approved: isApproved })
+      });
+      if (res.ok) {
+        fetchReviews();
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const deleteReview = async (id: string) => {
+    if (!confirm('Ви впевнені, що хочете видалити цей відгук?')) return;
+    try {
+      const res = await fetch(`/api/admin/reviews/${id}`, { method: 'DELETE' });
+      if (res.ok) {
+        fetchReviews();
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const handleReviewUpdate = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingReview) return;
+    try {
+      const res = await fetch(`/api/admin/reviews/${editingReview.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(editingReview)
+      });
+      if (res.ok) {
+        setShowReviewModal(false);
+        setEditingReview(null);
+        fetchReviews();
+        alert('Відгук оновлено');
+      }
     } catch (err) {
       console.error(err);
     }
@@ -582,7 +651,13 @@ export const Admin = () => {
             onClick={() => setActiveTab('bonus-codes')}
             className={`w-full flex items-center gap-3 px-6 py-4 rounded-2xl font-bold transition-all ${activeTab === 'bonus-codes' ? 'bg-slate-900 text-white shadow-lg' : 'text-slate-500 hover:bg-slate-100'}`}
           >
-            <Star size={20} /> Акції
+            <Tag size={20} /> Акції
+          </button>
+          <button 
+            onClick={() => setActiveTab('reviews')}
+            className={`w-full flex items-center gap-3 px-6 py-4 rounded-2xl font-bold transition-all ${activeTab === 'reviews' ? 'bg-slate-900 text-white shadow-lg' : 'text-slate-500 hover:bg-slate-100'}`}
+          >
+            <MessageSquare size={20} /> Відгуки
           </button>
           <button 
             onClick={() => setActiveTab('settings')}
@@ -736,6 +811,21 @@ export const Admin = () => {
                     />
                   </div>
                 </div>
+                <div className="flex items-center gap-6 mb-6 px-1">
+                  <label className="flex items-center gap-2 cursor-pointer group">
+                    <div className="relative">
+                      <input 
+                        type="checkbox" 
+                        className="sr-only peer"
+                        checked={newBonusCode.show_in_site}
+                        onChange={e => setNewBonusCode({...newBonusCode, show_in_site: e.target.checked})}
+                      />
+                      <div className="w-10 h-5 bg-slate-200 rounded-full peer peer-checked:bg-tiffany transition-all"></div>
+                      <div className="absolute left-1 top-1 w-3 h-3 bg-white rounded-full peer-checked:translate-x-5 transition-all"></div>
+                    </div>
+                    <span className="text-xs font-bold text-slate-600 group-hover:text-slate-900 transition-colors">Відображати у вікні "Акції та набори"</span>
+                  </label>
+                </div>
                 <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
                   <div className="space-y-1">
                     <label className="text-[10px] font-bold text-slate-400 uppercase ml-1">Код</label>
@@ -838,6 +928,88 @@ export const Admin = () => {
                         </td>
                       </tr>
                     ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          ) : activeTab === 'reviews' ? (
+            <div className="space-y-8">
+              <div className="flex justify-between items-center">
+                <h2 className="text-2xl font-bold">Модерація відгуків</h2>
+              </div>
+              <div className="bg-white rounded-[2.5rem] border border-slate-100 shadow-sm overflow-hidden">
+                <table className="w-full text-left">
+                  <thead className="bg-slate-50 text-slate-400 text-[10px] uppercase tracking-widest font-bold">
+                    <tr>
+                      <th className="px-8 py-4">Користувач / Товар</th>
+                      <th className="px-8 py-4">Відгук</th>
+                      <th className="px-8 py-4">Рейтинг</th>
+                      <th className="px-8 py-4">Статус</th>
+                      <th className="px-8 py-4">Дії</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-50">
+                    {reviews.map(review => (
+                      <tr key={review.id} className="hover:bg-slate-50/50 transition-colors">
+                        <td className="px-8 py-6">
+                          <div className="font-bold text-slate-900">{review.user_name}</div>
+                          <div className="text-[10px] text-slate-400 uppercase tracking-widest">Товар ID: {review.product_id}</div>
+                        </td>
+                        <td className="px-8 py-6">
+                          <div className="text-sm text-slate-600 max-w-xs truncate">{review.comment}</div>
+                        </td>
+                        <td className="px-8 py-6">
+                          <div className="flex items-center gap-1 text-gold">
+                            <Star size={12} fill="currentColor" />
+                            <span className="font-bold text-slate-900">{review.rating}</span>
+                          </div>
+                        </td>
+                        <td className="px-8 py-6">
+                          <span className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase ${review.is_approved ? 'bg-emerald-100 text-emerald-600' : 'bg-amber-100 text-amber-600'}`}>
+                            {review.is_approved ? 'Схвалено' : 'Очікує'}
+                          </span>
+                        </td>
+                        <td className="px-8 py-6">
+                          <div className="flex gap-3">
+                            {!review.is_approved && (
+                              <button 
+                                onClick={() => updateReviewApproval(review.id, 1)}
+                                className="text-xs font-bold uppercase tracking-widest text-emerald-600 hover:text-emerald-700 transition-colors"
+                              >
+                                Схвалити
+                              </button>
+                            )}
+                            {review.is_approved && (
+                              <button 
+                                onClick={() => updateReviewApproval(review.id, 0)}
+                                className="text-xs font-bold uppercase tracking-widest text-amber-600 hover:text-amber-700 transition-colors"
+                              >
+                                Приховати
+                              </button>
+                            )}
+                            <button 
+                              onClick={() => { setEditingReview(review); setShowReviewModal(true); }}
+                              className="p-2 text-slate-400 hover:text-tiffany transition-colors"
+                            >
+                              <Edit2 size={16} />
+                            </button>
+                            <button 
+                              onClick={() => deleteReview(review.id)}
+                              className="p-2 text-slate-400 hover:text-red-500 transition-colors"
+                            >
+                              <Trash2 size={16} />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                    {reviews.length === 0 && (
+                      <tr>
+                        <td colSpan={5} className="px-8 py-12 text-center text-slate-400">
+                          Відгуків поки немає
+                        </td>
+                      </tr>
+                    )}
                   </tbody>
                 </table>
               </div>
@@ -1533,6 +1705,20 @@ export const Admin = () => {
                   </div>
                 </div>
 
+                <div className="flex items-center gap-2 cursor-pointer group">
+                  <div className="relative">
+                    <input 
+                      type="checkbox" 
+                      className="sr-only peer"
+                      checked={editingBonusCode.show_in_site}
+                      onChange={e => setEditingBonusCode({...editingBonusCode, show_in_site: e.target.checked})}
+                    />
+                    <div className="w-10 h-5 bg-slate-200 rounded-full peer peer-checked:bg-tiffany transition-all"></div>
+                    <div className="absolute left-1 top-1 w-3 h-3 bg-white rounded-full peer-checked:translate-x-5 transition-all"></div>
+                  </div>
+                  <span className="text-sm font-bold text-slate-700 group-hover:text-slate-900 transition-colors">Відображати у вікні "Акції та набори"</span>
+                </div>
+
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                   <div className="space-y-2">
                     <label className="text-sm font-bold text-slate-700">Знижка</label>
@@ -1574,6 +1760,49 @@ export const Admin = () => {
           </div>
         )}
       </AnimatePresence>
+
+      {/* Edit Review Modal */}
+      {showReviewModal && editingReview && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
+          <motion.div 
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="bg-white rounded-[2.5rem] w-full max-w-lg p-8 shadow-2xl"
+          >
+            <h3 className="text-2xl font-bold mb-6">Редагувати відгук</h3>
+            <form onSubmit={handleReviewUpdate} className="space-y-6">
+              <div className="space-y-2">
+                <label className="text-sm font-bold text-slate-700">Коментар</label>
+                <textarea 
+                  value={editingReview.comment}
+                  onChange={e => setEditingReview({...editingReview, comment: e.target.value})}
+                  className="w-full bg-slate-50 border-none rounded-xl p-4 focus:ring-2 focus:ring-tiffany min-h-[150px]"
+                  required
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-bold text-slate-700">Рейтинг</label>
+                <div className="flex gap-2">
+                  {[1, 2, 3, 4, 5].map(i => (
+                    <button 
+                      key={i} 
+                      type="button"
+                      onClick={() => setEditingReview({ ...editingReview, rating: i })}
+                      className={`p-1 transition-colors ${i <= editingReview.rating ? 'text-gold' : 'text-slate-200'}`}
+                    >
+                      <Star size={24} fill="currentColor" />
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div className="flex gap-4 pt-4">
+                <button type="button" onClick={() => setShowReviewModal(false)} className="flex-1 px-6 py-4 rounded-xl font-bold text-slate-500 hover:bg-slate-50 transition-all">Скасувати</button>
+                <button type="submit" className="flex-1 bg-tiffany text-white px-6 py-4 rounded-xl font-bold hover:bg-slate-900 transition-all">Зберегти</button>
+              </div>
+            </form>
+          </motion.div>
+        </div>
+      )}
     </div>
   );
 };

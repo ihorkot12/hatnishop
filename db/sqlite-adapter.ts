@@ -83,6 +83,7 @@ export class SqliteAdapter implements DatabaseAdapter {
         discount_type TEXT,
         min_order_amount REAL DEFAULT 0,
         is_active INTEGER DEFAULT 1,
+        show_in_site INTEGER DEFAULT 1,
         title TEXT,
         description TEXT,
         type TEXT DEFAULT 'promo',
@@ -105,10 +106,18 @@ export class SqliteAdapter implements DatabaseAdapter {
         user_name TEXT,
         rating INTEGER,
         comment TEXT,
+        is_approved INTEGER DEFAULT 0,
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY(product_id) REFERENCES products(id),
         FOREIGN KEY(user_id) REFERENCES users(id)
       );
+
+      // Migration: Add is_approved to reviews if it doesn't exist
+      try {
+        this.db.prepare("ALTER TABLE reviews ADD COLUMN is_approved INTEGER DEFAULT 0").run();
+      } catch (e) {
+        // Column might already exist
+      }
 
       CREATE TABLE IF NOT EXISTS price_subscriptions (
         id TEXT PRIMARY KEY,
@@ -340,9 +349,9 @@ export class SqliteAdapter implements DatabaseAdapter {
 
   async createBonusCode(bonusCode: any): Promise<void> {
     this.db.prepare(`
-      INSERT INTO bonus_codes (id, code, discount_amount, discount_type, min_order_amount, is_active, title, description, type)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `).run(bonusCode.id, bonusCode.code, bonusCode.discount_amount, bonusCode.discount_type, bonusCode.min_order_amount || 0, bonusCode.is_active ? 1 : 0, bonusCode.title, bonusCode.description, bonusCode.type || 'promo');
+      INSERT INTO bonus_codes (id, code, discount_amount, discount_type, min_order_amount, is_active, show_in_site, title, description, type)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `).run(bonusCode.id, bonusCode.code, bonusCode.discount_amount, bonusCode.discount_type, bonusCode.min_order_amount || 0, bonusCode.is_active ? 1 : 0, bonusCode.show_in_site ? 1 : 0, bonusCode.title, bonusCode.description, bonusCode.type || 'promo');
   }
 
   async updateBonusCode(id: string, bonusCode: any): Promise<void> {
@@ -353,6 +362,7 @@ export class SqliteAdapter implements DatabaseAdapter {
     if (bonusCode.discount_type) { fields.push("discount_type = ?"); values.push(bonusCode.discount_type); }
     if (bonusCode.min_order_amount !== undefined) { fields.push("min_order_amount = ?"); values.push(bonusCode.min_order_amount); }
     if (bonusCode.is_active !== undefined) { fields.push("is_active = ?"); values.push(bonusCode.is_active ? 1 : 0); }
+    if (bonusCode.show_in_site !== undefined) { fields.push("show_in_site = ?"); values.push(bonusCode.show_in_site ? 1 : 0); }
     if (bonusCode.title) { fields.push("title = ?"); values.push(bonusCode.title); }
     if (bonusCode.description) { fields.push("description = ?"); values.push(bonusCode.description); }
     if (bonusCode.type) { fields.push("type = ?"); values.push(bonusCode.type); }
@@ -379,13 +389,35 @@ export class SqliteAdapter implements DatabaseAdapter {
   }
 
   async getReviews(productId: string): Promise<Review[]> {
-    return this.db.prepare("SELECT * FROM reviews WHERE product_id = ? ORDER BY created_at DESC").all(productId) as Review[];
+    return this.db.prepare("SELECT * FROM reviews WHERE product_id = ? AND is_approved = 1 ORDER BY created_at DESC").all(productId) as Review[];
+  }
+
+  async getAllReviews(): Promise<Review[]> {
+    return this.db.prepare("SELECT * FROM reviews ORDER BY created_at DESC").all() as Review[];
   }
 
   async createReview(review: Partial<Review>): Promise<void> {
-    this.db.prepare("INSERT INTO reviews (id, product_id, user_id, user_name, rating, comment) VALUES (?, ?, ?, ?, ?, ?)").run(
-      review.id, review.product_id, review.user_id, review.user_name, review.rating, review.comment
+    this.db.prepare("INSERT INTO reviews (id, product_id, user_id, user_name, rating, comment, is_approved) VALUES (?, ?, ?, ?, ?, ?, ?)").run(
+      review.id, review.product_id, review.user_id, review.user_name, review.rating, review.comment, review.is_approved || 0
     );
+  }
+
+  async updateReview(id: string, review: Partial<Review>): Promise<void> {
+    this.db.prepare(`
+      UPDATE reviews SET 
+        comment = ?, 
+        rating = ?, 
+        is_approved = ?
+      WHERE id = ?
+    `).run(review.comment, review.rating, review.is_approved, id);
+  }
+
+  async deleteReview(id: string): Promise<void> {
+    this.db.prepare("DELETE FROM reviews WHERE id = ?").run(id);
+  }
+
+  async getUserOrders(userId: string): Promise<any[]> {
+    return this.db.prepare("SELECT * FROM orders WHERE user_id = ?").all(userId);
   }
 
   async getPriceSubscriptions(userId: string): Promise<any[]> {
@@ -405,6 +437,10 @@ export class SqliteAdapter implements DatabaseAdapter {
 
   async removePriceSubscription(userId: string, productId: string): Promise<void> {
     this.db.prepare("DELETE FROM price_subscriptions WHERE user_id = ? AND product_id = ?").run(userId, productId);
+  }
+  
+  async getSubscriptionsByProductId(productId: string): Promise<PriceSubscription[]> {
+    return this.db.prepare("SELECT * FROM price_subscriptions WHERE product_id = ?").all(productId) as PriceSubscription[];
   }
 
   async getNotifications(userId: string): Promise<Notification[]> {
