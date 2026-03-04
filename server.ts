@@ -82,6 +82,14 @@ app.use(asyncHandler(async (req: any, res: any, next: any) => {
   next();
 }));
 
+// Manual DB Init Trigger (for debugging)
+app.get("/api/admin/db-init", authenticate, asyncHandler(async (req: any, res: any) => {
+  if (req.user.role !== 'admin') return res.status(403).json({ error: "Forbidden" });
+  dbInitialized = false; // Force re-init
+  await ensureDb();
+  res.json({ success: true, message: "Database initialization triggered" });
+}));
+
 // Auth Middleware
 const authenticate = (req: any, res: any, next: any) => {
   const token = req.cookies.token;
@@ -517,6 +525,14 @@ app.get("/api/admin/users", authenticate, asyncHandler(async (req: any, res: any
   }));
 
 async function startViteAndListen() {
+  // Ensure DB is initialized at startup
+  try {
+    await ensureDb();
+    console.log("Database initialized at startup");
+  } catch (e) {
+    console.error("Failed to initialize database at startup:", e);
+  }
+
   if (process.env.NODE_ENV !== "production" && !process.env.VERCEL) {
     const { createServer: createViteServer } = await import("vite");
     const vite = await createViteServer({

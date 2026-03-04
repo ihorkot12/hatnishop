@@ -3,103 +3,112 @@ import { DatabaseAdapter, User, Product, Order, OrderItem, Review, PriceSubscrip
 
 export class PostgresAdapter implements DatabaseAdapter {
   async init(): Promise<void> {
-    await sql`
-      CREATE TABLE IF NOT EXISTS users (
-        id TEXT PRIMARY KEY,
-        email TEXT UNIQUE,
-        password TEXT,
-        name TEXT,
-        avatar TEXT,
-        bonuses REAL DEFAULT 0,
-        total_spent REAL DEFAULT 0,
-        role TEXT DEFAULT 'user'
-      );
-    `;
-
-    await sql`
-      CREATE TABLE IF NOT EXISTS products (
-        id TEXT PRIMARY KEY,
-        name TEXT,
-        category TEXT,
-        price REAL,
-        image TEXT,
-        description TEXT,
-        material TEXT,
-        brand TEXT,
-        isPopular INTEGER,
-        isBundle INTEGER,
-        stock INTEGER DEFAULT 10,
-        rating REAL DEFAULT 5.0,
-        review_count INTEGER DEFAULT 0,
-        ai_description TEXT,
-        images TEXT,
-        bonus_points INTEGER DEFAULT 0
-      );
-    `;
-
-    // Migration: Add missing columns to products if they don't exist
+    console.log("Initializing Postgres Database...");
     try {
-      await sql`ALTER TABLE products ADD COLUMN IF NOT EXISTS bonus_points INTEGER DEFAULT 0;`;
-    } catch (e) {
-      console.error("Migration error for products:", e);
-    }
+      await sql`
+        CREATE TABLE IF NOT EXISTS users (
+          id TEXT PRIMARY KEY,
+          email TEXT UNIQUE,
+          password TEXT,
+          name TEXT,
+          avatar TEXT,
+          bonuses REAL DEFAULT 0,
+          total_spent REAL DEFAULT 0,
+          role TEXT DEFAULT 'user'
+        );
+      `;
+      console.log("Users table ready");
 
-    await sql`
-      CREATE TABLE IF NOT EXISTS orders (
-        id TEXT PRIMARY KEY,
-        user_id TEXT,
-        customer_name TEXT,
-        customer_phone TEXT,
-        customer_email TEXT,
-        customer_city TEXT,
-        customer_address TEXT,
-        delivery_method TEXT,
-        warehouse TEXT,
-        total REAL,
-        bonus_used REAL DEFAULT 0,
-        final_total REAL,
-        bonuses_credited INTEGER DEFAULT 0,
-        tracking_number TEXT,
-        comment TEXT,
-        payment_method TEXT,
-        status TEXT,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        FOREIGN KEY(user_id) REFERENCES users(id)
-      );
-    `;
+      await sql`
+        CREATE TABLE IF NOT EXISTS products (
+          id TEXT PRIMARY KEY,
+          name TEXT,
+          category TEXT,
+          price REAL,
+          image TEXT,
+          description TEXT,
+          material TEXT,
+          brand TEXT,
+          isPopular INTEGER,
+          isBundle INTEGER,
+          stock INTEGER DEFAULT 10,
+          rating REAL DEFAULT 5.0,
+          review_count INTEGER DEFAULT 0,
+          ai_description TEXT,
+          images TEXT,
+          bonus_points INTEGER DEFAULT 0
+        );
+      `;
+      console.log("Products table ready");
 
-    await sql`
-      CREATE TABLE IF NOT EXISTS bonus_codes (
-        id TEXT PRIMARY KEY,
-        code TEXT UNIQUE,
-        discount_amount REAL,
-        discount_type TEXT,
-        min_order_amount REAL DEFAULT 0,
-        is_active INTEGER DEFAULT 1,
-        title TEXT,
-        description TEXT,
-        type TEXT DEFAULT 'promo',
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-      );
-    `;
+      // Migration: Add missing columns to products if they don't exist
+      try {
+        await sql`ALTER TABLE products ADD COLUMN IF NOT EXISTS bonus_points INTEGER DEFAULT 0;`;
+        console.log("Products migration successful");
+      } catch (e) {
+        console.error("Migration error for products:", e);
+      }
 
-    // Migration: Add missing columns to bonus_codes if they don't exist
-    try {
-      await sql`ALTER TABLE bonus_codes ADD COLUMN IF NOT EXISTS title TEXT;`;
-      await sql`ALTER TABLE bonus_codes ADD COLUMN IF NOT EXISTS description TEXT;`;
-      await sql`ALTER TABLE bonus_codes ADD COLUMN IF NOT EXISTS type TEXT DEFAULT 'promo';`;
-    } catch (e) {
-      console.error("Migration error for bonus_codes:", e);
-    }
+      await sql`
+        CREATE TABLE IF NOT EXISTS orders (
+          id TEXT PRIMARY KEY,
+          user_id TEXT,
+          customer_name TEXT,
+          customer_phone TEXT,
+          customer_email TEXT,
+          customer_city TEXT,
+          customer_address TEXT,
+          delivery_method TEXT,
+          warehouse TEXT,
+          total REAL,
+          bonus_used REAL DEFAULT 0,
+          final_total REAL,
+          bonuses_credited INTEGER DEFAULT 0,
+          tracking_number TEXT,
+          comment TEXT,
+          payment_method TEXT,
+          status TEXT,
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          FOREIGN KEY(user_id) REFERENCES users(id)
+        );
+      `;
+      console.log("Orders table ready");
 
-    await sql`
-      CREATE TABLE IF NOT EXISTS site_settings (
-        id TEXT PRIMARY KEY,
-        free_delivery_min REAL DEFAULT 1500,
-        return_days INTEGER DEFAULT 14,
-        cashback_percent INTEGER DEFAULT 5
-      );
-    `;
+      await sql`
+        CREATE TABLE IF NOT EXISTS bonus_codes (
+          id TEXT PRIMARY KEY,
+          code TEXT UNIQUE,
+          discount_amount REAL,
+          discount_type TEXT,
+          min_order_amount REAL DEFAULT 0,
+          is_active INTEGER DEFAULT 1,
+          title TEXT,
+          description TEXT,
+          type TEXT DEFAULT 'promo',
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );
+      `;
+      console.log("Bonus codes table ready");
+
+      // Migration: Add missing columns to bonus_codes if they don't exist
+      try {
+        await sql`ALTER TABLE bonus_codes ADD COLUMN IF NOT EXISTS title TEXT;`;
+        await sql`ALTER TABLE bonus_codes ADD COLUMN IF NOT EXISTS description TEXT;`;
+        await sql`ALTER TABLE bonus_codes ADD COLUMN IF NOT EXISTS type TEXT DEFAULT 'promo';`;
+        console.log("Bonus codes migration successful");
+      } catch (e) {
+        console.error("Migration error for bonus_codes:", e);
+      }
+
+      await sql`
+        CREATE TABLE IF NOT EXISTS site_settings (
+          id TEXT PRIMARY KEY,
+          free_delivery_min REAL DEFAULT 1500,
+          return_days INTEGER DEFAULT 14,
+          cashback_percent INTEGER DEFAULT 5
+        );
+      `;
+      console.log("Site settings table ready");
 
     // Initialize default settings if not exists
     try {

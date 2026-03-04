@@ -116,6 +116,15 @@ export class NeonAdapter implements DatabaseAdapter {
       );
     `;
 
+    // Migration: Add missing columns to bonus_codes if they don't exist
+    try {
+      await this.sql`ALTER TABLE bonus_codes ADD COLUMN IF NOT EXISTS title TEXT;`;
+      await this.sql`ALTER TABLE bonus_codes ADD COLUMN IF NOT EXISTS description TEXT;`;
+      await this.sql`ALTER TABLE bonus_codes ADD COLUMN IF NOT EXISTS type TEXT DEFAULT 'promo';`;
+    } catch (e) {
+      console.log("Migration error for bonus_codes:", e);
+    }
+
     await this.sql`
       CREATE TABLE IF NOT EXISTS site_settings (
         id TEXT PRIMARY KEY,
