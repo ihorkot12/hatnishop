@@ -23,18 +23,22 @@ export const TopBar = () => {
         <div className="hidden md:flex items-center gap-8">
           <div className="flex items-center gap-2">
             <Truck size={14} className="text-tiffany" />
-            <span>Безкоштовна доставка від {settings.free_delivery_min} грн</span>
+            <span>{settings.free_delivery_min > 0 ? `Безкоштовна доставка від ${settings.free_delivery_min} грн` : 'Безкоштовна доставка на все'}</span>
           </div>
-          <div className="flex items-center gap-2">
-            <RotateCcw size={14} className="text-tiffany" />
-            <span>{settings.return_days} днів на повернення</span>
-          </div>
+          {settings.return_days > 0 && (
+            <div className="flex items-center gap-2">
+              <RotateCcw size={14} className="text-tiffany" />
+              <span>{settings.return_days} днів на повернення</span>
+            </div>
+          )}
         </div>
         
-        <div className="flex items-center gap-2 mx-auto md:mx-0">
-          <Gift size={14} className="text-tiffany animate-pulse" />
-          <span>{settings.cashback_percent}% кешбек на кожну покупку</span>
-        </div>
+        {settings.cashback_percent > 0 && (
+          <div className="flex items-center gap-2 mx-auto md:mx-0">
+            <Gift size={14} className="text-tiffany animate-pulse" />
+            <span>{settings.cashback_percent}% кешбек на кожну покупку</span>
+          </div>
+        )}
 
         <div className="hidden lg:flex items-center gap-2">
           <ShieldCheck size={14} className="text-tiffany" />
