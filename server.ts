@@ -299,6 +299,14 @@ app.post("/api/auth/register", asyncHandler(async (req: any, res: any) => {
   app.post("/api/admin/products", authenticate, asyncHandler(async (req: any, res: any) => {
     if (req.user.role !== 'admin') return res.status(403).json({ error: "Forbidden" });
     const product = { ...req.body };
+
+    // Check for duplicates by name
+    const existingProducts = await db.getProducts();
+    const isDuplicate = existingProducts.some(p => p.name.toLowerCase() === product.name.toLowerCase());
+    if (isDuplicate) {
+      return res.status(400).json({ error: `Товар з назвою "${product.name}" вже існує в базі даних` });
+    }
+
     if (product.images && Array.isArray(product.images)) {
       product.images = JSON.stringify(product.images);
     }

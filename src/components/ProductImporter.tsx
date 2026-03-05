@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import * as XLSX from 'xlsx';
-import { Upload, FileText, Check, X, Sparkles, Image as ImageIcon, Loader2, Save } from 'lucide-react';
+import { Upload, FileText, Check, X, Sparkles, Image as ImageIcon, Loader2, Save, AlertTriangle } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 interface DraftProduct {
@@ -11,13 +11,23 @@ interface DraftProduct {
   category: string;
   description: string;
   image: string;
-  status: 'pending' | 'processing' | 'ready' | 'saved';
+  status: 'pending' | 'processing' | 'ready' | 'saved' | 'error';
+  errorMessage?: string;
+  isDuplicate?: boolean;
 }
 
 export const ProductImporter = ({ onComplete, categories }: { onComplete: () => void, categories: any[] }) => {
   const [drafts, setDrafts] = useState<DraftProduct[]>([]);
   const [isParsing, setIsParsing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [existingProducts, setExistingProducts] = useState<any[]>([]);
+
+  useEffect(() => {
+    fetch('/api/products')
+      .then(res => res.json())
+      .then(data => setExistingProducts(data))
+      .catch(err => console.error(err));
+  }, []);
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -52,15 +62,23 @@ export const ProductImporter = ({ onComplete, categories }: { onComplete: () => 
         }
 
         if (name && (price || stock)) {
+          const trimmedName = name.toString().trim();
+          
+          // Check if already in drafts to avoid file-level duplicates
+          if (newDrafts.some(d => d.name.toLowerCase() === trimmedName.toLowerCase())) return;
+
+          const isDuplicate = existingProducts.some(p => p.name.toLowerCase() === trimmedName.toLowerCase());
+
           newDrafts.push({
             id: `draft-${Date.now()}-${index}`,
-            name: name.toString().trim(),
+            name: trimmedName,
             price: price,
             stock: stock,
             category: '', // Let admin choose
             description: '',
             image: '',
-            status: 'pending'
+            status: 'pending',
+            isDuplicate
           });
         }
       });
@@ -126,10 +144,21 @@ export const ProductImporter = ({ onComplete, categories }: { onComplete: () => 
 
       if (res.ok) {
         setDrafts(prev => prev.map(d => d.id === id ? { ...d, status: 'saved' } : d));
+      } else {
+        const errorData = await res.json();
+        setDrafts(prev => prev.map(d => d.id === id ? { 
+          ...d, 
+          status: 'error', 
+          errorMessage: errorData.error || 'Помилка при збереженні' 
+        } : d));
       }
     } catch (err) {
       console.error(err);
-      alert('Помилка при збереженні');
+      setDrafts(prev => prev.map(d => d.id === id ? { 
+        ...d, 
+        status: 'error', 
+        errorMessage: 'Помилка при з\'єднанні з сервером' 
+      } : d));
     }
   };
 
@@ -180,8 +209,23 @@ export const ProductImporter = ({ onComplete, categories }: { onComplete: () => 
                 <motion.div 
                   key={draft.id}
                   layout
-                  className={`bg-white p-6 rounded-3xl border transition-all ${draft.status === 'saved' ? 'border-emerald-100 bg-emerald-50/30 opacity-60' : 'border-slate-100 shadow-sm'}`}
+                  className={`bg-white p-6 rounded-3xl border transition-all ${
+                    draft.status === 'saved' ? 'border-emerald-100 bg-emerald-50/30 opacity-60' : 
+                    draft.status === 'error' ? 'border-red-100 bg-red-50/30' :
+                    draft.isDuplicate ? 'border-amber-100 bg-amber-50/30' :
+                    'border-slate-100 shadow-sm'
+                  }`}
                 >
+                  {draft.isDuplicate && draft.status !== 'saved' && (
+                    <div className="flex items-center gap-2 text-amber-600 text-xs font-bold mb-4 bg-amber-100/50 p-2 rounded-xl">
+                      <AlertTriangle size={14} /> Увага: Товар з такою назвою вже є в базі даних
+                    </div>
+                  )}
+                  {draft.status === 'error' && (
+                    <div className="flex items-center gap-2 text-red-600 text-xs font-bold mb-4 bg-red-100/50 p-2 rounded-xl">
+                      <X size={14} /> Помилка: {draft.errorMessage}
+                    </div>
+                  )}
                   <div className="flex flex-col lg:flex-row gap-6">
                     <div className="flex-1 space-y-4">
                       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
