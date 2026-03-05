@@ -412,6 +412,21 @@ app.get("/api/admin/users", authenticate, asyncHandler(async (req: any, res: any
     res.json(stats);
   }));
 
+  app.post("/api/admin/ai/generate-description", authenticate, asyncHandler(async (req: any, res: any) => {
+    if (req.user.role !== 'admin') return res.status(403).json({ error: "Forbidden" });
+    const { name, category } = req.body;
+    if (!name) return res.status(400).json({ error: "Name is required" });
+
+    const { GoogleGenAI } = await import("@google/genai");
+    const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+    
+    const response = await ai.models.generateContent({
+      model: "gemini-1.5-flash",
+      contents: [{ role: "user", parts: [{ text: `Напиши короткий, привабливий опис для товару "${name}" у категорії "${category || 'Дім'}". Опис має бути в стилі магазину затишних речей "Хатні Штучки". Використовуй українську мову. Максимум 2-3 речення. Не використовуй лапки.` }] }],
+    });
+    res.json({ description: response.text });
+  }));
+
   app.put("/api/admin/users/:id/bonuses", authenticate, asyncHandler(async (req: any, res: any) => {
     if (req.user.role !== 'admin') return res.status(403).json({ error: "Forbidden" });
     const { bonuses } = req.body;

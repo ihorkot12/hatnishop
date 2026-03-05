@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Package, ShoppingCart, TrendingUp, Plus, Edit2, Trash2, CheckCircle, Clock, Star, Truck, Users, Shield, UserPlus, Filter, Settings, MessageSquare, Tag } from 'lucide-react';
+import { Package, ShoppingCart, TrendingUp, Plus, Edit2, Trash2, CheckCircle, Clock, Star, Truck, Users, Shield, UserPlus, Filter, Settings, MessageSquare, Tag, Upload } from 'lucide-react';
+import { ProductImporter } from '../components/ProductImporter';
 import { MOCK_PRODUCTS } from '../constants';
 import { Order, User } from '../types';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, Cell } from 'recharts';
@@ -27,7 +28,7 @@ const categoryData = [
 export const Admin = () => {
   const { user, loading } = useAuth();
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState<'products' | 'orders' | 'analytics' | 'users' | 'categories' | 'bonus-codes' | 'reviews' | 'settings'>('analytics');
+  const [activeTab, setActiveTab] = useState<'products' | 'orders' | 'analytics' | 'users' | 'categories' | 'bonus-codes' | 'reviews' | 'settings' | 'import'>('analytics');
   const [orders, setOrders] = useState<Order[]>([]);
   const [products, setProducts] = useState<any[]>([]);
   const [categories, setCategories] = useState<any[]>([]);
@@ -636,6 +637,12 @@ export const Admin = () => {
             <Package size={20} /> Товари
           </button>
           <button 
+            onClick={() => setActiveTab('import')}
+            className={`w-full flex items-center gap-3 px-6 py-4 rounded-2xl font-bold transition-all ${activeTab === 'import' ? 'bg-slate-900 text-white shadow-lg' : 'text-slate-500 hover:bg-slate-100'}`}
+          >
+            <Upload size={20} /> Імпорт
+          </button>
+          <button 
             onClick={() => setActiveTab('categories')}
             className={`w-full flex items-center gap-3 px-6 py-4 rounded-2xl font-bold transition-all ${activeTab === 'categories' ? 'bg-slate-900 text-white shadow-lg' : 'text-slate-500 hover:bg-slate-100'}`}
           >
@@ -674,8 +681,21 @@ export const Admin = () => {
         </aside>
 
         {/* Main Content */}
-        <main className="flex-1 space-y-8">
-          {activeTab === 'analytics' ? (
+          <main className="flex-1 space-y-8">
+            {activeTab === 'import' ? (
+              <div className="space-y-8">
+                <div className="flex justify-between items-center">
+                  <h2 className="text-2xl font-bold">Імпорт товарів</h2>
+                </div>
+                <ProductImporter 
+                  categories={categories} 
+                  onComplete={() => {
+                    setActiveTab('products');
+                    fetchProducts();
+                  }} 
+                />
+              </div>
+            ) : activeTab === 'analytics' ? (
             <div className="space-y-8">
               <div className="flex justify-between items-center">
                 <h2 className="text-2xl font-bold">Аналітика</h2>
