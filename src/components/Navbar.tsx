@@ -20,15 +20,26 @@ export const Navbar = () => {
   const navLinkClass = ({ isActive }: { isActive: boolean }) => 
     `transition-all duration-300 ${isActive ? 'text-slate-900 underline underline-offset-8 decoration-slate-900 decoration-1' : 'text-slate-500 hover:text-slate-900'}`;
 
+  const scrollToTop = (e: React.MouseEvent) => {
+    if (window.location.pathname === '/') {
+      e.preventDefault();
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  };
+
   return (
     <div className="sticky top-0 z-50">
       <TopBar />
-      <nav className="bg-white/60 backdrop-blur-2xl border-b border-slate-200/50">
+      <nav className="bg-white/80 backdrop-blur-2xl border-b border-slate-200/50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-24">
           <div className="flex items-center gap-12">
-            <Link to="/" className="text-3xl font-serif font-bold tracking-tight text-slate-900 hover:no-underline">
-              ХАТНІ <span className="text-tiffany italic">ШТУЧКИ</span>
+            <Link 
+              to="/" 
+              onClick={scrollToTop}
+              className="text-3xl font-serif font-bold tracking-tight text-slate-900 hover:no-underline group"
+            >
+              ХАТНІ <span className="text-[#68b8b0] italic transition-colors group-hover:text-tiffany">ШТУЧКИ</span>
             </Link>
             <div className="hidden md:flex items-center gap-8 text-[11px] uppercase tracking-[0.2em] font-bold">
               <NavLink to="/catalog" className={navLinkClass} end>Каталог</NavLink>

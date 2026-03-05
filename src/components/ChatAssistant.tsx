@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { MessageSquare, X, Send, Sparkles, ShoppingBag, User } from 'lucide-react';
+import { MessageSquare, X, Send, Sparkles, ShoppingBag, User, Bell } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useLocation } from 'react-router-dom';
 import { GoogleGenAI } from "@google/genai";
 import { MOCK_PRODUCTS } from '../constants';
 import ReactMarkdown from 'react-markdown';
@@ -11,13 +12,36 @@ interface Message {
 }
 
 export const ChatAssistant = () => {
+  const location = useLocation();
   const [isOpen, setIsOpen] = useState(false);
+  const [showNotification, setShowNotification] = useState(false);
   const [messages, setMessages] = useState<Message[]>([
-    { role: 'model', text: 'Привіт! Я ваш персональний помічник Хатніх Штучок. Допомогти вам підібрати щось затишне для дому?' }
+    { role: 'model', text: 'Привіт! Я ваш персональний помічник "Хатніх Штучок". Допомогти вам підібрати щось затишне для дому? ✨' }
   ]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [viewedProducts, setViewedProducts] = useState<string[]>([]);
   const scrollRef = useRef<HTMLDivElement>(null);
+
+  // Proactive message after 5 seconds
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (!isOpen && messages.length === 1) {
+        setShowNotification(true);
+      }
+    }, 5000);
+    return () => clearTimeout(timer);
+  }, [isOpen, messages.length]);
+
+  // Track behavior
+  useEffect(() => {
+    if (location.pathname.startsWith('/product/')) {
+      const productId = location.pathname.split('/').pop();
+      if (productId && !viewedProducts.includes(productId)) {
+        setViewedProducts(prev => [...prev, productId]);
+      }
+    }
+  }, [location.pathname]);
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -25,11 +49,11 @@ export const ChatAssistant = () => {
     }
   }, [messages]);
 
-  const handleSend = async () => {
-    if (!input.trim() || isLoading) return;
+  const handleSend = async (customMessage?: string) => {
+    const userMessage = customMessage || input.trim();
+    if (!userMessage || isLoading) return;
 
-    const userMessage = input.trim();
-    setInput('');
+    if (!customMessage) setInput('');
     setMessages(prev => [...prev, { role: 'user', text: userMessage }]);
     setIsLoading(true);
 
@@ -40,21 +64,35 @@ export const ChatAssistant = () => {
         `ID: ${p.id}, Назва: ${p.name}, Категорія: ${p.category}, Ціна: ${p.price}грн, Опис: ${p.description}`
       ).join('\n');
 
+      const currentProduct = location.pathname.startsWith('/product/') 
+        ? MOCK_PRODUCTS.find(p => p.id === location.pathname.split('/').pop())
+        : null;
+
+      const behaviorContext = `
+        Клієнт зараз на сторінці: ${location.pathname}
+        ${currentProduct ? `Дивиться товар: ${currentProduct.name}` : ''}
+        Раніше переглядав товари: ${viewedProducts.map(id => MOCK_PRODUCTS.find(p => p.id === id)?.name).join(', ')}
+      `;
+
       const systemInstruction = `
-        Ви — експертний консультант магазину "Хатні Штучки". 
-        Ваша мета: допомагати клієнтам підбирати товари, закривати продажі та пропонувати додаткові товари (cross-sell/up-sell).
-        
+        Ви — ввічливий, професійний та ненав'язливий продавець-консультант магазину "Хатні Штучки".
+        Ваша головна задача — допомогти клієнту створити затишок у домі, надаючи корисні поради та роблячи додаткові продажі (cross-sell/up-sell) так, щоб це виглядало як щира турбота.
+
         Ось список наших товарів:
         ${productContext}
         
+        Контекст поведінки клієнта:
+        ${behaviorContext}
+        
         Правила спілкування:
-        1. Будьте ввічливими, професійними та створюйте атмосферу затишку.
-        2. Якщо клієнт шукає щось конкретне, запропонуйте найкращий варіант з нашого списку.
-        3. Завжди намагайтеся допродати щось логічне (наприклад, до чашки запропонуйте набір рушників або дошку для сервірування).
-        4. Акцентуйте увагу на якості (ручна робота, натуральні матеріали).
-        5. Відповідайте українською мовою.
-        6. Використовуйте Markdown для форматування (жирний текст, списки).
-        7. Якщо клієнт вагається, нагадайте про нашу систему бонусів (5-10% кешбеку).
+        1. Будьте надзвичайно ввічливими та чемними. Використовуйте фрази на кшталт "Радий вас бачити", "Дозвольте підказати", "Чудовий вибір".
+        2. Пропонуйте вигідні покупки та акції. Якщо клієнт дивиться один товар, запропонуйте інший, який ідеально його доповнить (наприклад, до чашки — лляний рушник або дошку для сервірування, щоб скласти "Набір для сніданку").
+        3. Розповідайте про переваги товарів: натуральні матеріали (льон, дуб, кераміка), ручна робота, довговічність.
+        4. Якщо клієнт на сторінці товару, розкажіть цікавий факт про нього або як він змінить атмосферу в домі.
+        5. Не будьте занадто "роботизованими". Спілкуйтеся як жива людина, яка любить свою справу.
+        6. Відповідайте українською мовою.
+        7. Використовуйте Markdown для гарного форматування.
+        8. Ваша мета — зробити так, щоб клієнт відчув цінність товару і захотів додати його в кошик.
       `;
 
       const response = await ai.models.generateContent({
@@ -73,17 +111,55 @@ export const ChatAssistant = () => {
       setMessages(prev => [...prev, { role: 'model', text: aiText }]);
     } catch (error) {
       console.error("Gemini Error:", error);
-      setMessages(prev => [...prev, { role: 'model', text: "Сталася помилка при з'єднанні з ШІ. Перевірте налаштування API ключа." }]);
+      setMessages(prev => [...prev, { role: 'model', text: "Сталася помилка при з'єднанні з ШІ. Я обов'язково допоможу вам трохи пізніше!" }]);
     } finally {
       setIsLoading(false);
     }
   };
 
+  const openChat = () => {
+    setIsOpen(true);
+    setShowNotification(false);
+  };
+
   return (
     <>
+      {/* Floating Notification */}
+      <AnimatePresence>
+        {showNotification && !isOpen && (
+          <motion.div
+            initial={{ opacity: 0, x: 50, scale: 0.8 }}
+            animate={{ opacity: 1, x: 0, scale: 1 }}
+            exit={{ opacity: 0, x: 50, scale: 0.8 }}
+            className="fixed bottom-28 right-8 z-50 bg-white p-4 rounded-2xl shadow-2xl border border-slate-100 max-w-[280px] cursor-pointer group"
+            onClick={openChat}
+          >
+            <button 
+              onClick={(e) => { e.stopPropagation(); setShowNotification(false); }}
+              className="absolute -top-2 -right-2 w-6 h-6 bg-slate-900 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+            >
+              <X size={12} />
+            </button>
+            <div className="flex gap-3">
+              <div className="w-10 h-10 bg-tiffany rounded-full flex items-center justify-center text-white flex-shrink-0">
+                <Sparkles size={20} />
+              </div>
+              <div>
+                <div className="text-[10px] text-tiffany font-bold uppercase tracking-widest mb-1 flex items-center gap-1">
+                  <Bell size={10} /> Порада від ШІ
+                </div>
+                <p className="text-xs text-slate-600 leading-relaxed">
+                  Помітив, що ви цікавитесь затишком. Дозвольте підказати, як зробити ваш дім ще теплішим? ✨
+                </p>
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* Floating Button */}
       <button
-        onClick={() => setIsOpen(true)}
+        onClick={openChat}
         className="fixed bottom-8 right-8 w-16 h-16 bg-slate-900 text-white rounded-full shadow-2xl flex items-center justify-center hover:bg-tiffany transition-all z-50 group"
       >
         <MessageSquare className="group-hover:scale-110 transition-transform" />
@@ -106,8 +182,8 @@ export const ChatAssistant = () => {
                   <Sparkles className="text-tiffany" size={20} />
                 </div>
                 <div>
-                  <div className="font-bold text-sm">AI Помічник</div>
-                  <div className="text-[10px] text-tiffany font-bold uppercase tracking-widest">Online</div>
+                  <div className="font-bold text-sm">Ваш AI Помічник</div>
+                  <div className="text-[10px] text-tiffany font-bold uppercase tracking-widest">Online & Готовий допомогти</div>
                 </div>
               </div>
               <button onClick={() => setIsOpen(false)} className="p-2 hover:bg-white/10 rounded-full transition-colors">
@@ -164,7 +240,7 @@ export const ChatAssistant = () => {
                   className="w-full bg-slate-50 border-none rounded-2xl py-4 pl-6 pr-14 text-sm focus:ring-2 focus:ring-tiffany transition-all"
                 />
                 <button
-                  onClick={handleSend}
+                  onClick={() => handleSend()}
                   disabled={!input.trim() || isLoading}
                   className="absolute right-2 top-1/2 -translate-y-1/2 w-10 h-10 bg-slate-900 text-white rounded-xl flex items-center justify-center hover:bg-tiffany transition-all disabled:opacity-50 disabled:hover:bg-slate-900"
                 >

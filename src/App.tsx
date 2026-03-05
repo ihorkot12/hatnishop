@@ -72,6 +72,22 @@ export default function App() {
                     <li><a href="#" className="hover:text-white transition-colors">Контакти</a></li>
                   </ul>
                 </div>
+                <div>
+                  <h4 className="font-bold mb-6 uppercase tracking-widest text-xs text-white/30">Спільнота</h4>
+                  <div className="bg-white/5 rounded-3xl p-6 border border-white/10">
+                    <p className="text-xs text-white/70 mb-4 leading-relaxed">
+                      Підписуйтесь на наш Telegram-канал, щоб першими дізнаватись про новинки та секретні акції! 🌿
+                    </p>
+                    <a 
+                      href="https://t.me/+gcAKeeKFKL43NjYy" 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-2 bg-tiffany text-white px-6 py-3 rounded-xl font-bold text-sm hover:bg-white hover:text-slate-900 transition-all w-full justify-center"
+                    >
+                      Приєднатись до ТГ
+                    </a>
+                  </div>
+                </div>
               </div>
               <div className="pt-8 border-t border-white/10 flex flex-col md:flex-row justify-between items-center gap-4 text-white/30 text-xs">
                 <div>© 2024 Хатні Штучки. Всі права захищено.</div>
