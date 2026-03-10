@@ -1416,10 +1416,10 @@ export const Admin = () => {
                           else alert('Введіть назву товару');
                         }}
                         disabled={isGeneratingAI}
-                        className="flex items-center gap-1 text-[10px] font-bold text-indigo-600 hover:text-indigo-800 transition-colors disabled:opacity-50"
+                        className="flex items-center gap-2 px-3 py-1.5 bg-indigo-50 text-indigo-600 rounded-lg text-[10px] font-bold hover:bg-indigo-100 transition-all disabled:opacity-50 border border-indigo-100 shadow-sm"
                       >
-                        {isGeneratingAI ? <Loader2 size={12} className="animate-spin" /> : <Sparkles size={12} />}
-                        Згенерувати ШІ
+                        {isGeneratingAI ? <Loader2 size={12} className="animate-spin" /> : <Sparkles size={12} className="text-indigo-500" />}
+                        <span>Згенерувати ШІ (Nano Banana 2)</span>
                       </button>
                     </div>
                     <div className="flex items-center gap-4 p-4 bg-slate-50 rounded-2xl border-2 border-dashed border-slate-200">
@@ -1535,10 +1535,10 @@ export const Admin = () => {
                           else alert('Введіть назву товару');
                         }}
                         disabled={isGeneratingAI}
-                        className="flex items-center gap-1 text-[10px] font-bold text-tiffany hover:text-slate-900 transition-colors disabled:opacity-50"
+                        className="flex items-center gap-2 px-3 py-1.5 bg-emerald-50 text-emerald-600 rounded-lg text-[10px] font-bold hover:bg-emerald-100 transition-all disabled:opacity-50 border border-emerald-100 shadow-sm"
                       >
-                        {isGeneratingAI ? <Loader2 size={12} className="animate-spin" /> : <Sparkles size={12} />}
-                        Згенерувати ШІ
+                        {isGeneratingAI ? <Loader2 size={12} className="animate-spin" /> : <Sparkles size={12} className="text-emerald-500" />}
+                        <span>Згенерувати опис ШІ</span>
                       </button>
                     </div>
                     <textarea 

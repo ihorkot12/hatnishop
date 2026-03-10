@@ -56,54 +56,44 @@ export const ProductImporter = ({ onComplete, categories }: { onComplete: () => 
           let currentCategory = '';
           
           data.forEach((row, index) => {
-            if (index < 5) return;
+            // Skip header row
+            if (index === 0) return;
 
-            const name = row[0]?.toString().trim();
-            const stock = parseFloat(row[1]) || 0;
-            const price = parseFloat(row[2]) || 0;
-            const size = row[3]?.toString().trim();
-            const description = row[4]?.toString().trim() || ''; // Try to get description if exists
-
-            // If row has name but no price/stock, it might be a category header
-            if (name && !price && !stock && name.length < 50) {
-              // Try to match with existing categories
-              const normalizedName = name.toLowerCase();
-              const matchedCat = categories.find(c => 
-                normalizedName.includes(c.name.toLowerCase()) || 
-                c.name.toLowerCase().includes(normalizedName)
-              );
-              if (matchedCat) {
-                currentCategory = matchedCat.slug;
-              } else {
-                // If no match, we could potentially create a new category or just use it as a hint
-                // For now, we just keep it as a potential category name for the next items
-              }
-              return;
-            }
+            const sku = row[0]?.toString().trim();
+            const name = row[1]?.toString().trim();
+            const categoryName = row[2]?.toString().trim();
+            const stock = parseFloat(row[3]) || 0;
+            const price = parseFloat(row[4]) || 0;
+            const description = row[5]?.toString().trim() || '';
 
             if (!name || (!price && !stock)) return;
+
+            // Try to match category
+            let itemCategory = '';
+            if (categoryName) {
+              const matchedCat = categories.find(c => 
+                categoryName.toLowerCase().includes(c.name.toLowerCase()) || 
+                c.name.toLowerCase().includes(categoryName.toLowerCase())
+              );
+              if (matchedCat) itemCategory = matchedCat.slug;
+            }
 
             const key = name.toLowerCase();
             if (draftsMap.has(key)) {
               const existing = draftsMap.get(key)!;
-              if (size) {
-                if (!existing.variants) existing.variants = [];
-                existing.variants.push({ size, price, stock });
-                existing.stock += stock;
-              }
+              existing.stock += stock;
             } else {
               const isDuplicate = existingProducts.some(p => p.name.toLowerCase() === key);
               const newDraft: DraftProduct = {
                 id: `draft-${Date.now()}-${index}`,
-                name,
+                name: sku ? `${sku} - ${name}` : name,
                 price,
                 stock,
-                category: currentCategory, // Suggested category
+                category: itemCategory,
                 description: description,
                 image: '',
                 status: 'pending',
-                isDuplicate,
-                variants: size ? [{ size, price, stock }] : undefined
+                isDuplicate
               };
               draftsMap.set(key, newDraft);
             }
@@ -222,7 +212,7 @@ export const ProductImporter = ({ onComplete, categories }: { onComplete: () => 
   return (
     <div className="space-y-8">
       <div className="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-sm">
-        <div className="flex flex-col items-center justify-center border-2 border-dashed border-slate-200 rounded-3xl p-12 hover:border-tiffany transition-all group">
+        <div className="flex flex-col items-center justify-center border-2 border-dashed border-tiffany/30 bg-tiffany/5 rounded-3xl p-12 hover:border-tiffany hover:bg-tiffany/10 transition-all group">
           <input 
             type="file" 
             accept=".xlsx, .xls, .csv" 
@@ -230,12 +220,15 @@ export const ProductImporter = ({ onComplete, categories }: { onComplete: () => 
             className="hidden" 
             id="file-upload" 
           />
-          <label htmlFor="file-upload" className="cursor-pointer text-center">
-            <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center text-slate-400 group-hover:text-tiffany group-hover:bg-tiffany/10 transition-all mb-4 mx-auto">
-              {isParsing ? <Loader2 className="animate-spin" /> : <Upload size={32} />}
+          <label htmlFor="file-upload" className="cursor-pointer text-center w-full">
+            <div className="w-20 h-20 bg-tiffany text-white rounded-full flex items-center justify-center shadow-lg shadow-tiffany/20 group-hover:scale-110 transition-all mb-6 mx-auto">
+              {isParsing ? <Loader2 className="animate-spin" /> : <Upload size={36} />}
             </div>
-            <div className="text-lg font-bold text-slate-900 mb-2">Завантажити файл каталогу</div>
-            <p className="text-slate-400 text-sm">Підтримуються формати .xlsx, .xls, .csv</p>
+            <div className="text-2xl font-bold text-slate-900 mb-2">Завантажити файл каталогу</div>
+            <p className="text-slate-500 text-sm max-w-xs mx-auto">Натисніть сюди, щоб вибрати файл .xlsx або .csv з вашим списком товарів</p>
+            <div className="mt-6 inline-flex items-center gap-2 px-6 py-3 bg-slate-900 text-white rounded-xl font-bold text-sm hover:bg-tiffany transition-all">
+              Вибрати файл
+            </div>
           </label>
         </div>
 
