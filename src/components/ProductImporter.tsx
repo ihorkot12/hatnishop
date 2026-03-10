@@ -29,6 +29,9 @@ export const ProductImporter = ({ onComplete, categories }: { onComplete: () => 
   const [isParsing, setIsParsing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [existingProducts, setExistingProducts] = useState<any[]>([]);
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 20;
+  const [filterCategory, setFilterCategory] = useState<string>('all');
 
   useEffect(() => {
     fetch('/api/products')
@@ -100,6 +103,7 @@ export const ProductImporter = ({ onComplete, categories }: { onComplete: () => 
           });
 
           setDrafts(Array.from(draftsMap.values()));
+          setCurrentPage(1);
         } catch (err) {
           console.error('Parsing error:', err);
           alert('Помилка при читанні файлу');
@@ -209,6 +213,10 @@ export const ProductImporter = ({ onComplete, categories }: { onComplete: () => 
     setDrafts(prev => prev.filter(d => d.id !== id));
   };
 
+  const filteredDrafts = drafts.filter(d => filterCategory === 'all' || d.category === filterCategory);
+  const totalPages = Math.ceil(filteredDrafts.length / itemsPerPage);
+  const paginatedDrafts = filteredDrafts.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+
   return (
     <div className="space-y-8">
       <div className="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-sm">
@@ -276,16 +284,29 @@ export const ProductImporter = ({ onComplete, categories }: { onComplete: () => 
                   </button>
                 )}
               </div>
-              <button 
-                onClick={() => setDrafts([])}
-                className="text-sm text-red-500 font-bold hover:underline"
-              >
-                Очистити список
-              </button>
+              <div className="flex items-center gap-4">
+                <select 
+                  value={filterCategory}
+                  onChange={(e) => { setFilterCategory(e.target.value); setCurrentPage(1); }}
+                  className="bg-slate-50 border-none rounded-xl p-2 text-sm font-bold text-slate-600 focus:ring-2 focus:ring-tiffany cursor-pointer"
+                >
+                  <option value="all">Всі категорії</option>
+                  <option value="">Без категорії</option>
+                  {categories.map(cat => (
+                    <option key={cat.id} value={cat.slug}>{cat.name}</option>
+                  ))}
+                </select>
+                <button 
+                  onClick={() => setDrafts([])}
+                  className="text-sm text-red-500 font-bold hover:underline"
+                >
+                  Очистити список
+                </button>
+              </div>
             </div>
 
             <div className="grid grid-cols-1 gap-4">
-              {drafts.map((draft) => (
+              {paginatedDrafts.map((draft) => (
                 <motion.div 
                   key={draft.id}
                   layout
@@ -483,6 +504,28 @@ export const ProductImporter = ({ onComplete, categories }: { onComplete: () => 
                 </motion.div>
               ))}
             </div>
+
+            {totalPages > 1 && (
+              <div className="flex items-center justify-center gap-2 mt-8">
+                <button 
+                  onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                  disabled={currentPage === 1}
+                  className="px-4 py-2 rounded-xl font-bold text-sm bg-slate-50 text-slate-600 hover:bg-slate-100 disabled:opacity-50 transition-all"
+                >
+                  Попередня
+                </button>
+                <div className="text-sm font-bold text-slate-500 px-4">
+                  Сторінка {currentPage} з {totalPages}
+                </div>
+                <button 
+                  onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                  disabled={currentPage === totalPages}
+                  className="px-4 py-2 rounded-xl font-bold text-sm bg-slate-50 text-slate-600 hover:bg-slate-100 disabled:opacity-50 transition-all"
+                >
+                  Наступна
+                </button>
+              </div>
+            )}
           </motion.div>
         )}
       </AnimatePresence>

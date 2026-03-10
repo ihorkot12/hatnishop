@@ -192,46 +192,52 @@ export const Cart = () => {
               Ваш кошик
             </h2>
             <div className="space-y-4">
-              {cart.map(item => (
-                <motion.div 
-                  key={item.id}
-                  layout
-                  className="bg-white p-6 rounded-3xl border border-slate-100 flex items-center gap-6 shadow-sm"
-                >
-                  <div className="w-20 h-20 rounded-2xl overflow-hidden flex-shrink-0">
-                    <img src={item.image} alt={item.name} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
-                  </div>
-                  <div className="flex-1">
-                    <h3 className="font-bold text-slate-900 text-lg mb-1">{item.name}</h3>
-                    <div className="flex items-center gap-4">
-                      <div className="flex items-center border border-slate-200 rounded-xl overflow-hidden">
+              <AnimatePresence mode="popLayout">
+                {cart.map(item => (
+                  <motion.div 
+                    key={item.id}
+                    layout
+                    initial={{ opacity: 0, scale: 0.9, y: 20 }}
+                    animate={{ opacity: 1, scale: 1, y: 0 }}
+                    exit={{ opacity: 0, scale: 0.9, x: -20 }}
+                    transition={{ duration: 0.2 }}
+                    className="bg-white p-6 rounded-3xl border border-slate-100 flex items-center gap-6 shadow-sm"
+                  >
+                    <div className="w-20 h-20 rounded-2xl overflow-hidden flex-shrink-0">
+                      <img src={item.image} alt={item.name} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                    </div>
+                    <div className="flex-1">
+                      <h3 className="font-bold text-slate-900 text-lg mb-1">{item.name}</h3>
+                      <div className="flex items-center gap-4">
+                        <div className="flex items-center border border-slate-200 rounded-xl overflow-hidden">
+                          <button 
+                            onClick={() => updateQuantity(item.id, item.quantity - 1)}
+                            className="p-2 hover:bg-slate-50 text-slate-500"
+                          >
+                            <Minus size={14} />
+                          </button>
+                          <span className="w-8 text-center font-bold text-sm">{item.quantity}</span>
+                          <button 
+                            onClick={() => updateQuantity(item.id, item.quantity + 1)}
+                            className="p-2 hover:bg-slate-50 text-slate-500"
+                          >
+                            <Plus size={14} />
+                          </button>
+                        </div>
                         <button 
-                          onClick={() => updateQuantity(item.id, item.quantity - 1)}
-                          className="p-2 hover:bg-slate-50 text-slate-500"
+                          onClick={() => removeFromCart(item.id)}
+                          className="text-slate-300 hover:text-red-500 transition-colors"
                         >
-                          <Minus size={14} />
-                        </button>
-                        <span className="w-8 text-center font-bold text-sm">{item.quantity}</span>
-                        <button 
-                          onClick={() => updateQuantity(item.id, item.quantity + 1)}
-                          className="p-2 hover:bg-slate-50 text-slate-500"
-                        >
-                          <Plus size={14} />
+                          <Trash2 size={18} />
                         </button>
                       </div>
-                      <button 
-                        onClick={() => removeFromCart(item.id)}
-                        className="text-slate-300 hover:text-red-500 transition-colors"
-                      >
-                        <Trash2 size={18} />
-                      </button>
                     </div>
-                  </div>
-                  <div className="text-right">
-                    <div className="text-lg font-bold text-slate-900">{item.price * item.quantity} грн</div>
-                  </div>
-                </motion.div>
-              ))}
+                    <div className="text-right">
+                      <div className="text-lg font-bold text-slate-900">{item.price * item.quantity} грн</div>
+                    </div>
+                  </motion.div>
+                ))}
+              </AnimatePresence>
             </div>
           </section>
 

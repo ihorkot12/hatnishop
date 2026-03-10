@@ -28,7 +28,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, onQuickView }
         <img 
           src={product.image} 
           alt={product.name}
-          className="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-110"
+          className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-125"
           referrerPolicy="no-referrer"
         />
         

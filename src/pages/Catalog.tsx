@@ -13,7 +13,9 @@ export const Catalog = () => {
   const [products, setProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [priceRange, setPriceRange] = useState(5000);
+  const [minPrice, setMinPrice] = useState(0);
+  const [maxPrice, setMaxPrice] = useState(5000);
+  const [popularOnly, setPopularOnly] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
   const [searchQuery, setSearchQuery] = useState(searchUrlQuery || '');
   const [sortBy, setSortBy] = useState<'default' | 'price-asc' | 'price-desc' | 'popular'>('default');
@@ -59,7 +61,8 @@ export const Catalog = () => {
 
     let result = products.filter(p => {
       if (categoryFilter && !allowedCategories.includes(p.category)) return false;
-      if (p.price > priceRange) return false;
+      if (p.price < minPrice || p.price > maxPrice) return false;
+      if (popularOnly && !p.isPopular) return false;
       if (searchQuery && !p.name.toLowerCase().includes(searchQuery.toLowerCase())) return false;
       return true;
     });
@@ -69,7 +72,7 @@ export const Catalog = () => {
     if (sortBy === 'popular') result.sort((a, b) => (b.isPopular ? 1 : 0) - (a.isPopular ? 1 : 0));
 
     return result;
-  }, [categoryFilter, priceRange, searchQuery, sortBy]);
+  }, [categoryFilter, minPrice, maxPrice, popularOnly, searchQuery, sortBy]);
 
   return (
     <div className="bg-[#F9F7F5] min-h-screen">
@@ -164,7 +167,7 @@ export const Catalog = () => {
                   <h2 className="text-2xl font-bold text-slate-900 mb-2">Нічого не знайдено</h2>
                   <p className="text-slate-500 mb-8">Спробуйте змінити параметри фільтрації або пошуковий запит.</p>
                   <button 
-                    onClick={() => {setSearchParams({}); setPriceRange(5000); setSearchQuery('');}}
+                    onClick={() => {setSearchParams({}); setMinPrice(0); setMaxPrice(5000); setPopularOnly(false); setSearchQuery('');}}
                     className="bg-slate-900 text-white px-8 py-4 rounded-2xl font-bold hover:bg-tiffany transition-all"
                   >
                     Скинути все
@@ -241,23 +244,55 @@ export const Catalog = () => {
                   <h3 className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400 mb-6">Ціновий діапазон</h3>
                   <div className="bg-slate-50 p-8 rounded-[2rem]">
                     <div className="flex justify-between items-end mb-6">
-                      <div className="text-3xl font-bold text-slate-900">{priceRange} <span className="text-sm font-normal text-slate-400">грн</span></div>
-                      <div className="text-[10px] font-bold text-tiffany uppercase tracking-widest">Макс. ціна</div>
+                      <div className="text-2xl font-bold text-slate-900">{minPrice} - {maxPrice} <span className="text-sm font-normal text-slate-400">грн</span></div>
                     </div>
-                    <input 
-                      type="range" 
-                      min="100" 
-                      max="5000" 
-                      step="50"
-                      value={priceRange}
-                      onChange={(e) => setPriceRange(Number(e.target.value))}
-                      className="w-full accent-tiffany h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer"
-                    />
-                    <div className="flex justify-between text-[10px] font-bold text-slate-300 mt-4 uppercase tracking-widest">
-                      <span>100 грн</span>
+                    
+                    <div className="relative h-1.5 bg-slate-200 rounded-lg mb-4">
+                      <div 
+                        className="absolute h-full bg-tiffany rounded-lg" 
+                        style={{ left: `${(minPrice / 5000) * 100}%`, right: `${100 - (maxPrice / 5000) * 100}%` }}
+                      />
+                      <input 
+                        type="range" 
+                        min="0" 
+                        max="5000" 
+                        step="50"
+                        value={minPrice}
+                        onChange={(e) => setMinPrice(Math.min(Number(e.target.value), maxPrice - 50))}
+                        className="absolute w-full -top-1.5 h-1.5 appearance-none bg-transparent pointer-events-none [&::-webkit-slider-thumb]:pointer-events-auto [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:bg-tiffany [&::-webkit-slider-thumb]:rounded-full"
+                      />
+                      <input 
+                        type="range" 
+                        min="0" 
+                        max="5000" 
+                        step="50"
+                        value={maxPrice}
+                        onChange={(e) => setMaxPrice(Math.max(Number(e.target.value), minPrice + 50))}
+                        className="absolute w-full -top-1.5 h-1.5 appearance-none bg-transparent pointer-events-none [&::-webkit-slider-thumb]:pointer-events-auto [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:bg-tiffany [&::-webkit-slider-thumb]:rounded-full"
+                      />
+                    </div>
+                    
+                    <div className="flex justify-between text-[10px] font-bold text-slate-300 uppercase tracking-widest">
+                      <span>0 грн</span>
                       <span>5000 грн</span>
                     </div>
                   </div>
+                </div>
+
+                <div>
+                  <h3 className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400 mb-6">Популярність</h3>
+                  <label className="flex items-center gap-3 cursor-pointer group">
+                    <input 
+                      type="checkbox" 
+                      className="hidden" 
+                      checked={popularOnly}
+                      onChange={(e) => setPopularOnly(e.target.checked)}
+                    />
+                    <div className={`w-6 h-6 rounded-md flex items-center justify-center border-2 transition-all ${popularOnly ? 'bg-tiffany border-tiffany' : 'border-slate-300 group-hover:border-tiffany'}`}>
+                      {popularOnly && <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>}
+                    </div>
+                    <span className="font-bold text-slate-700 group-hover:text-slate-900">Тільки популярні товари</span>
+                  </label>
                 </div>
               </div>
 

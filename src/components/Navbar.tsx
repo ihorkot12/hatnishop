@@ -170,11 +170,20 @@ export const Navbar = () => {
 
             <Link to="/cart" className="p-2 text-slate-400 hover:text-slate-900 transition-all duration-300 relative">
               <ShoppingBag size={20} strokeWidth={1.5} />
-              {totalItems > 0 && (
-                <span className="absolute top-0 right-0 bg-slate-900 text-white text-[8px] font-bold w-4 h-4 rounded-full flex items-center justify-center">
-                  {totalItems}
-                </span>
-              )}
+              <AnimatePresence mode="popLayout">
+                {totalItems > 0 && (
+                  <motion.span 
+                    key={totalItems}
+                    initial={{ scale: 0.5, opacity: 0 }}
+                    animate={{ scale: 1, opacity: 1 }}
+                    exit={{ scale: 0.5, opacity: 0 }}
+                    transition={{ type: 'spring', stiffness: 400, damping: 10 }}
+                    className="absolute top-0 right-0 bg-slate-900 text-white text-[8px] font-bold w-4 h-4 rounded-full flex items-center justify-center"
+                  >
+                    {totalItems}
+                  </motion.span>
+                )}
+              </AnimatePresence>
             </Link>
             
             <div className="relative">
