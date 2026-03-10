@@ -434,9 +434,13 @@ export const Admin = () => {
         setShowCategoryModal(false);
         setEditingCategory(null);
         fetchCategories();
+      } else {
+        const errorData = await res.json().catch(() => ({}));
+        alert(`Помилка збереження: ${errorData.error || res.statusText}`);
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
+      alert(`Помилка: ${err.message}`);
     }
   };
 
@@ -475,9 +479,13 @@ export const Admin = () => {
         setManualOrderItems([]);
         fetchOrders();
         fetchStats();
+      } else {
+        const errorData = await res.json().catch(() => ({}));
+        alert(`Помилка збереження: ${errorData.error || res.statusText}`);
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
+      alert(`Помилка: ${err.message}`);
     }
   };
 
@@ -629,9 +637,13 @@ export const Admin = () => {
         setShowProductModal(false);
         setEditingProduct(null);
         fetchProducts();
+      } else {
+        const errorData = await res.json().catch(() => ({}));
+        alert(`Помилка збереження: ${errorData.error || res.statusText}`);
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
+      alert(`Помилка: ${err.message}`);
     }
   };
 
