@@ -38,17 +38,18 @@ export const generateProductImage = async (name: string, category: string) => {
   return withRetry(async () => {
     const ai = getAI();
     const response = await ai.models.generateContent({
-      model: "gemini-2.5-flash-image",
+      model: "gemini-3.1-flash-image-preview",
       contents: {
         parts: [
           {
-            text: `Професійне рекламне фото товару "${name}" у категорії "${category || 'Дім'}". Стиль: затишний, мінімалістичний, преміальний, з м'яким освітленням. Фон має бути нейтральним або відповідати категорії. Без тексту на зображенні.`,
+            text: `Професійне рекламне фото товару "${name}" у категорії "${category || 'Дім'}". Стиль: затишний, мінімалістичний, преміальний, з м'яким освітленням. Фон має бути нейтральним або відповідати категорії. Без тексту на зображенні. Висока якість, реалістичність.`,
           },
         ],
       },
       config: {
         imageConfig: {
-          aspectRatio: "1:1"
+          aspectRatio: "1:1",
+          imageSize: "1K"
         }
       }
     });

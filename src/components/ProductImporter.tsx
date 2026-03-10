@@ -28,7 +28,6 @@ export const ProductImporter = ({ onComplete, categories }: { onComplete: () => 
   const [drafts, setDrafts] = useState<DraftProduct[]>([]);
   const [isParsing, setIsParsing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
-  const [isEnriching, setIsEnriching] = useState(false);
   const [existingProducts, setExistingProducts] = useState<any[]>([]);
 
   useEffect(() => {
@@ -38,23 +37,6 @@ export const ProductImporter = ({ onComplete, categories }: { onComplete: () => 
       .catch(err => console.error(err));
   }, []);
 
-  // Background enrichment queue
-  useEffect(() => {
-    if (isEnriching || isParsing) return;
-
-    const nextPending = drafts.find(d => d.status === 'pending');
-    if (nextPending) {
-      const processNext = async () => {
-        setIsEnriching(true);
-        // Small delay to let UI breathe
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        await autoGenerateAI(nextPending.id);
-        setIsEnriching(false);
-      };
-      processNext();
-    }
-  }, [drafts, isEnriching, isParsing]);
-
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -62,7 +44,6 @@ export const ProductImporter = ({ onComplete, categories }: { onComplete: () => 
     setIsParsing(true);
     const reader = new FileReader();
     reader.onload = (evt) => {
-      // Use setTimeout to move parsing out of the main thread's immediate execution
       setTimeout(() => {
         try {
           const bstr = evt.target?.result;
@@ -72,6 +53,7 @@ export const ProductImporter = ({ onComplete, categories }: { onComplete: () => 
           const data = XLSX.utils.sheet_to_json(ws, { header: 1 }) as any[][];
 
           const draftsMap = new Map<string, DraftProduct>();
+          let currentCategory = '';
           
           data.forEach((row, index) => {
             if (index < 5) return;
@@ -80,6 +62,24 @@ export const ProductImporter = ({ onComplete, categories }: { onComplete: () => 
             const stock = parseFloat(row[1]) || 0;
             const price = parseFloat(row[2]) || 0;
             const size = row[3]?.toString().trim();
+            const description = row[4]?.toString().trim() || ''; // Try to get description if exists
+
+            // If row has name but no price/stock, it might be a category header
+            if (name && !price && !stock && name.length < 50) {
+              // Try to match with existing categories
+              const normalizedName = name.toLowerCase();
+              const matchedCat = categories.find(c => 
+                normalizedName.includes(c.name.toLowerCase()) || 
+                c.name.toLowerCase().includes(normalizedName)
+              );
+              if (matchedCat) {
+                currentCategory = matchedCat.slug;
+              } else {
+                // If no match, we could potentially create a new category or just use it as a hint
+                // For now, we just keep it as a potential category name for the next items
+              }
+              return;
+            }
 
             if (!name || (!price && !stock)) return;
 
@@ -98,8 +98,8 @@ export const ProductImporter = ({ onComplete, categories }: { onComplete: () => 
                 name,
                 price,
                 stock,
-                category: '',
-                description: '',
+                category: currentCategory, // Suggested category
+                description: description,
                 image: '',
                 status: 'pending',
                 isDuplicate,
@@ -121,69 +121,22 @@ export const ProductImporter = ({ onComplete, categories }: { onComplete: () => 
     reader.readAsBinaryString(file);
   };
 
-  const autoGenerateAI = async (id: string) => {
-    // Get the latest draft state
-    setDrafts(prev => {
-      const draft = prev.find(d => d.id === id);
-      if (!draft || draft.status !== 'pending') return prev;
-      
-      return prev.map(d => d.id === id ? { ...d, status: 'processing' } : d);
-    });
-
-    try {
-      // We need to find the draft again to get its data
-      const currentDrafts = await new Promise<DraftProduct[]>(resolve => {
-        setDrafts(prev => {
-          resolve(prev);
-          return prev;
-        });
-      });
-      
-      const draft = currentDrafts.find(d => d.id === id);
-      if (!draft) return;
-
-      const category = draft.category || 'Дім';
-      
-      const [description, image] = await Promise.all([
-        aiGenerateDescription(draft.name, category),
-        aiGenerateProductImage(draft.name, category)
-      ]);
-
-      setDrafts(prev => prev.map(d => d.id === id ? { 
-        ...d, 
-        description: description || '', 
-        image: image || '',
-        status: 'ready' 
-      } : d));
-    } catch (err) {
-      console.error('AI Auto-generation error:', err);
-      setDrafts(prev => prev.map(d => d.id === id ? { ...d, status: 'pending' } : d));
-    }
-  };
-
   const generateDescription = async (id: string) => {
     const draft = drafts.find(d => d.id === id);
     if (!draft) return;
     
-    if (draft.description && draft.description.trim().length > 0) {
-      if (!confirm('Опис вже існує. Ви впевнені, що хочете перегенерувати його?')) {
-        return;
-      }
-    }
-
     setDrafts(prev => prev.map(d => d.id === id ? { ...d, status: 'processing' } : d));
 
     try {
-      const text = await aiGenerateDescription(draft.name, draft.category);
-      if (text) {
-        setDrafts(prev => prev.map(d => d.id === id ? { 
-          ...d, 
-          description: text, 
-          status: 'ready' 
-        } : d));
-      }
+      const category = draft.category || 'Дім';
+      const description = await aiGenerateDescription(draft.name, category);
+      setDrafts(prev => prev.map(d => d.id === id ? { 
+        ...d, 
+        description: description || d.description, 
+        status: 'ready' 
+      } : d));
     } catch (err) {
-      console.error(err);
+      console.error('AI Description error:', err);
       setDrafts(prev => prev.map(d => d.id === id ? { ...d, status: 'pending' } : d));
     }
   };
@@ -195,16 +148,15 @@ export const ProductImporter = ({ onComplete, categories }: { onComplete: () => 
     setDrafts(prev => prev.map(d => d.id === id ? { ...d, status: 'processing' } : d));
 
     try {
-      const image = await aiGenerateProductImage(draft.name, draft.category);
-      if (image) {
-        setDrafts(prev => prev.map(d => d.id === id ? { 
-          ...d, 
-          image: image, 
-          status: 'ready' 
-        } : d));
-      }
+      const category = draft.category || 'Дім';
+      const image = await aiGenerateProductImage(draft.name, category);
+      setDrafts(prev => prev.map(d => d.id === id ? { 
+        ...d, 
+        image: image || d.image,
+        status: 'ready' 
+      } : d));
     } catch (err) {
-      console.error(err);
+      console.error('AI Image error:', err);
       setDrafts(prev => prev.map(d => d.id === id ? { ...d, status: 'pending' } : d));
     }
   };
@@ -287,18 +239,19 @@ export const ProductImporter = ({ onComplete, categories }: { onComplete: () => 
           </label>
         </div>
 
-        {(isEnriching || drafts.some(d => d.status === 'pending')) && drafts.length > 0 && (
-          <div className="mt-8 space-y-2">
-            <div className="flex justify-between text-xs font-bold text-slate-500 uppercase tracking-wider">
-              <span>Обробка товарів ШІ...</span>
-              <span>{drafts.filter(d => d.status === 'ready' || d.status === 'saved' || d.status === 'error').length} / {drafts.length}</span>
+        {drafts.length > 0 && (
+          <div className="mt-8 p-4 bg-slate-50 rounded-2xl border border-slate-100 flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-tiffany/10 text-tiffany rounded-full flex items-center justify-center">
+                <FileText size={20} />
+              </div>
+              <div>
+                <div className="font-bold text-slate-900">Модерація товарів</div>
+                <div className="text-xs text-slate-500">Перевірте дані перед публікацією</div>
+              </div>
             </div>
-            <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
-              <motion.div 
-                className="h-full bg-tiffany"
-                initial={{ width: 0 }}
-                animate={{ width: `${(drafts.filter(d => d.status === 'ready' || d.status === 'saved' || d.status === 'error').length / drafts.length) * 100}%` }}
-              />
+            <div className="text-sm font-bold text-slate-900">
+              {drafts.filter(d => d.status === 'saved').length} / {drafts.length} збережено
             </div>
           </div>
         )}
@@ -312,7 +265,24 @@ export const ProductImporter = ({ onComplete, categories }: { onComplete: () => 
             className="space-y-6"
           >
             <div className="flex justify-between items-center">
-              <h3 className="text-xl font-bold">Знайдено товарів: {drafts.filter(d => d.status !== 'saved').length}</h3>
+              <div className="flex items-center gap-4">
+                <h3 className="text-xl font-bold">Знайдено товарів: {drafts.filter(d => d.status !== 'saved').length}</h3>
+                {drafts.some(d => d.status === 'ready' || (d.status === 'pending' && d.category)) && (
+                  <button 
+                    onClick={async () => {
+                      const toSave = drafts.filter(d => (d.status === 'ready' || d.status === 'pending') && d.category);
+                      if (confirm(`Опублікувати ${toSave.length} товарів?`)) {
+                        for (const d of toSave) {
+                          await saveProduct(d.id);
+                        }
+                      }
+                    }}
+                    className="bg-emerald-500 text-white px-4 py-2 rounded-xl text-sm font-bold hover:bg-emerald-600 transition-all flex items-center gap-2"
+                  >
+                    <Check size={16} /> Опублікувати всі готові
+                  </button>
+                )}
+              </div>
               <button 
                 onClick={() => setDrafts([])}
                 className="text-sm text-red-500 font-bold hover:underline"
