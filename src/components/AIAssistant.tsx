@@ -1,6 +1,8 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { MessageCircle, X, Send, Bot, User, Sparkles } from 'lucide-react';
+import { chatWithAI } from '../services/aiService';
+import { Product } from '../types';
 
 export const AIAssistant = () => {
   const [isOpen, setIsOpen] = useState(false);
@@ -9,7 +11,15 @@ export const AIAssistant = () => {
   ]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [products, setProducts] = useState<Product[]>([]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    fetch('/api/products')
+      .then(res => res.json())
+      .then(data => setProducts(data))
+      .catch(err => console.error('Error fetching products for AI context:', err));
+  }, []);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -28,13 +38,9 @@ export const AIAssistant = () => {
     setIsLoading(true);
 
     try {
-      const res = await fetch('/api/ai/chat', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: userMessage })
-      });
-      const data = await res.json();
-      setMessages(prev => [...prev, { role: 'ai', text: data.text }]);
+      const productsContext = products.map(p => `${p.name} (${p.category}): ${p.price} грн. ${p.description}`).join('\n');
+      const aiResponse = await chatWithAI(userMessage, productsContext);
+      setMessages(prev => [...prev, { role: 'ai', text: aiResponse || 'Вибачте, я не зміг згенерувати відповідь.' }]);
     } catch (err) {
       console.error(err);
       setMessages(prev => [...prev, { role: 'ai', text: 'Вибачте, сталася помилка. Спробуйте пізніше.' }]);

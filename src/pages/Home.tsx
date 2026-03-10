@@ -18,6 +18,7 @@ export const Home = () => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    document.title = "Хатні Штучки — Естетичні товари для дому та затишку | Купити посуд, декор, текстиль";
     fetch('/api/products')
       .then(res => res.json())
       .then(data => {
@@ -40,8 +41,8 @@ export const Home = () => {
           <div className="flex flex-col md:flex-row justify-between items-end mb-16 gap-8">
             <div className="max-w-xl">
               <div className="text-tiffany font-bold text-[10px] uppercase tracking-[0.2em] mb-4">Наші бестселери</div>
-              <h2 className="text-5xl font-serif font-bold text-slate-900 mb-6 leading-tight">Популярні серед <span className="text-tiffany italic">наших клієнтів</span></h2>
-              <p className="text-slate-500 text-lg">Ці товари обирають найчастіше. Перевірена якість та бездоганний стиль для вашого дому.</p>
+              <h2 className="text-5xl font-serif font-bold text-slate-900 mb-6 leading-tight">Популярні товари для <span className="text-tiffany italic">вашого затишку</span></h2>
+              <p className="text-slate-500 text-lg">Обирайте найкращий посуд та декор, який став фаворитом наших покупців. Кожна річ у каталозі "Хатні Штучки" — це поєднання естетики та функціональності.</p>
             </div>
             <Link to="/catalog" className="flex items-center gap-2 text-tiffany font-bold hover:underline underline-offset-8">
               Дивитись всі товари <ArrowRight size={20} />
@@ -108,13 +109,13 @@ export const Home = () => {
 
             <div>
               <div className="text-tiffany font-bold text-[10px] uppercase tracking-[0.2em] mb-4">Чому обирають нас</div>
-              <h2 className="text-5xl font-serif font-bold text-slate-900 mb-10 leading-tight">Ми створюємо простір, де <span className="text-tiffany italic">хочеться жити</span></h2>
+              <h2 className="text-5xl font-serif font-bold text-slate-900 mb-10 leading-tight">Створюємо простір, де <span className="text-tiffany italic">панує гармонія</span></h2>
               
               <div className="space-y-8">
                 {[
-                  { title: 'Якість понад усе', desc: 'Кожен виріб проходить ретельну перевірку перед відправкою.', icon: <CheckCircle2 size={24} /> },
-                  { title: 'Швидка доставка', desc: 'Відправляємо ваші замовлення протягом 24 годин Новою Поштою.', icon: <TrendingUp size={24} /> },
-                  { title: 'Ексклюзивний дизайн', desc: 'Більшість наших товарів — це унікальні знахідки, які ви не зустрінете в мас-маркеті.', icon: <Star size={24} /> }
+                  { title: 'Якісний посуд та декор', desc: 'Ми ретельно відбираємо кожен предмет, щоб ви могли купити посуд найвищої якості, який слугуватиме роками.', icon: <CheckCircle2 size={24} /> },
+                  { title: 'Доставка по всій Україні', desc: 'Швидка відправка замовлень Новою Поштою у Київ, Львів, Одесу та будь-який інший куточок країни.', icon: <TrendingUp size={24} /> },
+                  { title: 'Естетика та затишок', desc: 'Наш асортимент — це не просто речі, а інструменти для створення особливої атмосфери у вашій оселі.', icon: <Star size={24} /> }
                 ].map((item, idx) => (
                   <motion.div 
                     key={idx}

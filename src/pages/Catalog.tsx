@@ -20,6 +20,12 @@ export const Catalog = () => {
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
 
   useEffect(() => {
+    document.title = categoryFilter 
+      ? `${categories.find(c => c.slug === categoryFilter)?.name || 'Каталог'} — Хатні Штучки` 
+      : "Каталог товарів для дому та затишку — Хатні Штучки";
+  }, [categoryFilter, categories]);
+
+  useEffect(() => {
     const fetchData = async () => {
       setIsLoading(true);
       try {
@@ -66,10 +72,10 @@ export const Catalog = () => {
             <div className="max-w-2xl">
               <div className="text-tiffany font-bold text-[10px] uppercase tracking-[0.3em] mb-4">Колекція 2024</div>
               <h1 className="text-5xl md:text-7xl font-serif font-bold text-slate-900 mb-6 leading-tight">
-                {categoryFilter ? categories.find(c => c.slug === categoryFilter)?.name : 'Весь каталог'}
+                {categoryFilter ? categories.find(c => c.slug === categoryFilter)?.name : 'Каталог товарів для дому'}
               </h1>
               <p className="text-slate-500 text-lg leading-relaxed">
-                Обирайте предмети, що створюють настрій. Від витонченого посуду до затишного текстилю — ми зібрали найкраще для вашого дому.
+                Найкращий вибір естетичного посуду, декору та текстилю в Україні. Обирайте предмети, що створюють настрій та затишок у вашій оселі.
               </p>
             </div>
             <div className="flex items-center gap-4">

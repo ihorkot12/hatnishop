@@ -44,7 +44,7 @@ export default function App() {
                     ХАТНІ <span className="text-tiffany">ШТУЧКИ</span>
                   </div>
                   <p className="text-white/50 max-w-sm leading-relaxed mb-8">
-                    Ми створюємо простір, у який хочеться повертатись. Кожна річ у нашому магазині обрана з любов'ю до деталей та затишку.
+                    "Хатні Штучки" — ваш улюблений інтернет-магазин естетичного посуду та декору в Україні. Ми допомагаємо купити затишні речі, які наповнюють дім теплом та гармонією.
                   </p>
                   <div className="flex gap-4">
                     {['Instagram', 'Facebook', 'Pinterest'].map(social => (

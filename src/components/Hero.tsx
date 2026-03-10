@@ -35,11 +35,11 @@ export const Hero = () => {
             </div>
             
             <h1 className="text-6xl md:text-8xl font-serif font-bold text-slate-900 leading-[0.9] mb-8 tracking-tight">
-              Затишок у кожній <span className="text-tiffany italic">деталі</span>
+              Естетичний посуд та <span className="text-tiffany italic">декор для дому</span>
             </h1>
             
             <p className="text-xl text-slate-500 font-light leading-relaxed mb-12 max-w-lg">
-              Ми створюємо речі, які перетворюють звичайний дім на місце сили. Натуральні матеріали, ручна робота та душа в кожному виробі.
+              Інтернет-магазин "Хатні Штучки" — ваш провідник у світ затишку. Купуйте кераміку, текстиль та аксесуари, які перетворюють оселю на місце сили.
             </p>
             
             <div className="flex flex-wrap gap-4">

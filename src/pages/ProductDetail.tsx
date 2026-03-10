@@ -95,6 +95,7 @@ export const ProductDetail = () => {
 
   useEffect(() => {
     if (product) {
+      document.title = `${product.name} — Купити в Хатні Штучки | Ціна ${product.price} грн`;
       if (product.aiDescription) {
         setAiDescription(product.aiDescription);
         setLoadingAi(false);

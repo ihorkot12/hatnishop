@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Package, ShoppingCart, TrendingUp, Plus, Edit2, Trash2, CheckCircle, Clock, Star, Truck, Users, Shield, UserPlus, Filter, Settings, MessageSquare, Tag, Upload } from 'lucide-react';
+import { generateDescription, generateProductImage } from '../services/aiService';
+import { Package, ShoppingCart, TrendingUp, Plus, Edit2, Trash2, CheckCircle, Clock, Star, Truck, Users, Shield, UserPlus, Filter, Settings, MessageSquare, Tag, Upload, Loader2, Sparkles } from 'lucide-react';
 import { ProductImporter } from '../components/ProductImporter';
 import { MOCK_PRODUCTS } from '../constants';
 import { Order, User } from '../types';
@@ -73,6 +74,9 @@ export const Admin = () => {
   const [manualOrderItems, setManualOrderItems] = useState<any[]>([]);
   const [mainImage, setMainImage] = useState<string>('');
   const [galleryImages, setGalleryImages] = useState<string[]>([]);
+  const [productDescription, setProductDescription] = useState<string>('');
+  const [productAiDescription, setProductAiDescription] = useState<string>('');
+  const [isGeneratingAI, setIsGeneratingAI] = useState(false);
 
   const fileToBase64 = (file: File): Promise<string> => {
     return new Promise((resolve, reject) => {
@@ -87,9 +91,13 @@ export const Admin = () => {
     if (editingProduct) {
       setMainImage(editingProduct.image || '');
       setGalleryImages(editingProduct.images || []);
+      setProductDescription(editingProduct.description || '');
+      setProductAiDescription(editingProduct.aiDescription || '');
     } else {
       setMainImage('');
       setGalleryImages([]);
+      setProductDescription('');
+      setProductAiDescription('');
     }
   }, [editingProduct, showProductModal]);
 
@@ -543,6 +551,42 @@ export const Admin = () => {
       if (res.ok) fetchProducts();
     } catch (err) {
       console.error(err);
+    }
+  };
+
+  const handleAIGenerateDescription = async (name: string, category: string) => {
+    if (productDescription && productDescription.trim().length > 0) {
+      if (!confirm('Опис вже існує. Ви впевнені, що хочете перегенерувати його?')) {
+        return;
+      }
+    }
+
+    setIsGeneratingAI(true);
+    try {
+      const text = await generateDescription(name, category);
+      if (text) {
+        setProductDescription(text);
+      }
+    } catch (err) {
+      console.error(err);
+      alert('Помилка при генерації опису');
+    } finally {
+      setIsGeneratingAI(false);
+    }
+  };
+
+  const handleAIGenerateImage = async (name: string, category: string) => {
+    setIsGeneratingAI(true);
+    try {
+      const image = await generateProductImage(name, category);
+      if (image) {
+        setMainImage(image);
+      }
+    } catch (err) {
+      console.error(err);
+      alert('Помилка при генерації зображення');
+    } finally {
+      setIsGeneratingAI(false);
     }
   };
 
@@ -1360,7 +1404,24 @@ export const Admin = () => {
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                   <div className="space-y-4">
-                    <label className="text-xs font-bold text-slate-400 uppercase">Головне зображення</label>
+                    <div className="flex items-center justify-between">
+                      <label className="text-xs font-bold text-slate-400 uppercase">Головне зображення</label>
+                      <button 
+                        type="button"
+                        onClick={() => {
+                          const form = document.querySelector('form');
+                          const name = (form?.querySelector('input[name="name"]') as HTMLInputElement)?.value;
+                          const category = (form?.querySelector('select[name="category"]') as HTMLSelectElement)?.value;
+                          if (name) handleAIGenerateImage(name, category);
+                          else alert('Введіть назву товару');
+                        }}
+                        disabled={isGeneratingAI}
+                        className="flex items-center gap-1 text-[10px] font-bold text-indigo-600 hover:text-indigo-800 transition-colors disabled:opacity-50"
+                      >
+                        {isGeneratingAI ? <Loader2 size={12} className="animate-spin" /> : <Sparkles size={12} />}
+                        Згенерувати ШІ
+                      </button>
+                    </div>
                     <div className="flex items-center gap-4 p-4 bg-slate-50 rounded-2xl border-2 border-dashed border-slate-200">
                       {mainImage ? (
                         <div className="relative group">
@@ -1462,12 +1523,41 @@ export const Admin = () => {
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div className="space-y-2">
-                    <label className="text-xs font-bold text-slate-400 uppercase">Опис</label>
-                    <textarea name="description" defaultValue={editingProduct?.description} rows={4} className="w-full bg-slate-50 border-none rounded-xl p-4 focus:ring-2 focus:ring-tiffany" />
+                    <div className="flex items-center justify-between">
+                      <label className="text-xs font-bold text-slate-400 uppercase">Опис</label>
+                      <button 
+                        type="button"
+                        onClick={() => {
+                          const form = document.querySelector('form');
+                          const name = (form?.querySelector('input[name="name"]') as HTMLInputElement)?.value;
+                          const category = (form?.querySelector('select[name="category"]') as HTMLSelectElement)?.value;
+                          if (name) handleAIGenerateDescription(name, category);
+                          else alert('Введіть назву товару');
+                        }}
+                        disabled={isGeneratingAI}
+                        className="flex items-center gap-1 text-[10px] font-bold text-tiffany hover:text-slate-900 transition-colors disabled:opacity-50"
+                      >
+                        {isGeneratingAI ? <Loader2 size={12} className="animate-spin" /> : <Sparkles size={12} />}
+                        Згенерувати ШІ
+                      </button>
+                    </div>
+                    <textarea 
+                      name="description" 
+                      value={productDescription} 
+                      onChange={e => setProductDescription(e.target.value)}
+                      rows={4} 
+                      className="w-full bg-slate-50 border-none rounded-xl p-4 focus:ring-2 focus:ring-tiffany" 
+                    />
                   </div>
                   <div className="space-y-2">
                     <label className="text-xs font-bold text-slate-400 uppercase">Порада від ШІ (AI Advice)</label>
-                    <textarea name="aiDescription" defaultValue={editingProduct?.aiDescription} rows={4} className="w-full bg-slate-50 border-none rounded-xl p-4 focus:ring-2 focus:ring-tiffany" />
+                    <textarea 
+                      name="aiDescription" 
+                      value={productAiDescription} 
+                      onChange={e => setProductAiDescription(e.target.value)}
+                      rows={4} 
+                      className="w-full bg-slate-50 border-none rounded-xl p-4 focus:ring-2 focus:ring-tiffany" 
+                    />
                   </div>
                 </div>
 
