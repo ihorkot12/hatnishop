@@ -35,7 +35,7 @@ export const CategoryGrid = () => {
         </Link>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
+      <div className="flex overflow-x-auto snap-x snap-mandatory gap-6 pb-8 -mx-4 px-4 sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8 hide-scrollbar">
         {categories.map((cat, idx) => (
           <motion.div
             key={cat.id}
@@ -43,6 +43,7 @@ export const CategoryGrid = () => {
             whileInView={{ opacity: 1, y: 0 }}
             transition={{ delay: idx * 0.1 }}
             viewport={{ once: true }}
+            className="snap-start shrink-0 w-[280px] sm:w-[320px] md:w-[360px]"
           >
             <Link to={`/catalog?category=${cat.slug}`} className="group block relative aspect-[3/4] rounded-[2.5rem] overflow-hidden shadow-lg">
               <img 

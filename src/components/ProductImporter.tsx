@@ -426,7 +426,7 @@ export const ProductImporter = ({ onComplete, categories }: { onComplete: () => 
                       )}
 
                       <div>
-                        <label className="text-[10px] font-bold text-slate-400 uppercase ml-1">URL Фото</label>
+                        <label className="text-[10px] font-bold text-slate-400 uppercase ml-1">URL Фото або Завантажити</label>
                         <div className="flex gap-2">
                           <input 
                             type="text" 
@@ -435,8 +435,23 @@ export const ProductImporter = ({ onComplete, categories }: { onComplete: () => 
                             onChange={(e) => setDrafts(prev => prev.map(d => d.id === draft.id ? { ...d, image: e.target.value } : d))}
                             className="flex-1 bg-slate-50 border-none rounded-xl p-3 text-sm focus:ring-2 focus:ring-tiffany"
                           />
-                          <div className="w-11 h-11 bg-slate-100 rounded-xl flex items-center justify-center text-slate-400 overflow-hidden">
-                            {draft.image ? <img src={draft.image} className="w-full h-full object-cover" /> : <ImageIcon size={20} />}
+                          <div className="relative w-11 h-11 bg-slate-100 rounded-xl flex items-center justify-center text-slate-400 overflow-hidden group cursor-pointer hover:bg-slate-200 transition-colors">
+                            {draft.image ? <img src={draft.image} className="w-full h-full object-cover" /> : <Upload size={20} />}
+                            <input 
+                              type="file" 
+                              accept="image/*"
+                              onChange={(e) => {
+                                const file = e.target.files?.[0];
+                                if (file) {
+                                  const reader = new FileReader();
+                                  reader.readAsDataURL(file);
+                                  reader.onload = () => {
+                                    setDrafts(prev => prev.map(d => d.id === draft.id ? { ...d, image: reader.result as string } : d));
+                                  };
+                                }
+                              }}
+                              className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                            />
                           </div>
                         </div>
                       </div>

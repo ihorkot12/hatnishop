@@ -151,7 +151,28 @@ export class SqliteAdapter implements DatabaseAdapter {
       // Column might already exist
     }
 
-    try { this.db.exec("ALTER TABLE users ADD COLUMN role TEXT DEFAULT 'user'"); } catch (e) {}
+    try { this.db.prepare("ALTER TABLE users ADD COLUMN role TEXT DEFAULT 'user'").run(); } catch (e) {}
+
+    // Seed dummy data if empty
+    const reviewCount = this.db.prepare("SELECT COUNT(*) as count FROM reviews").get().count;
+    if (reviewCount === 0) {
+      this.db.prepare(`
+        INSERT INTO reviews (id, product_id, user_id, user_name, rating, comment, is_approved)
+        VALUES ('dummy-review-1', '1', 'dummy-user', 'Тестовий Користувач', 5, 'Це тестовий коментар для відображення в адмін-панелі. Ви можете його видалити.', 1)
+      `).run();
+    }
+
+    const orderCount = this.db.prepare("SELECT COUNT(*) as count FROM orders").get().count;
+    if (orderCount === 0) {
+      this.db.prepare(`
+        INSERT INTO orders (id, user_id, customer_name, customer_phone, customer_address, total, final_total, status)
+        VALUES ('dummy-order-1', 'dummy-user', 'Тестовий Покупець', '+380999999999', 'Київ', 1000, 1000, 'pending')
+      `).run();
+      this.db.prepare(`
+        INSERT INTO order_items (order_id, product_id, quantity, price)
+        VALUES ('dummy-order-1', '1', 1, 1000)
+      `).run();
+    }
   }
 
   async getUserByEmail(email: string): Promise<User | null> {

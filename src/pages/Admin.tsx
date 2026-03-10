@@ -66,6 +66,7 @@ export const Admin = () => {
   const [showOrderModal, setShowOrderModal] = useState(false);
   const [editingProduct, setEditingProduct] = useState<any>(null);
   const [editingCategory, setEditingCategory] = useState<any>(null);
+  const [categoryImage, setCategoryImage] = useState<string>('');
   const [editingBonusCode, setEditingBonusCode] = useState<any>(null);
   const [showBonusCodeModal, setShowBonusCodeModal] = useState(false);
   const [editingReview, setEditingReview] = useState<any>(null);
@@ -100,6 +101,14 @@ export const Admin = () => {
       setProductAiDescription('');
     }
   }, [editingProduct, showProductModal]);
+
+  useEffect(() => {
+    if (editingCategory) {
+      setCategoryImage(editingCategory.image || '');
+    } else {
+      setCategoryImage('');
+    }
+  }, [editingCategory, showCategoryModal]);
 
   useEffect(() => {
     if (!loading && (!user || user.role !== 'admin')) {
@@ -410,6 +419,7 @@ export const Admin = () => {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
     const categoryData = Object.fromEntries(formData.entries());
+    categoryData.image = categoryImage;
     
     const url = editingCategory ? `/api/admin/categories/${editingCategory.id}` : '/api/admin/categories';
     const method = editingCategory ? 'PUT' : 'POST';
@@ -633,30 +643,6 @@ export const Admin = () => {
     );
   }
 
-  useEffect(() => {
-    setOrders([
-      {
-        id: 'ord-123',
-        customer: { 
-          name: 'Олена Коваленко', 
-          phone: '+380971234567', 
-          address: 'Київ, Відділення №1',
-          city: 'Київ',
-          deliveryMethod: 'nova-poshta',
-          warehouse: '№1'
-        },
-        items: [],
-        total: 1200,
-        discount: 0,
-        bonusUsed: 50,
-        finalTotal: 1150,
-        paymentMethod: 'mono',
-        status: 'pending',
-        createdAt: new Date().toISOString()
-      }
-    ]);
-  }, []);
-
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
       <div className="flex flex-col md:flex-row gap-8 items-start">
@@ -772,69 +758,82 @@ export const Admin = () => {
                 ))}
               </div>
 
-              <div className="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-sm">
-                <h3 className="text-xl font-bold mb-8">Динаміка продажів</h3>
-                <div className="h-[300px] w-full">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <AreaChart data={stats?.salesByDay || []}>
-                      <defs>
-                        <linearGradient id="colorSales" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="5%" stopColor="#81D8D0" stopOpacity={0.3}/>
-                          <stop offset="95%" stopColor="#81D8D0" stopOpacity={0}/>
-                        </linearGradient>
-                      </defs>
-                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                      <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fill: '#94a3b8', fontSize: 12}} />
-                      <YAxis axisLine={false} tickLine={false} tick={{fill: '#94a3b8', fontSize: 12}} />
-                      <Tooltip 
-                        contentStyle={{borderRadius: '16px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)'}}
-                      />
-                      <Area type="monotone" dataKey="sales" stroke="#81D8D0" strokeWidth={3} fillOpacity={1} fill="url(#colorSales)" />
-                    </AreaChart>
-                  </ResponsiveContainer>
-                </div>
-              </div>
+              {stats?.orderCount > 0 ? (
+                <>
+                  <div className="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-sm">
+                    <h3 className="text-xl font-bold mb-8">Динаміка продажів</h3>
+                    <div className="h-[300px] w-full">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <AreaChart data={stats?.salesByDay || []}>
+                          <defs>
+                            <linearGradient id="colorSales" x1="0" y1="0" x2="0" y2="1">
+                              <stop offset="5%" stopColor="#81D8D0" stopOpacity={0.3}/>
+                              <stop offset="95%" stopColor="#81D8D0" stopOpacity={0}/>
+                            </linearGradient>
+                          </defs>
+                          <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                          <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fill: '#94a3b8', fontSize: 12}} />
+                          <YAxis axisLine={false} tickLine={false} tick={{fill: '#94a3b8', fontSize: 12}} />
+                          <Tooltip 
+                            contentStyle={{borderRadius: '16px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)'}}
+                          />
+                          <Area type="monotone" dataKey="sales" stroke="#81D8D0" strokeWidth={3} fillOpacity={1} fill="url(#colorSales)" />
+                        </AreaChart>
+                      </ResponsiveContainer>
+                    </div>
+                  </div>
 
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                <div className="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-sm">
-                  <h3 className="text-xl font-bold mb-8">Продажі за категоріями</h3>
-                  <div className="h-[250px]">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <BarChart data={stats?.salesByCategory || []}>
-                        <XAxis dataKey="name" axisLine={false} tickLine={false} />
-                        <Tooltip />
-                        <Bar dataKey="value" radius={[10, 10, 0, 0]}>
-                          {(stats?.salesByCategory || []).map((entry: any, index: number) => (
-                            <Cell key={`cell-${index}`} fill={['#81D8D0', '#D4AF37', '#0f172a', '#94a3b8'][index % 4]} />
-                          ))}
-                        </Bar>
-                      </BarChart>
-                    </ResponsiveContainer>
-                  </div>
-                </div>
-                <div className="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-sm">
-                  <h3 className="text-xl font-bold mb-8">Останні дії</h3>
-                  <div className="space-y-6">
-                    {[
-                      { action: 'Нове замовлення', user: 'Марія К.', time: '2 хв тому', icon: <ShoppingCart size={14} /> },
-                      { action: 'Товар закінчується', user: 'Чашка "Ранкова"', time: '15 хв тому', icon: <Package size={14} /> },
-                      { action: 'Відгук отримано', user: 'Олена В.', time: '1 год тому', icon: <Star size={14} /> }
-                    ].map((item, i) => (
-                      <div key={i} className="flex items-center gap-4">
-                        <div className="w-8 h-8 bg-slate-50 rounded-full flex items-center justify-center text-slate-400">
-                          {item.icon}
-                        </div>
-                        <div className="flex-1">
-                          <div className="text-sm font-bold text-slate-900">{item.action}</div>
-                          <div className="text-xs text-slate-400">{item.user}</div>
-                        </div>
-                        <div className="text-[10px] text-slate-300 font-bold uppercase">{item.time}</div>
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                    <div className="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-sm">
+                      <h3 className="text-xl font-bold mb-8">Продажі за категоріями</h3>
+                      <div className="h-[250px]">
+                        <ResponsiveContainer width="100%" height="100%">
+                          <BarChart data={stats?.salesByCategory || []}>
+                            <XAxis dataKey="name" axisLine={false} tickLine={false} />
+                            <Tooltip />
+                            <Bar dataKey="value" radius={[10, 10, 0, 0]}>
+                              {(stats?.salesByCategory || []).map((entry: any, index: number) => (
+                                <Cell key={`cell-${index}`} fill={['#81D8D0', '#D4AF37', '#0f172a', '#94a3b8'][index % 4]} />
+                              ))}
+                            </Bar>
+                          </BarChart>
+                        </ResponsiveContainer>
                       </div>
-                    ))}
+                    </div>
+                    <div className="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-sm">
+                      <h3 className="text-xl font-bold mb-8">Останні дії</h3>
+                      <div className="space-y-6">
+                        {[
+                          { action: 'Нове замовлення', user: 'Марія К.', time: '2 хв тому', icon: <ShoppingCart size={14} /> },
+                          { action: 'Товар закінчується', user: 'Чашка "Ранкова"', time: '15 хв тому', icon: <Package size={14} /> },
+                          { action: 'Відгук отримано', user: 'Олена В.', time: '1 год тому', icon: <Star size={14} /> }
+                        ].map((item, i) => (
+                          <div key={i} className="flex items-center gap-4">
+                            <div className="w-8 h-8 bg-slate-50 rounded-full flex items-center justify-center text-slate-400">
+                              {item.icon}
+                            </div>
+                            <div className="flex-1">
+                              <div className="text-sm font-bold text-slate-900">{item.action}</div>
+                              <div className="text-xs text-slate-400">{item.user}</div>
+                            </div>
+                            <div className="text-[10px] text-slate-300 font-bold uppercase">{item.time}</div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
                   </div>
+                </>
+              ) : (
+                <div className="bg-white p-12 rounded-[2.5rem] border border-slate-100 shadow-sm text-center">
+                  <div className="w-20 h-20 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-6 text-slate-300">
+                    <TrendingUp size={32} />
+                  </div>
+                  <h3 className="text-xl font-bold text-slate-900 mb-2">Немає даних для аналітики</h3>
+                  <p className="text-slate-500 max-w-md mx-auto">Статистика та графіки з'являться тут після того, як клієнти зроблять перші замовлення.</p>
                 </div>
-              </div>
+              )}
             </div>
+
           ) : activeTab === 'bonus-codes' ? (
             <div className="space-y-8">
               <div className="flex justify-between items-center">
@@ -1626,8 +1625,38 @@ export const Admin = () => {
                   <input name="slug" defaultValue={editingCategory?.slug} required className="w-full bg-slate-50 border-none rounded-xl p-4 focus:ring-2 focus:ring-tiffany" />
                 </div>
                 <div className="space-y-2">
-                  <label className="text-xs font-bold text-slate-400 uppercase">URL зображення</label>
-                  <input name="image" defaultValue={editingCategory?.image} required className="w-full bg-slate-50 border-none rounded-xl p-4 focus:ring-2 focus:ring-tiffany" />
+                  <label className="text-xs font-bold text-slate-400 uppercase">Зображення</label>
+                  <div className="flex gap-4 items-center">
+                    {categoryImage && (
+                      <img src={categoryImage} alt="Preview" className="w-16 h-16 rounded-xl object-cover" />
+                    )}
+                    <div className="flex-1 space-y-2">
+                      <input 
+                        type="text"
+                        value={categoryImage}
+                        onChange={e => setCategoryImage(e.target.value)}
+                        placeholder="URL зображення" 
+                        className="w-full bg-slate-50 border-none rounded-xl p-4 focus:ring-2 focus:ring-tiffany" 
+                      />
+                      <div className="relative">
+                        <input 
+                          type="file" 
+                          accept="image/*"
+                          onChange={async (e) => {
+                            const file = e.target.files?.[0];
+                            if (file) {
+                              const base64 = await fileToBase64(file);
+                              setCategoryImage(base64);
+                            }
+                          }}
+                          className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                        />
+                        <button type="button" className="w-full flex items-center justify-center gap-2 bg-slate-100 text-slate-600 py-3 rounded-xl font-bold hover:bg-slate-200 transition-all">
+                          <Upload size={18} /> Завантажити з ПК
+                        </button>
+                      </div>
+                    </div>
+                  </div>
                 </div>
                 <div className="space-y-2">
                   <label className="text-xs font-bold text-slate-400 uppercase">Батьківська категорія</label>

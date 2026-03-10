@@ -5,6 +5,7 @@ import { useLocation } from 'react-router-dom';
 import { GoogleGenAI } from "@google/genai";
 import { MOCK_PRODUCTS } from '../constants';
 import ReactMarkdown from 'react-markdown';
+import { useAuth } from '../store/AuthContext';
 
 interface Message {
   role: 'user' | 'model';
@@ -12,6 +13,7 @@ interface Message {
 }
 
 export const ChatAssistant = () => {
+  const { user } = useAuth();
   const location = useLocation();
   const [isOpen, setIsOpen] = useState(false);
   const [showNotification, setShowNotification] = useState(false);
@@ -48,6 +50,8 @@ export const ChatAssistant = () => {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
   }, [messages]);
+
+  if (user?.role === 'admin') return null;
 
   const handleSend = async (customMessage?: string) => {
     const userMessage = customMessage || input.trim();
