@@ -90,6 +90,7 @@ export interface Category {
   name: string;
   slug: string;
   image: string;
+  parent_id?: string | null;
 }
 
 export interface DatabaseAdapter {

@@ -23,6 +23,7 @@ export interface Category {
   name: string;
   image: string;
   slug: string;
+  parent_id?: string | null;
 }
 
 export interface CartItem extends Product {

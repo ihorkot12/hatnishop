@@ -50,7 +50,8 @@ export class NeonAdapter implements DatabaseAdapter {
         id TEXT PRIMARY KEY,
         name TEXT,
         slug TEXT UNIQUE,
-        image TEXT
+        image TEXT,
+        parent_id TEXT REFERENCES categories(id)
       );
     `;
 
@@ -405,8 +406,8 @@ export class NeonAdapter implements DatabaseAdapter {
 
   async createCategory(category: Partial<Category>): Promise<void> {
     await this.sql`
-      INSERT INTO categories (id, name, slug, image)
-      VALUES (${category.id}, ${category.name}, ${category.slug}, ${category.image})
+      INSERT INTO categories (id, name, slug, image, parent_id)
+      VALUES (${category.id}, ${category.name}, ${category.slug}, ${category.image}, ${category.parent_id || null})
     `;
   }
 
@@ -415,7 +416,8 @@ export class NeonAdapter implements DatabaseAdapter {
       UPDATE categories SET 
         name = ${category.name}, 
         slug = ${category.slug}, 
-        image = ${category.image}
+        image = ${category.image},
+        parent_id = ${category.parent_id || null}
       WHERE id = ${id}
     `;
   }

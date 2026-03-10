@@ -1284,7 +1284,14 @@ export const Admin = () => {
                         <tr key={cat.id} className="hover:bg-slate-50/50 transition-colors">
                           <td className="px-8 py-6 flex items-center gap-4">
                             <img src={cat.image} className="w-12 h-12 rounded-lg object-cover" alt="" referrerPolicy="no-referrer" />
-                            <div className="font-bold text-slate-900">{cat.name}</div>
+                            <div>
+                              <div className="font-bold text-slate-900">{cat.name}</div>
+                              {cat.parent_id && (
+                                <div className="text-[10px] text-slate-400 uppercase font-bold">
+                                  Підкатегорія: {categories.find(c => c.id === cat.parent_id)?.name}
+                                </div>
+                              )}
+                            </div>
                           </td>
                           <td className="px-8 py-6 text-slate-500">{cat.slug}</td>
                           <td className="px-8 py-6">
@@ -1379,8 +1386,13 @@ export const Admin = () => {
                   <div className="space-y-2">
                     <label className="text-xs font-bold text-slate-400 uppercase">Категорія</label>
                     <select name="category" defaultValue={editingProduct?.category || categories[0]?.slug} className="w-full bg-slate-50 border-none rounded-xl p-4 focus:ring-2 focus:ring-tiffany">
-                      {categories.map(cat => (
-                        <option key={cat.id} value={cat.slug}>{cat.name}</option>
+                      {categories.filter(c => !c.parent_id).map(parent => (
+                        <React.Fragment key={parent.id}>
+                          <option value={parent.slug}>{parent.name}</option>
+                          {categories.filter(c => c.parent_id === parent.id).map(child => (
+                            <option key={child.id} value={child.slug}>&nbsp;&nbsp;— {child.name}</option>
+                          ))}
+                        </React.Fragment>
                       ))}
                     </select>
                   </div>
@@ -1616,6 +1628,19 @@ export const Admin = () => {
                 <div className="space-y-2">
                   <label className="text-xs font-bold text-slate-400 uppercase">URL зображення</label>
                   <input name="image" defaultValue={editingCategory?.image} required className="w-full bg-slate-50 border-none rounded-xl p-4 focus:ring-2 focus:ring-tiffany" />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-xs font-bold text-slate-400 uppercase">Батьківська категорія</label>
+                  <select 
+                    name="parent_id" 
+                    defaultValue={editingCategory?.parent_id || ""} 
+                    className="w-full bg-slate-50 border-none rounded-xl p-4 focus:ring-2 focus:ring-tiffany"
+                  >
+                    <option value="">Немає (головна)</option>
+                    {categories.filter(c => c.id !== editingCategory?.id && !c.parent_id).map(cat => (
+                      <option key={cat.id} value={cat.id}>{cat.name}</option>
+                    ))}
+                  </select>
                 </div>
                 <div className="flex gap-4 pt-4">
                   <button type="button" onClick={() => setShowCategoryModal(false)} className="flex-1 px-6 py-4 rounded-xl font-bold text-slate-500 hover:bg-slate-50 transition-all">Скасувати</button>

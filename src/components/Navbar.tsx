@@ -16,6 +16,15 @@ export const Navbar = () => {
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [showNotifMenu, setShowNotifMenu] = useState(false);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const [categories, setCategories] = useState<any[]>([]);
+  const [showCatalogMenu, setShowCatalogMenu] = useState(false);
+
+  React.useEffect(() => {
+    fetch('/api/categories')
+      .then(res => res.json())
+      .then(data => setCategories(data))
+      .catch(err => console.error(err));
+  }, []);
 
   const navLinkClass = ({ isActive }: { isActive: boolean }) => 
     `transition-all duration-300 ${isActive ? 'text-slate-900 underline underline-offset-8 decoration-slate-900 decoration-1' : 'text-slate-500 hover:text-slate-900'}`;
@@ -42,10 +51,52 @@ export const Navbar = () => {
               ХАТНІ <span className="text-[#68b8b0] italic transition-colors group-hover:text-tiffany">ШТУЧКИ</span>
             </Link>
             <div className="hidden md:flex items-center gap-8 text-[11px] uppercase tracking-[0.2em] font-bold">
-              <NavLink to="/catalog" className={navLinkClass} end>Каталог</NavLink>
-              <NavLink to="/catalog?category=kitchen" className={navLinkClass}>Кухня</NavLink>
-              <NavLink to="/catalog?category=textile" className={navLinkClass}>Текстиль</NavLink>
-              <NavLink to="/catalog?category=decor" className={navLinkClass}>Декор</NavLink>
+              <div 
+                className="relative group"
+                onMouseEnter={() => setShowCatalogMenu(true)}
+                onMouseLeave={() => setShowCatalogMenu(false)}
+              >
+                <NavLink to="/catalog" className={navLinkClass} end>Каталог</NavLink>
+                <AnimatePresence>
+                  {showCatalogMenu && (
+                    <motion.div 
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: 10 }}
+                      className="absolute top-full left-0 w-[600px] bg-white shadow-2xl border border-slate-100 p-8 rounded-3xl z-50 grid grid-cols-3 gap-8"
+                    >
+                      {categories.filter(c => !c.parent_id).map(parent => (
+                        <div key={parent.id} className="space-y-4">
+                          <Link 
+                            to={`/catalog?category=${parent.slug}`}
+                            className="text-slate-900 hover:text-tiffany transition-colors block border-b border-slate-50 pb-2"
+                            onClick={() => setShowCatalogMenu(false)}
+                          >
+                            {parent.name}
+                          </Link>
+                          <div className="space-y-2">
+                            {categories.filter(c => c.parent_id === parent.id).map(child => (
+                              <Link 
+                                key={child.id}
+                                to={`/catalog?category=${child.slug}`}
+                                className="text-[10px] text-slate-500 hover:text-tiffany transition-colors block normal-case font-medium"
+                                onClick={() => setShowCatalogMenu(false)}
+                              >
+                                {child.name}
+                              </Link>
+                            ))}
+                          </div>
+                        </div>
+                      ))}
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
+              {categories.filter(c => !c.parent_id).slice(0, 3).map(cat => (
+                <NavLink key={cat.id} to={`/catalog?category=${cat.slug}`} className={navLinkClass}>
+                  {cat.name}
+                </NavLink>
+              ))}
             </div>
           </div>
 

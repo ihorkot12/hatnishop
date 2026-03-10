@@ -112,13 +112,6 @@ export class SqliteAdapter implements DatabaseAdapter {
         FOREIGN KEY(user_id) REFERENCES users(id)
       );
 
-      // Migration: Add is_approved to reviews if it doesn't exist
-      try {
-        this.db.prepare("ALTER TABLE reviews ADD COLUMN is_approved INTEGER DEFAULT 0").run();
-      } catch (e) {
-        // Column might already exist
-      }
-
       CREATE TABLE IF NOT EXISTS price_subscriptions (
         id TEXT PRIMARY KEY,
         user_id TEXT,
@@ -128,6 +121,15 @@ export class SqliteAdapter implements DatabaseAdapter {
         FOREIGN KEY(user_id) REFERENCES users(id),
         FOREIGN KEY(product_id) REFERENCES products(id),
         UNIQUE(user_id, product_id)
+      );
+
+      CREATE TABLE IF NOT EXISTS categories (
+        id TEXT PRIMARY KEY,
+        name TEXT,
+        slug TEXT UNIQUE,
+        image TEXT,
+        parent_id TEXT,
+        FOREIGN KEY(parent_id) REFERENCES categories(id)
       );
 
       CREATE TABLE IF NOT EXISTS notifications (
@@ -142,6 +144,13 @@ export class SqliteAdapter implements DatabaseAdapter {
       );
     `);
     
+    // Migration: Add is_approved to reviews if it doesn't exist
+    try {
+      this.db.prepare("ALTER TABLE reviews ADD COLUMN is_approved INTEGER DEFAULT 0").run();
+    } catch (e) {
+      // Column might already exist
+    }
+
     try { this.db.exec("ALTER TABLE users ADD COLUMN role TEXT DEFAULT 'user'"); } catch (e) {}
   }
 
@@ -328,15 +337,23 @@ export class SqliteAdapter implements DatabaseAdapter {
   }
 
   async createCategory(category: Partial<Category>): Promise<void> {
-    this.db.prepare("INSERT INTO categories (id, name, slug, image) VALUES (?, ?, ?, ?)").run(
-      category.id, category.name, category.slug, category.image
+    this.db.prepare("INSERT INTO categories (id, name, slug, image, parent_id) VALUES (?, ?, ?, ?, ?)").run(
+      category.id, category.name, category.slug, category.image, category.parent_id || null
     );
   }
 
   async updateCategory(id: string, category: Partial<Category>): Promise<void> {
-    this.db.prepare("UPDATE categories SET name = ?, slug = ?, image = ? WHERE id = ?").run(
-      category.name, category.slug, category.image, id
-    );
+    const fields = [];
+    const values = [];
+    if (category.name !== undefined) { fields.push("name = ?"); values.push(category.name); }
+    if (category.slug !== undefined) { fields.push("slug = ?"); values.push(category.slug); }
+    if (category.image !== undefined) { fields.push("image = ?"); values.push(category.image); }
+    if (category.parent_id !== undefined) { fields.push("parent_id = ?"); values.push(category.parent_id); }
+    
+    if (fields.length === 0) return;
+    
+    values.push(id);
+    this.db.prepare(`UPDATE categories SET ${fields.join(', ')} WHERE id = ?`).run(...values);
   }
 
   async deleteCategory(id: string): Promise<void> {

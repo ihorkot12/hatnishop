@@ -49,8 +49,16 @@ export const Catalog = () => {
   }, []);
 
   const filteredProducts = useMemo(() => {
+    const selectedCategory = categories.find(c => c.slug === categoryFilter);
+    const childCategorySlugs = selectedCategory 
+      ? categories.filter(c => c.parent_id === selectedCategory.id).map(c => c.slug)
+      : [];
+    const allowedCategories = selectedCategory 
+      ? [selectedCategory.slug, ...childCategorySlugs]
+      : [];
+
     let result = products.filter(p => {
-      if (categoryFilter && p.category !== categoryFilter) return false;
+      if (categoryFilter && !allowedCategories.includes(p.category)) return false;
       if (p.price > priceRange) return false;
       if (searchQuery && !p.name.toLowerCase().includes(searchQuery.toLowerCase())) return false;
       return true;
@@ -205,14 +213,26 @@ export const Catalog = () => {
                     >
                       Всі товари
                     </button>
-                    {categories.map(cat => (
-                      <button 
-                        key={cat.id}
-                        onClick={() => setSearchParams({ category: cat.slug })}
-                        className={`text-left px-6 py-4 rounded-2xl font-bold transition-all ${categoryFilter === cat.slug ? 'bg-slate-900 text-white' : 'bg-slate-50 text-slate-600 hover:bg-slate-100'}`}
-                      >
-                        {cat.name}
-                      </button>
+                    {categories.filter(c => !c.parent_id).map(parent => (
+                      <div key={parent.id} className="space-y-1">
+                        <button 
+                          onClick={() => setSearchParams({ category: parent.slug })}
+                          className={`w-full text-left px-6 py-4 rounded-2xl font-bold transition-all ${categoryFilter === parent.slug ? 'bg-slate-900 text-white' : 'bg-slate-50 text-slate-600 hover:bg-slate-100'}`}
+                        >
+                          {parent.name}
+                        </button>
+                        <div className="pl-6 space-y-1">
+                          {categories.filter(c => c.parent_id === parent.id).map(child => (
+                            <button 
+                              key={child.id}
+                              onClick={() => setSearchParams({ category: child.slug })}
+                              className={`w-full text-left px-4 py-2 rounded-xl text-sm font-medium transition-all ${categoryFilter === child.slug ? 'text-tiffany font-bold' : 'text-slate-400 hover:text-slate-600'}`}
+                            >
+                              — {child.name}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
                     ))}
                   </div>
                 </div>
