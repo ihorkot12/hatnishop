@@ -196,6 +196,12 @@ export class PostgresAdapter implements DatabaseAdapter {
     } catch (e) {
       // Ignore if column exists
     }
+
+    try {
+      await sql`ALTER TABLE categories ADD COLUMN IF NOT EXISTS parent_id TEXT REFERENCES categories(id)`;
+    } catch (e) {
+      // Ignore if column exists
+    }
   } catch (error) {
     console.error("Database initialization failed:", error);
     throw error;

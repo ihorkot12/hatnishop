@@ -187,6 +187,12 @@ export class NeonAdapter implements DatabaseAdapter {
     `;
 
     // Seed Categories
+    try {
+      await this.sql`ALTER TABLE categories ADD COLUMN IF NOT EXISTS parent_id TEXT REFERENCES categories(id)`;
+    } catch (e) {
+      // Ignore if column exists
+    }
+
     const existingCategories = await this.sql`SELECT id FROM categories LIMIT 1`;
     if (existingCategories.length === 0) {
       await this.sql`
