@@ -199,6 +199,12 @@ export class NeonAdapter implements DatabaseAdapter {
       // Ignore if column exists
     }
 
+    try {
+      await this.sql`ALTER TABLE products ADD COLUMN IF NOT EXISTS bonus_points INTEGER DEFAULT 0`;
+    } catch (e) {
+      // Ignore if column exists
+    }
+
     const existingCategories = await this.sql`SELECT id FROM categories LIMIT 1`;
     if (existingCategories.length === 0) {
       await this.sql`

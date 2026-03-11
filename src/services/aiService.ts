@@ -38,7 +38,7 @@ export const generateProductImage = async (name: string, category: string) => {
   return withRetry(async () => {
     const ai = getAI();
     const response = await ai.models.generateContent({
-      model: "gemini-3.1-flash-image-preview",
+      model: "gemini-2.5-flash-image",
       contents: {
         parts: [
           {
@@ -48,8 +48,7 @@ export const generateProductImage = async (name: string, category: string) => {
       },
       config: {
         imageConfig: {
-          aspectRatio: "1:1",
-          imageSize: "1K"
+          aspectRatio: "1:1"
         }
       }
     });

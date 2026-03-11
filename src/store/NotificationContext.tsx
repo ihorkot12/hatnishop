@@ -29,11 +29,17 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
     try {
       const res = await fetch('/api/notifications');
       if (res.ok) {
-        const data = await res.json();
-        setNotifications(data);
+        const contentType = res.headers.get("content-type");
+        if (contentType && contentType.indexOf("application/json") !== -1) {
+          const data = await res.json();
+          setNotifications(data);
+        } else {
+          console.warn('Failed to fetch notifications: Expected JSON but got', contentType);
+        }
       }
     } catch (err) {
-      console.error('Failed to fetch notifications:', err);
+      // Use console.warn instead of error to avoid cluttering the console during polling
+      console.warn('Failed to fetch notifications:', err);
     }
   };
 

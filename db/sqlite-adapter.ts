@@ -154,6 +154,7 @@ export class SqliteAdapter implements DatabaseAdapter {
     try { this.db.prepare("ALTER TABLE users ADD COLUMN role TEXT DEFAULT 'user'").run(); } catch (e) {}
     try { this.db.prepare("ALTER TABLE categories ADD COLUMN parent_id TEXT").run(); } catch (e) {}
     try { this.db.prepare("ALTER TABLE products ADD COLUMN images TEXT").run(); } catch (e) {}
+    try { this.db.prepare("ALTER TABLE products ADD COLUMN bonus_points INTEGER DEFAULT 0").run(); } catch (e) {}
 
     // Seed dummy data if empty
     const reviewCount = this.db.prepare("SELECT COUNT(*) as count FROM reviews").get().count;

@@ -327,10 +327,10 @@ export const ProductImporter = ({ onComplete, categories }: { onComplete: () => 
                       <X size={14} /> Помилка: {draft.errorMessage}
                     </div>
                   )}
-                  <div className="flex flex-col lg:flex-row gap-6">
+                  <div className="flex flex-col gap-6">
                     <div className="flex-1 space-y-4">
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        <div className="md:col-span-2">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
                           <label className="text-[10px] font-bold text-slate-400 uppercase ml-1">Назва</label>
                           <input 
                             type="text" 
@@ -350,7 +350,7 @@ export const ProductImporter = ({ onComplete, categories }: { onComplete: () => 
                         </div>
                       </div>
 
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
                           <label className="text-[10px] font-bold text-slate-400 uppercase ml-1">Залишок</label>
                           <input 
@@ -373,28 +373,20 @@ export const ProductImporter = ({ onComplete, categories }: { onComplete: () => 
                             ))}
                           </select>
                         </div>
-                        <div className="flex items-end gap-2">
-                          <button 
-                            onClick={() => generateDescription(draft.id)}
-                            disabled={draft.status === 'processing' || draft.status === 'saved'}
-                            className="flex-1 flex items-center justify-center gap-2 bg-tiffany/10 text-tiffany hover:bg-tiffany hover:text-white px-4 py-3 rounded-xl text-sm font-bold transition-all disabled:opacity-50"
-                          >
-                            {draft.status === 'processing' ? <Loader2 className="animate-spin" size={16} /> : <Sparkles size={16} />}
-                            AI Опис
-                          </button>
-                          <button 
-                            onClick={() => generateImage(draft.id)}
-                            disabled={draft.status === 'processing' || draft.status === 'saved'}
-                            className="flex-1 flex items-center justify-center gap-2 bg-indigo-50 text-indigo-600 hover:bg-indigo-600 hover:text-white px-4 py-3 rounded-xl text-sm font-bold transition-all disabled:opacity-50"
-                          >
-                            {draft.status === 'processing' ? <Loader2 className="animate-spin" size={16} /> : <ImageIcon size={16} />}
-                            AI Фото
-                          </button>
-                        </div>
                       </div>
 
                       <div>
-                        <label className="text-[10px] font-bold text-slate-400 uppercase ml-1">Опис</label>
+                        <div className="flex items-center justify-between mb-1">
+                          <label className="text-[10px] font-bold text-slate-400 uppercase ml-1">Опис</label>
+                          <button 
+                            onClick={() => generateDescription(draft.id)}
+                            disabled={draft.status === 'processing' || draft.status === 'saved'}
+                            className="flex items-center gap-1 text-[10px] font-bold text-tiffany hover:text-tiffany/80 transition-colors disabled:opacity-50"
+                          >
+                            {draft.status === 'processing' ? <Loader2 className="animate-spin" size={12} /> : <Sparkles size={12} />}
+                            Згенерувати AI Опис
+                          </button>
+                        </div>
                         <textarea 
                           value={draft.description}
                           onChange={(e) => setDrafts(prev => prev.map(d => d.id === draft.id ? { ...d, description: e.target.value } : d))}
@@ -447,7 +439,17 @@ export const ProductImporter = ({ onComplete, categories }: { onComplete: () => 
                       )}
 
                       <div>
-                        <label className="text-[10px] font-bold text-slate-400 uppercase ml-1">URL Фото або Завантажити</label>
+                        <div className="flex items-center justify-between mb-1">
+                          <label className="text-[10px] font-bold text-slate-400 uppercase ml-1">URL Фото або Завантажити</label>
+                          <button 
+                            onClick={() => generateImage(draft.id)}
+                            disabled={draft.status === 'processing' || draft.status === 'saved'}
+                            className="flex items-center gap-1 text-[10px] font-bold text-indigo-500 hover:text-indigo-600 transition-colors disabled:opacity-50"
+                          >
+                            {draft.status === 'processing' ? <Loader2 className="animate-spin" size={12} /> : <ImageIcon size={12} />}
+                            Згенерувати AI Фото
+                          </button>
+                        </div>
                         <div className="flex gap-2">
                           <input 
                             type="text" 
@@ -478,24 +480,24 @@ export const ProductImporter = ({ onComplete, categories }: { onComplete: () => 
                       </div>
                     </div>
 
-                    <div className="flex lg:flex-col justify-end gap-2">
+                    <div className="flex justify-end gap-3 pt-4 border-t border-slate-100">
                       {draft.status === 'saved' ? (
-                        <div className="flex items-center gap-2 text-emerald-500 font-bold text-sm px-4 py-3">
+                        <div className="flex items-center gap-2 text-emerald-500 font-bold text-sm px-4 py-2">
                           <Check size={16} /> Збережено
                         </div>
                       ) : (
                         <>
                           <button 
-                            onClick={() => saveProduct(draft.id)}
-                            className="flex items-center justify-center gap-2 bg-slate-900 text-white hover:bg-tiffany px-6 py-3 rounded-xl text-sm font-bold transition-all shadow-lg shadow-slate-900/10"
-                          >
-                            <Save size={16} /> Опублікувати
-                          </button>
-                          <button 
                             onClick={() => removeDraft(draft.id)}
-                            className="flex items-center justify-center gap-2 bg-red-50 text-red-500 hover:bg-red-100 px-4 py-3 rounded-xl text-sm font-bold transition-all"
+                            className="flex items-center justify-center gap-2 bg-slate-50 text-slate-500 hover:bg-red-50 hover:text-red-500 px-6 py-2.5 rounded-xl text-sm font-bold transition-all"
                           >
                             <X size={16} /> Видалити
+                          </button>
+                          <button 
+                            onClick={() => saveProduct(draft.id)}
+                            className="flex items-center justify-center gap-2 bg-slate-900 text-white hover:bg-tiffany px-8 py-2.5 rounded-xl text-sm font-bold transition-all shadow-lg shadow-slate-900/10"
+                          >
+                            <Save size={16} /> Опублікувати
                           </button>
                         </>
                       )}

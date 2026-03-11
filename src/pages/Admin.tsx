@@ -1442,7 +1442,7 @@ export const Admin = () => {
                         className="flex items-center gap-2 px-3 py-1.5 bg-indigo-50 text-indigo-600 rounded-lg text-[10px] font-bold hover:bg-indigo-100 transition-all disabled:opacity-50 border border-indigo-100 shadow-sm"
                       >
                         {isGeneratingAI ? <Loader2 size={12} className="animate-spin" /> : <Sparkles size={12} className="text-indigo-500" />}
-                        <span>Згенерувати ШІ (Nano Banana 2)</span>
+                        <span>Згенерувати AI Фото</span>
                       </button>
                     </div>
                     <div className="flex items-center gap-4 p-4 bg-slate-50 rounded-2xl border-2 border-dashed border-slate-200">
