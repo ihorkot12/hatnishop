@@ -35,7 +35,7 @@ export const CategoryGrid = () => {
         </Link>
       </div>
 
-      <div className="flex overflow-x-auto snap-x snap-mandatory gap-6 pb-8 -mx-4 px-4 sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8 hide-scrollbar">
+      <div className="flex overflow-x-auto snap-x snap-mandatory gap-6 pb-8 -mx-4 px-4 sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8">
         {categories.map((cat, idx) => (
           <motion.div
             key={cat.id}

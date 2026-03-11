@@ -120,7 +120,7 @@ export const Admin = () => {
     if (activeTab === 'users') fetchUsers();
     if (activeTab === 'products') fetchProducts();
     if (activeTab === 'orders') fetchOrders();
-    if (activeTab === 'categories') fetchCategories();
+    if (activeTab === 'categories' || activeTab === 'import') fetchCategories();
     if (activeTab === 'analytics') fetchStats();
     if (activeTab === 'bonus-codes') fetchBonusCodes();
     if (activeTab === 'reviews') fetchReviews();
