@@ -88,7 +88,7 @@
 }
 
 ::-webkit-scrollbar-thumb {
-  @apply bg-slate-200 rounded-full hover:bg-tiffany transition-colors;
+  @apply bg-slate-300 rounded-full hover:bg-tiffany transition-colors border-2 border-warm-bg;
 }
 
 .hide-scrollbar::-webkit-scrollbar {

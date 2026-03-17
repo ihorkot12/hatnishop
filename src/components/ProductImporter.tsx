@@ -143,7 +143,7 @@ export const ProductImporter = ({ onComplete, categories }: { onComplete: () => 
 
     try {
       const category = draft.category || 'Дім';
-      const image = await aiGenerateProductImage(draft.name, category);
+      const image = await aiGenerateProductImage(draft.name, category, draft.image);
       setDrafts(prev => prev.map(d => d.id === id ? { 
         ...d, 
         image: image || d.image,

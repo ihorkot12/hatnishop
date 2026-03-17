@@ -141,6 +141,62 @@ export const Home = () => {
 
       <BonusSystem />
 
+      {/* Testimonials */}
+      <section className="py-24 bg-warm-bg overflow-hidden">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-16">
+            <div className="text-tiffany font-bold text-[10px] uppercase tracking-[0.2em] mb-4">Відгуки наших клієнтів</div>
+            <h2 className="text-5xl font-serif font-bold text-slate-900 mb-6">Що про нас <span className="text-tiffany italic">говорять</span></h2>
+            <p className="text-slate-500 max-w-2xl mx-auto">Ваші емоції — наше головне натхнення. Ми вдячні кожному, хто ділиться частинкою свого затишку з нами.</p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+            {[
+              { name: 'Олена К.', city: 'Київ', text: 'Замовляла набір керамічного посуду. Якість просто неймовірна! Кожне горнятко — це витвір мистецтва. Окреме дякую за естетичне пакування.', rating: 5 },
+              { name: 'Марина С.', city: 'Львів', text: 'Текстиль від Хатніх Штучок — це любов з першого дотику. Лляна скатертина ідеально вписалася в наш інтер\'єр. Буду замовляти ще!', rating: 5 },
+              { name: 'Ірина В.', city: 'Одеса', text: 'Дуже швидка доставка та приємне спілкування. Товар приїхав надійно запакований, все ціле. Рекомендую всім, хто цінує затишок.', rating: 5 }
+            ].map((review, idx) => (
+              <motion.div 
+                key={idx}
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                transition={{ delay: idx * 0.1 }}
+                className="bg-white p-10 rounded-[3rem] shadow-xl shadow-slate-200/50 border border-slate-50 relative"
+              >
+                <div className="flex gap-1 text-gold mb-6">
+                  {[...Array(review.rating)].map((_, i) => <Star key={i} size={16} fill="currentColor" />)}
+                </div>
+                <p className="text-slate-600 italic mb-8 leading-relaxed">"{review.text}"</p>
+                <div className="flex items-center gap-4">
+                  <div className="w-12 h-12 bg-tiffany/10 rounded-full flex items-center justify-center text-tiffany font-bold">
+                    {review.name[0]}
+                  </div>
+                  <div>
+                    <div className="font-bold text-slate-900">{review.name}</div>
+                    <div className="text-[10px] uppercase font-bold text-slate-400 tracking-widest">{review.city}</div>
+                  </div>
+                </div>
+              </motion.div>
+            ))}
+          </div>
+
+          <div className="mt-20 text-center">
+            <div className="inline-flex items-center gap-4 p-2 bg-white rounded-2xl shadow-lg border border-slate-50">
+              <div className="flex -space-x-3">
+                {[1, 2, 3, 4].map(i => (
+                  <div key={i} className="w-10 h-10 rounded-full border-2 border-white overflow-hidden">
+                    <img src={`https://i.pravatar.cc/100?img=${i+10}`} alt="" className="w-full h-full object-cover" />
+                  </div>
+                ))}
+              </div>
+              <div className="pr-4">
+                <span className="text-sm font-bold text-slate-900">Більше 500+ відгуків в Instagram</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* Telegram Banner */}
       <section className="py-12 bg-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">

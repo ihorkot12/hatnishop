@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { generateDescription, generateProductImage } from '../services/aiService';
-import { Package, ShoppingCart, TrendingUp, Plus, Edit2, Trash2, CheckCircle, Clock, Star, Truck, Users, Shield, UserPlus, Filter, Settings, MessageSquare, Tag, Upload, Loader2, Sparkles } from 'lucide-react';
+import { Package, ShoppingCart, TrendingUp, Plus, Edit2, Trash2, CheckCircle, Clock, Star, Truck, Users, Shield, UserPlus, Filter, Settings, MessageSquare, Tag, Upload, Loader2, Sparkles, Share2 } from 'lucide-react';
 import { ProductImporter } from '../components/ProductImporter';
 import { MOCK_PRODUCTS } from '../constants';
 import { Order, User } from '../types';
@@ -596,7 +596,7 @@ export const Admin = () => {
   const handleAIGenerateImage = async (name: string, category: string) => {
     setIsGeneratingAI(true);
     try {
-      const image = await generateProductImage(name, category);
+      const image = await generateProductImage(name, category, mainImage);
       if (image) {
         setMainImage(image);
       }
@@ -1346,6 +1346,17 @@ export const Admin = () => {
                           <td className="px-8 py-6 font-bold text-slate-900">{product.price} грн</td>
                           <td className="px-8 py-6">
                             <div className="flex gap-3">
+                              <button 
+                                onClick={() => {
+                                  const url = `${window.location.origin}/product/${product.id}`;
+                                  navigator.clipboard.writeText(url);
+                                  alert('Посилання скопійовано!');
+                                }}
+                                className="p-2 text-slate-400 hover:text-gold transition-colors"
+                                title="Поділитись"
+                              >
+                                <Share2 size={18} />
+                              </button>
                               <button 
                                 onClick={() => { setEditingProduct(product); setShowProductModal(true); }}
                                 className="p-2 text-slate-400 hover:text-tiffany transition-colors"

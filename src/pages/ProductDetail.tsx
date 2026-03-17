@@ -1,13 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ShoppingCart, Heart, Share2, ShieldCheck, Truck, RotateCcw, Star, Send, User, Bell } from 'lucide-react';
+import { ShoppingCart, Heart, Share2, ShieldCheck, Truck, RotateCcw, Star, Send, User, Bell, Sparkles } from 'lucide-react';
 import { MOCK_PRODUCTS } from '../constants';
 import { useCart } from '../store/CartContext';
 import { useAuth } from '../store/AuthContext';
 import { useWishlist } from '../store/WishlistContext';
 import { ProductCard } from '../components/ProductCard';
-import { generateProductDescription } from '../services/geminiService';
+import { generateStylingTip } from '../services/aiService';
 import { Review } from '../types';
 
 export const ProductDetail = () => {
@@ -73,7 +73,7 @@ export const ProductDetail = () => {
       setSubscribing(false);
     }
   };
-  const [aiDescription, setAiDescription] = useState<string | null>(null);
+  const [stylingTip, setStylingTip] = useState<string | null>(null);
   const [loadingAi, setLoadingAi] = useState(false);
   const [reviews, setReviews] = useState<Review[]>([]);
   const [newReview, setNewReview] = useState({ rating: 5, comment: '' });
@@ -93,26 +93,35 @@ export const ProductDetail = () => {
     }
   }, [user, product]);
 
+  const fetchStylingTip = async () => {
+    if (!product) return;
+    setLoadingAi(true);
+    try {
+      const tip = await generateStylingTip(product.name, product.category);
+      if (tip) {
+        setStylingTip(tip);
+        // Save to DB for future use
+        fetch(`/api/products/${product.id}/ai-description`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ aiDescription: tip })
+        });
+      }
+    } catch (err) {
+      console.error('Styling tip error:', err);
+    } finally {
+      setLoadingAi(false);
+    }
+  };
+
   useEffect(() => {
     if (product) {
       document.title = `${product.name} — Купити в Хатні Штучки | Ціна ${product.price} грн`;
       if (product.aiDescription) {
-        setAiDescription(product.aiDescription);
+        setStylingTip(product.aiDescription);
         setLoadingAi(false);
       } else {
-        setLoadingAi(true);
-        generateProductDescription(product.name, product.category).then(desc => {
-          setAiDescription(desc || null);
-          setLoadingAi(false);
-          // Save to DB for future use
-          if (desc) {
-            fetch(`/api/products/${product.id}/ai-description`, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ aiDescription: desc })
-            });
-          }
-        });
+        fetchStylingTip();
       }
       fetchReviews();
     }
@@ -238,10 +247,19 @@ export const ProductDetail = () => {
                   <div className="h-4 bg-slate-200 rounded"></div>
                 </div>
               </div>
-            ) : aiDescription && (
-              <div className="mt-6 p-6 bg-tiffany/5 rounded-3xl border border-tiffany/10 italic text-slate-700">
-                <p className="text-sm font-bold text-tiffany uppercase tracking-widest mb-2">Порада від Хатніх Штучок:</p>
-                "{aiDescription}"
+            ) : stylingTip && (
+              <div className="mt-6 p-6 bg-tiffany/5 rounded-3xl border border-tiffany/10 italic text-slate-700 relative group">
+                <div className="flex items-center justify-between mb-2">
+                  <p className="text-sm font-bold text-tiffany uppercase tracking-widest">Порада від Хатніх Штучок:</p>
+                  <button 
+                    onClick={fetchStylingTip}
+                    className="opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:bg-tiffany/10 rounded-lg text-tiffany"
+                    title="Оновити пораду"
+                  >
+                    <Sparkles size={14} />
+                  </button>
+                </div>
+                "{stylingTip}"
               </div>
             )}
           </div>
@@ -282,7 +300,21 @@ export const ProductDetail = () => {
             >
               <Bell size={24} fill={isSubscribed ? "currentColor" : "none"} />
             </button>
-            <button className="w-16 h-16 border border-slate-200 rounded-2xl flex items-center justify-center text-slate-400 hover:text-tiffany hover:border-tiffany transition-all">
+            <button 
+              onClick={() => {
+                if (navigator.share) {
+                  navigator.share({
+                    title: product.name,
+                    text: product.description,
+                    url: window.location.href,
+                  }).catch(console.error);
+                } else {
+                  navigator.clipboard.writeText(window.location.href);
+                  alert('Посилання скопійовано!');
+                }
+              }}
+              className="w-16 h-16 border border-slate-200 rounded-2xl flex items-center justify-center text-slate-400 hover:text-tiffany hover:border-tiffany transition-all"
+            >
               <Share2 size={24} />
             </button>
           </div>

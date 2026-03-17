@@ -16,6 +16,7 @@ export const Navbar = () => {
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [showNotifMenu, setShowNotifMenu] = useState(false);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [categories, setCategories] = useState<any[]>([]);
   const [showCatalogMenu, setShowCatalogMenu] = useState(false);
 
@@ -92,7 +93,7 @@ export const Navbar = () => {
                   )}
                 </AnimatePresence>
               </div>
-              {categories.filter(c => !c.parent_id).slice(0, 3).map(cat => (
+              {categories.filter(c => !c.parent_id).map(cat => (
                 <NavLink key={cat.id} to={`/catalog?category=${cat.slug}`} className={navLinkClass}>
                   {cat.name}
                 </NavLink>
@@ -228,13 +229,108 @@ export const Navbar = () => {
               )}
             </div>
 
-            <button className="md:hidden p-2 text-slate-400">
+            <button 
+              onClick={() => setIsMobileMenuOpen(true)}
+              className="md:hidden p-2 text-slate-400"
+            >
               <Menu size={20} strokeWidth={1.5} />
             </button>
           </div>
         </div>
       </div>
       </nav>
+
+      <AnimatePresence>
+        {isMobileMenuOpen && (
+          <>
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setIsMobileMenuOpen(false)}
+              className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-[60]"
+            />
+            <motion.div 
+              initial={{ x: '100%' }}
+              animate={{ x: 0 }}
+              exit={{ x: '100%' }}
+              transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+              className="fixed top-0 right-0 bottom-0 w-80 bg-white z-[70] shadow-2xl p-8 flex flex-col"
+            >
+              <div className="flex items-center justify-between mb-12">
+                <div className="text-xl font-serif font-bold text-slate-900">Меню</div>
+                <button 
+                  onClick={() => setIsMobileMenuOpen(false)}
+                  className="p-2 text-slate-400 hover:text-slate-900"
+                >
+                  <X size={24} />
+                </button>
+              </div>
+
+              <div className="flex-grow overflow-y-auto space-y-8">
+                <div className="space-y-4">
+                  <div className="text-[10px] uppercase text-slate-400 font-bold tracking-widest">Каталог</div>
+                  <div className="grid gap-4">
+                    <Link 
+                      to="/catalog" 
+                      className="text-lg font-bold text-slate-900 hover:text-tiffany"
+                      onClick={() => setIsMobileMenuOpen(false)}
+                    >
+                      Весь каталог
+                    </Link>
+                    {categories.filter(c => !c.parent_id).map(cat => (
+                      <Link 
+                        key={cat.id}
+                        to={`/catalog?category=${cat.slug}`}
+                        className="text-lg font-bold text-slate-900 hover:text-tiffany"
+                        onClick={() => setIsMobileMenuOpen(false)}
+                      >
+                        {cat.name}
+                      </Link>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="space-y-4">
+                  <div className="text-[10px] uppercase text-slate-400 font-bold tracking-widest">Допомога</div>
+                  <div className="grid gap-4">
+                    <Link to="/about" className="text-slate-600 hover:text-slate-900" onClick={() => setIsMobileMenuOpen(false)}>Про нас</Link>
+                    <Link to="/faq" className="text-slate-600 hover:text-slate-900" onClick={() => setIsMobileMenuOpen(false)}>FAQ</Link>
+                    <Link to="/faq" className="text-slate-600 hover:text-slate-900" onClick={() => setIsMobileMenuOpen(false)}>Доставка та оплата</Link>
+                  </div>
+                </div>
+              </div>
+
+              <div className="pt-8 border-t border-slate-100 mt-auto">
+                {!user ? (
+                  <Link 
+                    to="/login" 
+                    className="flex items-center justify-center gap-3 bg-slate-900 text-white py-4 rounded-2xl font-bold"
+                    onClick={() => setIsMobileMenuOpen(false)}
+                  >
+                    <User size={18} /> Увійти
+                  </Link>
+                ) : (
+                  <div className="flex items-center gap-4">
+                    <div className="w-12 h-12 bg-tiffany/10 rounded-full flex items-center justify-center text-tiffany">
+                      <User size={24} />
+                    </div>
+                    <div>
+                      <div className="font-bold text-slate-900">{user.name}</div>
+                      <button 
+                        onClick={() => { logout(); setIsMobileMenuOpen(false); }}
+                        className="text-xs text-red-500 font-bold"
+                      >
+                        Вийти
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
 
       <AnimatePresence>
         {isSearchOpen && (

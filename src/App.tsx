@@ -12,6 +12,8 @@ import { Cart } from './pages/Cart';
 import { Wishlist } from './pages/Wishlist';
 import { Admin } from './pages/Admin';
 import { Login } from './pages/Login';
+import { AboutUs } from './pages/AboutUs';
+import { FAQ } from './pages/FAQ';
 import { SpecialOffers } from './components/SpecialOffers';
 
 export default function App() {
@@ -32,6 +34,8 @@ export default function App() {
                 <Route path="/wishlist" element={<Wishlist />} />
                 <Route path="/admin" element={<Admin />} />
                 <Route path="/login" element={<Login />} />
+                <Route path="/about" element={<AboutUs />} />
+                <Route path="/faq" element={<FAQ />} />
               </Routes>
             </main>
             <SpecialOffers />
@@ -66,10 +70,10 @@ export default function App() {
                 <div>
                   <h4 className="font-bold mb-6 uppercase tracking-widest text-xs text-white/30">Допомога</h4>
                   <ul className="space-y-4 text-white/70">
-                    <li><a href="#" className="hover:text-white transition-colors">Доставка та оплата</a></li>
-                    <li><a href="#" className="hover:text-white transition-colors">Повернення</a></li>
-                    <li><a href="#" className="hover:text-white transition-colors">Про нас</a></li>
-                    <li><a href="#" className="hover:text-white transition-colors">Контакти</a></li>
+                    <li><Link to="/faq" className="hover:text-white transition-colors">Доставка та оплата</Link></li>
+                    <li><Link to="/faq" className="hover:text-white transition-colors">Повернення</Link></li>
+                    <li><Link to="/about" className="hover:text-white transition-colors">Про нас</Link></li>
+                    <li><Link to="/faq" className="hover:text-white transition-colors">Контакти</Link></li>
                   </ul>
                 </div>
                 <div>

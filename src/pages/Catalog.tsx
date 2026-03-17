@@ -20,6 +20,15 @@ export const Catalog = () => {
   const [searchQuery, setSearchQuery] = useState(searchUrlQuery || '');
   const [sortBy, setSortBy] = useState<'default' | 'price-asc' | 'price-desc' | 'popular'>('default');
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
+  const [showPromo, setShowPromo] = useState(false);
+
+  useEffect(() => {
+    const hasSeenPromo = localStorage.getItem('hasSeenCatalogPromo');
+    if (!hasSeenPromo) {
+      setShowPromo(true);
+      localStorage.setItem('hasSeenCatalogPromo', 'true');
+    }
+  }, []);
 
   useEffect(() => {
     document.title = categoryFilter 
@@ -313,6 +322,41 @@ export const Catalog = () => {
         product={selectedProduct} 
         onClose={() => setSelectedProduct(null)} 
       />
+
+      {/* Promotion Notification */}
+      <AnimatePresence>
+        {showPromo && (
+          <motion.div 
+            initial={{ opacity: 0, y: 50, scale: 0.9 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.9 }}
+            className="fixed bottom-8 left-8 right-8 md:left-auto md:right-8 md:w-96 z-[100]"
+          >
+            <div className="bg-slate-900 text-white p-8 rounded-[2.5rem] shadow-2xl border border-white/10 relative overflow-hidden">
+              <div className="absolute top-0 right-0 w-32 h-32 bg-tiffany/20 rounded-full -translate-y-1/2 translate-x-1/2 blur-3xl" />
+              <button 
+                onClick={() => setShowPromo(false)}
+                className="absolute top-4 right-4 text-white/40 hover:text-white transition-colors"
+              >
+                <X size={20} />
+              </button>
+              <div className="relative z-10">
+                <div className="text-tiffany font-bold text-[10px] uppercase tracking-widest mb-2">Спеціальна пропозиція</div>
+                <h3 className="text-2xl font-serif font-bold mb-4">Вітаємо у нашому каталозі!</h3>
+                <p className="text-white/60 text-sm mb-6 leading-relaxed">
+                  Використовуйте промокод <span className="text-white font-bold">WELCOME10</span> для отримання знижки 10% на ваше перше замовлення.
+                </p>
+                <button 
+                  onClick={() => setShowPromo(false)}
+                  className="w-full bg-tiffany text-white py-4 rounded-2xl font-bold hover:bg-white hover:text-tiffany transition-all"
+                >
+                  Зрозуміло, дякую!
+                </button>
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 };

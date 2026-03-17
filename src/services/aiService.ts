@@ -28,24 +28,60 @@ export const generateDescription = async (name: string, category: string) => {
     const ai = getAI();
     const response = await ai.models.generateContent({
       model: "gemini-3-flash-preview",
-      contents: [{ role: "user", parts: [{ text: `Напиши короткий, привабливий опис для товару "${name}" у категорії "${category || 'Дім'}". Опис має бути в стилі магазину затишних речей "Хатні Штучки". Використовуй українську мову. Максимум 2-3 речення. Не використовуй лапки.` }] }],
+      contents: [{ role: "user", parts: [{ text: `Напиши короткий, привабливий опис для товару "${name}" у категорії "${category || 'Дім'}". Опис має бути в стилі магазину затишних речей "Хатні Штучки" (затишок, тепло, естетика). Використовуй українську мову. Максимум 2-3 речення. Не використовуй лапки та вступні фрази.` }] }],
     });
     return response.text;
   });
 };
 
-export const generateProductImage = async (name: string, category: string) => {
+export const generateStylingTip = async (name: string, category: string) => {
   return withRetry(async () => {
     const ai = getAI();
     const response = await ai.models.generateContent({
+      model: "gemini-3-flash-preview",
+      contents: [{ role: "user", parts: [{ text: `Напиши коротку пораду (styling tip) як використовувати або стилізувати товар "${name}" у категорії "${category || 'Дім'}" в інтер'єрі. Стиль: затишний, надихаючий. Використовуй українську мову. Максимум 2 речення.` }] }],
+    });
+    return response.text;
+  });
+};
+
+export const generateLifestyleImagePrompt = async (name: string) => {
+  return withRetry(async () => {
+    const ai = getAI();
+    const response = await ai.models.generateContent({
+      model: "gemini-3-flash-preview",
+      contents: [{ role: "user", parts: [{ text: `Створи детальний промпт для генерації зображення (image generation prompt) для товару "${name}". Стиль: світлий інтер'єр, мінімалізм, тепле освітлення, естетика затишного дому. Промпт має бути англійською мовою.` }] }],
+    });
+    return response.text;
+  });
+};
+
+export const generateProductImage = async (name: string, category: string, base64Image?: string) => {
+  return withRetry(async () => {
+    const ai = getAI();
+    
+    const prompt = `Професійне рекламне фото товару "${name}" у категорії "${category || 'Дім'}". 
+    Стиль: затишний, мінімалістичний, преміальний, з м'яким освітленням. 
+    Фон має бути нейтральним або відповідати категорії. Без тексту на зображенні. Висока якість, реалістичність.
+    ${base64Image ? 'Використовуй надане зображення як референс для форми, кольору та дизайну товару, але зроби його професійним та естетичним.' : ''}`;
+
+    const parts: any[] = [{ text: prompt }];
+
+    if (base64Image) {
+      const match = base64Image.match(/^data:(image\/\w+);base64,(.+)$/);
+      if (match) {
+        parts.push({
+          inlineData: {
+            mimeType: match[1],
+            data: match[2]
+          }
+        });
+      }
+    }
+
+    const response = await ai.models.generateContent({
       model: "gemini-2.5-flash-image",
-      contents: {
-        parts: [
-          {
-            text: `Професійне рекламне фото товару "${name}" у категорії "${category || 'Дім'}". Стиль: затишний, мінімалістичний, преміальний, з м'яким освітленням. Фон має бути нейтральним або відповідати категорії. Без тексту на зображенні. Висока якість, реалістичність.`,
-          },
-        ],
-      },
+      contents: { parts },
       config: {
         imageConfig: {
           aspectRatio: "1:1"
@@ -59,7 +95,6 @@ export const generateProductImage = async (name: string, category: string) => {
       }
     }
     
-    // If we get here, check if there's text (maybe a refusal)
     const textPart = response.candidates?.[0]?.content?.parts?.find(p => p.text);
     if (textPart) {
       throw new Error(`Model refused to generate image: ${textPart.text}`);
