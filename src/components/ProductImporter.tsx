@@ -56,7 +56,6 @@ export const ProductImporter = ({ onComplete, categories }: { onComplete: () => 
           const data = XLSX.utils.sheet_to_json(ws, { header: 1 }) as any[][];
 
           const draftsMap = new Map<string, DraftProduct>();
-          let currentCategory = '';
           
           data.forEach((row, index) => {
             // Skip header row
@@ -71,13 +70,21 @@ export const ProductImporter = ({ onComplete, categories }: { onComplete: () => 
 
             if (!name || (!price && !stock)) return;
 
-            // Try to match category
+            // Try to match category - more robust matching
             let itemCategory = '';
             if (categoryName) {
-              const matchedCat = categories.find(c => 
-                categoryName.toLowerCase().includes(c.name.toLowerCase()) || 
-                c.name.toLowerCase().includes(categoryName.toLowerCase())
-              );
+              const lowerCategoryName = categoryName.toLowerCase();
+              // Try exact match first
+              let matchedCat = categories.find(c => c.name.toLowerCase() === lowerCategoryName);
+              
+              // If no exact match, try partial match
+              if (!matchedCat) {
+                matchedCat = categories.find(c => 
+                  lowerCategoryName.includes(c.name.toLowerCase()) || 
+                  c.name.toLowerCase().includes(lowerCategoryName)
+                );
+              }
+              
               if (matchedCat) itemCategory = matchedCat.slug;
             }
 
@@ -213,7 +220,11 @@ export const ProductImporter = ({ onComplete, categories }: { onComplete: () => 
     setDrafts(prev => prev.filter(d => d.id !== id));
   };
 
-  const filteredDrafts = drafts.filter(d => filterCategory === 'all' || d.category === filterCategory);
+  const filteredDrafts = drafts.filter(d => {
+    if (filterCategory === 'all') return true;
+    if (filterCategory === 'ready') return !!d.category && d.status !== 'saved';
+    return d.category === filterCategory;
+  });
   const totalPages = Math.ceil(filteredDrafts.length / itemsPerPage);
   const paginatedDrafts = filteredDrafts.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
@@ -272,15 +283,24 @@ export const ProductImporter = ({ onComplete, categories }: { onComplete: () => 
                   <button 
                     onClick={async () => {
                       const toSave = drafts.filter(d => (d.status === 'ready' || d.status === 'pending') && d.category);
+                      if (toSave.length === 0) {
+                        alert('Немає товарів з вибраною категорією для публікації');
+                        return;
+                      }
                       if (confirm(`Опублікувати ${toSave.length} товарів?`)) {
                         for (const d of toSave) {
                           await saveProduct(d.id);
                         }
                       }
                     }}
-                    className="bg-emerald-500 text-white px-4 py-2 rounded-xl text-sm font-bold hover:bg-emerald-600 transition-all flex items-center gap-2"
+                    disabled={drafts.filter(d => d.category).length === 0}
+                    className={`px-4 py-2 rounded-xl text-sm font-bold transition-all flex items-center gap-2 ${
+                      drafts.filter(d => d.category).length === 0 
+                        ? 'bg-slate-200 text-slate-400 cursor-not-allowed' 
+                        : 'bg-emerald-500 text-white hover:bg-emerald-600'
+                    }`}
                   >
-                    <Check size={16} /> Опублікувати всі готові
+                    <Check size={16} /> Опублікувати готові ({drafts.filter(d => d.category).length})
                   </button>
                 )}
               </div>
@@ -290,7 +310,8 @@ export const ProductImporter = ({ onComplete, categories }: { onComplete: () => 
                   onChange={(e) => { setFilterCategory(e.target.value); setCurrentPage(1); }}
                   className="bg-slate-50 border-none rounded-xl p-2 text-sm font-bold text-slate-600 focus:ring-2 focus:ring-tiffany cursor-pointer"
                 >
-                  <option value="all">Всі категорії</option>
+                  <option value="all">Всі товари</option>
+                  <option value="ready">Готові до публікації</option>
                   <option value="">Без категорії</option>
                   {categories.map(cat => (
                     <option key={cat.id} value={cat.slug}>{cat.name}</option>
@@ -331,7 +352,18 @@ export const ProductImporter = ({ onComplete, categories }: { onComplete: () => 
                     <div className="flex-1 space-y-4">
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
-                          <label className="text-[10px] font-bold text-slate-400 uppercase ml-1">Назва</label>
+                          <div className="flex items-center justify-between mb-1">
+                            <label className="text-[10px] font-bold text-slate-400 uppercase ml-1">Назва</label>
+                            {draft.category ? (
+                              <span className="bg-emerald-100 text-emerald-700 text-[10px] px-2 py-0.5 rounded-full font-bold">
+                                Готово до публікації
+                              </span>
+                            ) : (
+                              <span className="bg-rose-100 text-rose-700 text-[10px] px-2 py-0.5 rounded-full font-bold">
+                                Потрібна категорія
+                              </span>
+                            )}
+                          </div>
                           <input 
                             type="text" 
                             value={draft.name}

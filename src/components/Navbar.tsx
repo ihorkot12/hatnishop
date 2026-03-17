@@ -28,7 +28,11 @@ export const Navbar = () => {
   }, []);
 
   const navLinkClass = ({ isActive }: { isActive: boolean }) => 
-    `transition-all duration-300 ${isActive ? 'text-slate-900 underline underline-offset-8 decoration-slate-900 decoration-1' : 'text-slate-500 hover:text-slate-900'}`;
+    `relative transition-all duration-300 whitespace-nowrap py-1 ${
+      isActive 
+        ? 'text-slate-900 after:absolute after:bottom-0 after:left-0 after:w-full after:h-[1px] after:bg-slate-900' 
+        : 'text-slate-500 hover:text-slate-900 hover:after:absolute hover:after:bottom-0 hover:after:left-0 hover:after:w-full hover:after:h-[1px] hover:after:bg-slate-200'
+    }`;
 
   const scrollToTop = (e: React.MouseEvent) => {
     if (window.location.pathname === '/') {
@@ -51,7 +55,7 @@ export const Navbar = () => {
             >
               ХАТНІ <span className="text-[#68b8b0] italic transition-colors group-hover:text-tiffany">ШТУЧКИ</span>
             </Link>
-            <div className="hidden md:flex items-center gap-8 text-[11px] uppercase tracking-[0.2em] font-bold">
+            <div className="hidden md:flex items-center gap-6 text-[11px] uppercase tracking-[0.15em] font-bold">
               <div 
                 className="relative group"
                 onMouseEnter={() => setShowCatalogMenu(true)}
