@@ -15,23 +15,33 @@ import { Product } from '../types';
 export const Home = () => {
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [products, setProducts] = useState<Product[]>([]);
+  const [siteSettings, setSiteSettings] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     document.title = "Хатні Штучки — Естетичні товари для дому та затишку | Купити посуд, декор, текстиль";
-    fetch('/api/products')
-      .then(res => res.json())
-      .then(data => {
-        setProducts(data);
-        setLoading(false);
-      });
+    
+    Promise.all([
+      fetch('/api/products').then(res => res.json()),
+      fetch('/api/site-settings').then(res => res.json())
+    ]).then(([productsData, settingsData]) => {
+      setProducts(productsData);
+      setSiteSettings(settingsData);
+      setLoading(false);
+    });
   }, []);
 
   const bestSellers = products.filter(p => p.isPopular).slice(0, 4);
+  const featuredProduct = products.find(p => p.id === siteSettings?.hero_featured_product_id);
 
   return (
     <div className="bg-white pb-24">
-      <Hero />
+      <Hero 
+        title={siteSettings?.hero_title}
+        subtitle={siteSettings?.hero_subtitle}
+        badge={siteSettings?.hero_badge}
+        featuredProduct={featuredProduct}
+      />
       
       <CategoryGrid />
 

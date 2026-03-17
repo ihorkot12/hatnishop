@@ -46,7 +46,11 @@ export const Admin = () => {
   const [siteSettings, setSiteSettings] = useState({
     free_delivery_min: 1500,
     return_days: 14,
-    cashback_percent: 5
+    cashback_percent: 5,
+    hero_title: '',
+    hero_subtitle: '',
+    hero_featured_product_id: '',
+    hero_badge: ''
   });
   const [newBonusCode, setNewBonusCode] = useState({
     code: '',
@@ -1134,40 +1138,97 @@ export const Admin = () => {
               <div className="flex justify-between items-center">
                 <h2 className="text-2xl font-bold">Налаштування сайту</h2>
               </div>
-              <div className="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-sm max-w-2xl">
-                <form onSubmit={handleSettingsSubmit} className="space-y-6">
-                  <div className="space-y-2">
-                    <label className="text-sm font-bold text-slate-700">Безкоштовна доставка від (грн)</label>
-                    <input 
-                      type="number" 
-                      className="w-full bg-slate-50 border-none rounded-xl p-4 focus:ring-2 focus:ring-tiffany"
-                      value={siteSettings.free_delivery_min}
-                      onChange={e => setSiteSettings({...siteSettings, free_delivery_min: Number(e.target.value)})}
-                    />
+              <div className="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-sm max-w-4xl">
+                <form onSubmit={handleSettingsSubmit} className="space-y-8">
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div className="space-y-2">
+                      <label className="text-xs font-bold text-slate-400 uppercase">Безкоштовна доставка від (грн)</label>
+                      <input 
+                        type="number" 
+                        className="w-full bg-slate-50 border-none rounded-xl p-4 focus:ring-2 focus:ring-tiffany"
+                        value={siteSettings.free_delivery_min}
+                        onChange={e => setSiteSettings({...siteSettings, free_delivery_min: Number(e.target.value)})}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-xs font-bold text-slate-400 uppercase">Днів на повернення</label>
+                      <input 
+                        type="number" 
+                        className="w-full bg-slate-50 border-none rounded-xl p-4 focus:ring-2 focus:ring-tiffany"
+                        value={siteSettings.return_days}
+                        onChange={e => setSiteSettings({...siteSettings, return_days: Number(e.target.value)})}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-xs font-bold text-slate-400 uppercase">Кешбек (%)</label>
+                      <input 
+                        type="number" 
+                        className="w-full bg-slate-50 border-none rounded-xl p-4 focus:ring-2 focus:ring-tiffany"
+                        value={siteSettings.cashback_percent}
+                        onChange={e => setSiteSettings({...siteSettings, cashback_percent: Number(e.target.value)})}
+                      />
+                    </div>
                   </div>
-                  <div className="space-y-2">
-                    <label className="text-sm font-bold text-slate-700">Днів на повернення</label>
-                    <input 
-                      type="number" 
-                      className="w-full bg-slate-50 border-none rounded-xl p-4 focus:ring-2 focus:ring-tiffany"
-                      value={siteSettings.return_days}
-                      onChange={e => setSiteSettings({...siteSettings, return_days: Number(e.target.value)})}
-                    />
+
+                  <div className="h-px bg-slate-100" />
+                  
+                  <div className="space-y-6">
+                    <h3 className="font-bold text-lg">Головний екран (Hero Section)</h3>
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <div className="space-y-2">
+                        <label className="text-xs font-bold text-slate-400 uppercase">Заголовок (H1)</label>
+                        <input 
+                          type="text" 
+                          className="w-full bg-slate-50 border-none rounded-xl p-4 focus:ring-2 focus:ring-tiffany"
+                          value={siteSettings.hero_title}
+                          onChange={e => setSiteSettings({...siteSettings, hero_title: e.target.value})}
+                          placeholder="Естетичний посуд та декор для дому"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-xs font-bold text-slate-400 uppercase">Бейдж (Badge)</label>
+                        <input 
+                          type="text" 
+                          className="w-full bg-slate-50 border-none rounded-xl p-4 focus:ring-2 focus:ring-tiffany"
+                          value={siteSettings.hero_badge}
+                          onChange={e => setSiteSettings({...siteSettings, hero_badge: e.target.value})}
+                          placeholder="Бестселер сезону"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <label className="text-xs font-bold text-slate-400 uppercase">Підзаголовок</label>
+                      <textarea 
+                        className="w-full bg-slate-50 border-none rounded-xl p-4 focus:ring-2 focus:ring-tiffany min-h-[100px]"
+                        value={siteSettings.hero_subtitle}
+                        onChange={e => setSiteSettings({...siteSettings, hero_subtitle: e.target.value})}
+                        placeholder="Опис магазину..."
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <label className="text-xs font-bold text-slate-400 uppercase">Акцентний товар (Featured Product)</label>
+                      <select 
+                        className="w-full bg-slate-50 border-none rounded-xl p-4 focus:ring-2 focus:ring-tiffany"
+                        value={siteSettings.hero_featured_product_id}
+                        onChange={e => setSiteSettings({...siteSettings, hero_featured_product_id: e.target.value})}
+                      >
+                        <option value="">Оберіть товар...</option>
+                        {products.map(p => (
+                          <option key={p.id} value={p.id}>{p.name} ({p.price} грн)</option>
+                        ))}
+                      </select>
+                      <p className="text-[10px] text-slate-400 italic">Цей товар буде відображатися на головному екрані з можливістю швидкого додавання в кошик.</p>
+                    </div>
                   </div>
-                  <div className="space-y-2">
-                    <label className="text-sm font-bold text-slate-700">Кешбек (%)</label>
-                    <input 
-                      type="number" 
-                      className="w-full bg-slate-50 border-none rounded-xl p-4 focus:ring-2 focus:ring-tiffany"
-                      value={siteSettings.cashback_percent}
-                      onChange={e => setSiteSettings({...siteSettings, cashback_percent: Number(e.target.value)})}
-                    />
-                  </div>
+
                   <button 
                     type="submit"
-                    className="w-full bg-slate-900 text-white py-4 rounded-xl font-bold hover:bg-tiffany transition-all"
+                    className="w-full bg-slate-900 text-white py-5 rounded-2xl font-bold hover:bg-tiffany transition-all shadow-xl shadow-slate-900/10"
                   >
-                    Зберегти зміни
+                    Зберегти всі налаштування
                   </button>
                 </form>
               </div>

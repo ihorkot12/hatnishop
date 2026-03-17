@@ -95,10 +95,15 @@ export class SqliteAdapter implements DatabaseAdapter {
         id TEXT PRIMARY KEY,
         free_delivery_min REAL DEFAULT 1500,
         return_days INTEGER DEFAULT 14,
-        cashback_percent INTEGER DEFAULT 5
+        cashback_percent INTEGER DEFAULT 5,
+        hero_title TEXT DEFAULT 'Естетичний посуд та декор для дому',
+        hero_subtitle TEXT DEFAULT 'Інтернет-магазин "Хатні Штучки" — ваш провідник у світ затишку. Купуйте кераміку, текстиль та аксесуари, які перетворюють оселю на місце сили.',
+        hero_featured_product_id TEXT DEFAULT 'p1',
+        hero_badge TEXT DEFAULT 'Бестселер сезону'
       );
 
-      INSERT OR IGNORE INTO site_settings (id, free_delivery_min, return_days, cashback_percent) VALUES ('default', 1500, 14, 5);
+      INSERT OR IGNORE INTO site_settings (id, free_delivery_min, return_days, cashback_percent, hero_title, hero_subtitle, hero_featured_product_id, hero_badge) 
+      VALUES ('default', 1500, 14, 5, 'Естетичний посуд та декор для дому', 'Інтернет-магазин "Хатні Штучки" — ваш провідник у світ затишку. Купуйте кераміку, текстиль та аксесуари, які перетворюють оселю на місце сили.', 'p1', 'Бестселер сезону');
 
       CREATE TABLE IF NOT EXISTS reviews (
         id TEXT PRIMARY KEY,
@@ -156,7 +161,10 @@ export class SqliteAdapter implements DatabaseAdapter {
     try { this.db.prepare("ALTER TABLE categories ADD COLUMN parent_id TEXT").run(); } catch (e) {}
     try { this.db.prepare("ALTER TABLE products ADD COLUMN images TEXT").run(); } catch (e) {}
     try { this.db.prepare("ALTER TABLE products ADD COLUMN bonus_points INTEGER DEFAULT 0").run(); } catch (e) {}
-    try { this.db.prepare("ALTER TABLE products ADD COLUMN bundle_items TEXT DEFAULT '[]'").run(); } catch (e) {}
+    try { this.db.prepare("ALTER TABLE site_settings ADD COLUMN hero_title TEXT DEFAULT 'Естетичний посуд та декор для дому'").run(); } catch (e) {}
+    try { this.db.prepare("ALTER TABLE site_settings ADD COLUMN hero_subtitle TEXT DEFAULT 'Інтернет-магазин \"Хатні Штучки\" — ваш провідник у світ затишку. Купуйте кераміку, текстиль та аксесуари, які перетворюють оселю на місце сили.'").run(); } catch (e) {}
+    try { this.db.prepare("ALTER TABLE site_settings ADD COLUMN hero_featured_product_id TEXT DEFAULT 'p1'").run(); } catch (e) {}
+    try { this.db.prepare("ALTER TABLE site_settings ADD COLUMN hero_badge TEXT DEFAULT 'Бестселер сезону'").run(); } catch (e) {}
 
     // Seed dummy data if empty
     const reviewCount = this.db.prepare("SELECT COUNT(*) as count FROM reviews").get().count;
@@ -426,9 +434,21 @@ export class SqliteAdapter implements DatabaseAdapter {
       UPDATE site_settings SET 
         free_delivery_min = ?, 
         return_days = ?, 
-        cashback_percent = ?
+        cashback_percent = ?,
+        hero_title = ?,
+        hero_subtitle = ?,
+        hero_featured_product_id = ?,
+        hero_badge = ?
       WHERE id = 'default'
-    `).run(settings.free_delivery_min, settings.return_days, settings.cashback_percent);
+    `).run(
+      settings.free_delivery_min, 
+      settings.return_days, 
+      settings.cashback_percent,
+      settings.hero_title,
+      settings.hero_subtitle,
+      settings.hero_featured_product_id,
+      settings.hero_badge
+    );
   }
 
   async getReviews(productId: string): Promise<Review[]> {

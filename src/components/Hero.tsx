@@ -4,17 +4,26 @@ import { ShoppingCart, ArrowRight, Star } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useCart } from '../store/CartContext';
 
-export const Hero = () => {
+interface HeroProps {
+  title?: string;
+  subtitle?: string;
+  badge?: string;
+  featuredProduct?: any;
+}
+
+export const Hero = ({ title, subtitle, badge, featuredProduct: propProduct }: HeroProps) => {
   const { addToCart } = useCart();
   
-  // Featured product for Hero
-  const featuredProduct = {
+  // Default featured product if none provided
+  const defaultProduct = {
     id: 'p1',
     name: 'Керамічна чашка "Ранкова кава"',
     price: 350,
-    image: 'https://picsum.photos/seed/cup1/1200/1200',
+    image: 'https://images.unsplash.com/photo-1514228742587-6b1558fcca3d?auto=format&fit=crop&w=800&q=80',
     category: 'tableware'
   };
+
+  const featuredProduct = propProduct || defaultProduct;
 
   return (
     <section className="relative min-h-[90vh] flex items-center overflow-hidden bg-warm-bg">
@@ -31,15 +40,19 @@ export const Hero = () => {
           >
             <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-tiffany/10 text-tiffany text-[10px] uppercase font-bold tracking-widest mb-8">
               <Star size={12} fill="currentColor" />
-              <span>Бестселер сезону</span>
+              <span>{badge || 'Бестселер сезону'}</span>
             </div>
             
             <h1 className="text-6xl md:text-8xl font-serif font-bold text-slate-900 leading-[0.9] mb-8 tracking-tight">
-              Естетичний посуд та <span className="text-tiffany italic">декор для дому</span>
+              {title ? (
+                <div dangerouslySetInnerHTML={{ __html: title.replace('декор для дому', '<span class="text-tiffany italic">декор для дому</span>') }} />
+              ) : (
+                <>Естетичний посуд та <span className="text-tiffany italic">декор для дому</span></>
+              )}
             </h1>
             
             <p className="text-xl text-slate-500 font-light leading-relaxed mb-12 max-w-lg">
-              Інтернет-магазин "Хатні Штучки" — ваш провідник у світ затишку. Купуйте кераміку, текстиль та аксесуари, які перетворюють оселю на місце сили.
+              {subtitle || 'Інтернет-магазин "Хатні Штучки" — ваш провідник у світ затишку. Купуйте кераміку, текстиль та аксесуари, які перетворюють оселю на місце сили.'}
             </p>
             
             <div className="flex flex-wrap gap-4">

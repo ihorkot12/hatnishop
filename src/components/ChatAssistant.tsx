@@ -3,7 +3,6 @@ import { MessageSquare, X, Send, Sparkles, ShoppingBag, User, Bell } from 'lucid
 import { motion, AnimatePresence } from 'framer-motion';
 import { useLocation } from 'react-router-dom';
 import { GoogleGenAI } from "@google/genai";
-import { MOCK_PRODUCTS } from '../constants';
 import ReactMarkdown from 'react-markdown';
 import { useAuth } from '../store/AuthContext';
 
@@ -22,8 +21,15 @@ export const ChatAssistant = () => {
   ]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [products, setProducts] = useState<any[]>([]);
   const [viewedProducts, setViewedProducts] = useState<string[]>([]);
   const scrollRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    fetch('/api/products')
+      .then(res => res.json())
+      .then(data => setProducts(data));
+  }, []);
 
   // Proactive message after 5 seconds
   useEffect(() => {
@@ -62,41 +68,44 @@ export const ChatAssistant = () => {
     setIsLoading(true);
 
     try {
-      const ai = new GoogleGenAI({ apiKey: (process.env as any).GEMINI_API_KEY });
+      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || '' });
       
-      const productContext = MOCK_PRODUCTS.map(p => 
+      const productContext = products.map(p => 
         `ID: ${p.id}, Назва: ${p.name}, Категорія: ${p.category}, Ціна: ${p.price}грн, Опис: ${p.description}`
       ).join('\n');
 
       const currentProduct = location.pathname.startsWith('/product/') 
-        ? MOCK_PRODUCTS.find(p => p.id === location.pathname.split('/').pop())
+        ? products.find(p => p.id === location.pathname.split('/').pop())
         : null;
 
       const behaviorContext = `
         Клієнт зараз на сторінці: ${location.pathname}
         ${currentProduct ? `Дивиться товар: ${currentProduct.name}` : ''}
-        Раніше переглядав товари: ${viewedProducts.map(id => MOCK_PRODUCTS.find(p => p.id === id)?.name).join(', ')}
+        Раніше переглядав товари: ${viewedProducts.map(id => products.find(p => p.id === id)?.name).join(', ')}
       `;
 
       const systemInstruction = `
-        Ви — ввічливий, професійний та ненав'язливий продавець-консультант магазину "Хатні Штучки".
-        Ваша головна задача — допомогти клієнту створити затишок у домі, надаючи корисні поради та роблячи додаткові продажі (cross-sell/up-sell) так, щоб це виглядало як щира турбота.
-
+        Ви — надзвичайно талановитий та харизматичний продавець-консультант магазину "Хатні Штучки".
+        Ваша місія: не просто відповідати на питання, а СТВОРЮВАТИ БАЖАННЯ КУПИТИ та ЗБІЛЬШУВАТИ ПРОДАЖІ.
+        
+        СТРАТЕГІЯ ПРОДАЖІВ:
+        1. Емоційний зв'язок: Описуйте не просто товар, а відчуття затишку, тепла та естетики, які він принесе в дім.
+        2. Рекомендації (Cross-sell): До кожного товару, яким цікавиться клієнт, ОБОВ'ЯЗКОВО пропонуйте доповнення. Наприклад: до чашки — лляну серветку, до тарілки — дерев'яну дошку для сервірування.
+        3. Створення терміновості: Натякайте, що товари розлітаються швидко (бестселери сезону).
+        4. Акцент на якості: Натуральні матеріали (кераміка, дуб, льон), ручна робота, екологічність.
+        5. Допомога у виборі: Якщо клієнт не знає, що обрати, пропонуйте наші "Готові набори" (бандли) — це вигідно та стильно.
+        
         Ось список наших товарів:
         ${productContext}
         
         Контекст поведінки клієнта:
         ${behaviorContext}
         
-        Правила спілкування:
-        1. Будьте надзвичайно ввічливими та чемними. Використовуйте фрази на кшталт "Радий вас бачити", "Дозвольте підказати", "Чудовий вибір".
-        2. Пропонуйте вигідні покупки та акції. Якщо клієнт дивиться один товар, запропонуйте інший, який ідеально його доповнить (наприклад, до чашки — лляний рушник або дошку для сервірування, щоб скласти "Набір для сніданку").
-        3. Розповідайте про переваги товарів: натуральні матеріали (льон, дуб, кераміка), ручна робота, довговічність.
-        4. Якщо клієнт на сторінці товару, розкажіть цікавий факт про нього або як він змінить атмосферу в домі.
-        5. Не будьте занадто "роботизованими". Спілкуйтеся як жива людина, яка любить свою справу.
-        6. Відповідайте українською мовою.
-        7. Використовуйте Markdown для гарного форматування.
-        8. Ваша мета — зробити так, щоб клієнт відчув цінність товару і захотів додати його в кошик.
+        ПРАВИЛА:
+        - Мова: Українська.
+        - Тон: Дружній, натхненний, професійний.
+        - Форматування: Використовуйте Markdown (жирний текст для назв товарів та цін).
+        - Заклик до дії (CTA): Завжди завершуйте фразою, що стимулює покупку (наприклад: "Додати цей набір до вашого кошика?", "Бажаєте оформити замовлення зараз?").
       `;
 
       const response = await ai.models.generateContent({
