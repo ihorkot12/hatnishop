@@ -43,7 +43,8 @@ export class SqliteAdapter implements DatabaseAdapter {
         review_count INTEGER DEFAULT 0,
         ai_description TEXT,
         images TEXT,
-        bonus_points INTEGER DEFAULT 0
+        bonus_points INTEGER DEFAULT 0,
+        bundle_items TEXT DEFAULT '[]'
       );
 
       CREATE TABLE IF NOT EXISTS orders (
@@ -155,6 +156,7 @@ export class SqliteAdapter implements DatabaseAdapter {
     try { this.db.prepare("ALTER TABLE categories ADD COLUMN parent_id TEXT").run(); } catch (e) {}
     try { this.db.prepare("ALTER TABLE products ADD COLUMN images TEXT").run(); } catch (e) {}
     try { this.db.prepare("ALTER TABLE products ADD COLUMN bonus_points INTEGER DEFAULT 0").run(); } catch (e) {}
+    try { this.db.prepare("ALTER TABLE products ADD COLUMN bundle_items TEXT DEFAULT '[]'").run(); } catch (e) {}
 
     // Seed dummy data if empty
     const reviewCount = this.db.prepare("SELECT COUNT(*) as count FROM reviews").get().count;
@@ -218,11 +220,11 @@ export class SqliteAdapter implements DatabaseAdapter {
 
   async createProduct(product: Partial<Product>): Promise<void> {
     this.db.prepare(`
-      INSERT INTO products (id, name, category, price, image, description, material, brand, isPopular, isBundle, stock, images, bonus_points)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO products (id, name, category, price, image, description, material, brand, isPopular, isBundle, stock, images, bonus_points, bundle_items)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).run(
       product.id, product.name, product.category, product.price, product.image,
-      product.description, product.material, product.brand, product.isPopular ? 1 : 0, product.isBundle ? 1 : 0, product.stock, product.images || '[]', product.bonusPoints || 0
+      product.description, product.material, product.brand, product.isPopular ? 1 : 0, product.isBundle ? 1 : 0, product.stock, product.images || '[]', product.bonusPoints || 0, product.bundle_items || '[]'
     );
   }
 

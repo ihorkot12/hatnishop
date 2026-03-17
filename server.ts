@@ -292,7 +292,8 @@ app.post("/api/auth/register", asyncHandler(async (req: any, res: any) => {
     const products = await db.getProducts();
     const formattedProducts = products.map(p => ({
       ...p,
-      images: p.images ? (typeof p.images === 'string' ? JSON.parse(p.images) : p.images) : []
+      images: p.images ? (typeof p.images === 'string' ? JSON.parse(p.images) : p.images) : [],
+      bundle_items: p.bundle_items ? (typeof p.bundle_items === 'string' ? JSON.parse(p.bundle_items) : p.bundle_items) : []
     }));
     res.json(formattedProducts);
   }));
@@ -311,6 +312,9 @@ app.post("/api/auth/register", asyncHandler(async (req: any, res: any) => {
     if (product.images && Array.isArray(product.images)) {
       product.images = JSON.stringify(product.images);
     }
+    if (product.bundle_items && Array.isArray(product.bundle_items)) {
+      product.bundle_items = JSON.stringify(product.bundle_items);
+    }
     if (!product.id) product.id = Math.random().toString(36).substr(2, 9);
     await db.createProduct(product);
     res.json({ success: true, product });
@@ -321,6 +325,9 @@ app.post("/api/auth/register", asyncHandler(async (req: any, res: any) => {
     const product = { ...req.body };
     if (product.images && Array.isArray(product.images)) {
       product.images = JSON.stringify(product.images);
+    }
+    if (product.bundle_items && Array.isArray(product.bundle_items)) {
+      product.bundle_items = JSON.stringify(product.bundle_items);
     }
     await db.updateProduct(req.params.id, product);
     res.json({ success: true });

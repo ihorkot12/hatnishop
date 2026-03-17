@@ -22,6 +22,7 @@ export const ProductDetail = () => {
   const [subscribing, setSubscribing] = useState(false);
 
   const [relatedProducts, setRelatedProducts] = useState<Product[]>([]);
+  const [bundleProducts, setBundleProducts] = useState<Product[]>([]);
   const [averageRating, setAverageRating] = useState('5.0');
   const [stylingTip, setStylingTip] = useState<string | null>(null);
   const [loadingAi, setLoadingAi] = useState(false);
@@ -46,6 +47,14 @@ export const ProductDetail = () => {
             .filter((p: any) => p.category === found.category && p.id !== found.id)
             .slice(0, 4);
           setRelatedProducts(related);
+
+          // Fetch bundle products if they exist
+          if (found.bundle_items && found.bundle_items.length > 0) {
+            const bundleItems = products.filter((p: any) => found.bundle_items.includes(p.id));
+            setBundleProducts(bundleItems);
+          } else {
+            setBundleProducts([]);
+          }
         }
       } catch (err) {
         console.error(err);
@@ -276,6 +285,23 @@ export const ProductDetail = () => {
             <p className="text-slate-600 text-lg leading-relaxed">
               {product.description}
             </p>
+
+            {product.isBundle && bundleProducts.length > 0 && (
+              <div className="mt-8 p-6 bg-slate-50 rounded-3xl border border-slate-100">
+                <h3 className="text-sm font-bold uppercase tracking-widest text-slate-900 mb-4">До цього набору входить:</h3>
+                <div className="space-y-3">
+                  {bundleProducts.map(p => (
+                    <Link key={p.id} to={`/product/${p.id}`} className="flex items-center gap-4 p-2 hover:bg-white rounded-2xl transition-all group">
+                      <img src={p.image} alt="" className="w-12 h-12 rounded-xl object-cover" />
+                      <div className="flex-1">
+                        <div className="text-sm font-bold text-slate-800 group-hover:text-tiffany transition-colors">{p.name}</div>
+                        <div className="text-xs text-slate-400">{p.price} грн</div>
+                      </div>
+                    </Link>
+                  ))}
+                </div>
+              </div>
+            )}
             
             <AnimatePresence>
               {loadingAi ? (
@@ -385,29 +411,35 @@ export const ProductDetail = () => {
       </div>
 
       {/* Buy Together / Bundles */}
-      {relatedProducts.length > 0 && (
+      {(bundleProducts.length > 0 || relatedProducts.length > 0) && (
         <section className="mb-32 bg-slate-900 rounded-[4rem] p-12 md:p-20 text-white overflow-hidden relative">
           <div className="absolute top-0 right-0 w-1/2 h-full bg-tiffany/10 -skew-x-12 translate-x-1/4" />
           <div className="relative z-10 flex flex-col lg:flex-row items-center justify-between gap-16">
             <div className="max-w-xl">
               <div className="text-tiffany font-bold text-xs uppercase tracking-[0.3em] mb-6">Економія 15%</div>
               <h2 className="text-4xl md:text-5xl font-serif font-bold mb-8 leading-tight">Купуйте разом та економте</h2>
-              <p className="text-white/60 text-lg mb-10 leading-relaxed">Ми підібрали ідеальне доповнення до вашого вибору. Купуючи ці товари разом, ви отримуєте спеціальну знижку 15%.</p>
+              <p className="text-white/60 text-lg mb-10 leading-relaxed">
+                {bundleProducts.length > 0 
+                  ? "Ми підібрали ідеальний набір для вас. Купуючи ці товари разом, ви отримуєте спеціальну знижку 15%."
+                  : "Ми підібрали ідеальне доповнення до вашого вибору. Купуючи ці товари разом, ви отримуєте спеціальну знижку 15%."}
+              </p>
               <div className="flex items-center gap-8">
                 <div className="flex -space-x-6">
                   <div className="w-20 h-20 rounded-full border-4 border-slate-900 overflow-hidden shadow-2xl">
                     <img src={product.image} alt="" className="w-full h-full object-cover" />
                   </div>
-                  <div className="w-20 h-20 rounded-full border-4 border-slate-900 overflow-hidden shadow-2xl">
-                    <img src={relatedProducts[0]?.image} alt="" className="w-full h-full object-cover" />
-                  </div>
+                  {(bundleProducts.length > 0 ? bundleProducts : [relatedProducts[0]]).map((p, i) => (
+                    <div key={p.id} className="w-20 h-20 rounded-full border-4 border-slate-900 overflow-hidden shadow-2xl" style={{ zIndex: 10 - i }}>
+                      <img src={p.image} alt="" className="w-full h-full object-cover" />
+                    </div>
+                  ))}
                 </div>
                 <div>
                   <div className="text-3xl font-bold text-tiffany">
-                    {Math.floor((product.price + (relatedProducts[0]?.price || 0)) * 0.85)} грн
+                    {Math.round((product.price + (bundleProducts.length > 0 ? bundleProducts.reduce((acc, p) => acc + p.price, 0) : (relatedProducts[0]?.price || 0))) * 0.85)} грн
                   </div>
                   <div className="text-sm text-white/40 line-through">
-                    {product.price + (relatedProducts[0]?.price || 0)} грн
+                    {product.price + (bundleProducts.length > 0 ? bundleProducts.reduce((acc, p) => acc + p.price, 0) : (relatedProducts[0]?.price || 0))} грн
                   </div>
                 </div>
               </div>
@@ -415,7 +447,11 @@ export const ProductDetail = () => {
             <button 
               onClick={() => {
                 addToCart(product);
-                if (relatedProducts[0]) addToCart(relatedProducts[0]);
+                if (bundleProducts.length > 0) {
+                  bundleProducts.forEach(p => addToCart(p));
+                } else if (relatedProducts[0]) {
+                  addToCart(relatedProducts[0]);
+                }
               }}
               className="px-12 py-6 bg-tiffany text-white rounded-2xl font-bold text-lg hover:bg-white hover:text-tiffany transition-all shadow-2xl shadow-tiffany/20 active:scale-95"
             >

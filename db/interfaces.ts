@@ -26,6 +26,7 @@ export interface Product {
   ai_description?: string;
   images?: string;
   bonusPoints?: number;
+  bundle_items?: string; // JSON array of product IDs
 }
 
 export interface Order {

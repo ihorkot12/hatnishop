@@ -123,3 +123,36 @@ export const chatWithAI = async (message: string, productsContext: string) => {
   });
   return response.text;
 };
+
+export const suggestBundleItems = async (productName: string, productCategory: string, allProducts: any[]) => {
+  return withRetry(async () => {
+    const ai = getAI();
+    const productsList = allProducts.map(p => `- ${p.name} (ID: ${p.id}, Категорія: ${p.category})`).join('\n');
+    
+    const prompt = `Ти - експерт з дизайну інтер'єру та мерчандайзингу магазину "Хатні Штучки". 
+    Твоє завдання - підібрати 2-4 товари з нашого асортименту, які ідеально доповнюють товар "${productName}" (категорія: ${productCategory}), щоб створити гармонійний набір (бандл).
+    
+    Ось список доступних товарів:
+    ${productsList}
+    
+    Вибери товари, які логічно поєднуються за стилем, використанням або естетикою.
+    Відповідь надай ТІЛЬКИ у форматі JSON масиву з ID вибраних товарів, наприклад: ["id1", "id2"].
+    Не пиши ніякого тексту, окрім JSON.`;
+
+    const response = await ai.models.generateContent({
+      model: "gemini-3-flash-preview",
+      contents: [{ role: "user", parts: [{ text: prompt }] }],
+      config: {
+        responseMimeType: "application/json"
+      }
+    });
+    
+    try {
+      const text = response.text || "[]";
+      return JSON.parse(text.trim());
+    } catch (e) {
+      console.error("Failed to parse AI bundle suggestion:", e);
+      return [];
+    }
+  });
+};

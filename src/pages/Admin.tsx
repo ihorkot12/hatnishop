@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { generateDescription, generateProductImage, generateStylingTip } from '../services/aiService';
+import { generateDescription, generateProductImage, generateStylingTip, suggestBundleItems } from '../services/aiService';
 import { fileToBase64 } from '../utils/imageUtils';
 import { Package, ShoppingCart, TrendingUp, Plus, Edit2, Trash2, CheckCircle, Clock, Star, Truck, Users, Shield, UserPlus, Filter, Settings, MessageSquare, Tag, Upload, Loader2, Sparkles, Share2 } from 'lucide-react';
 import { ProductImporter } from '../components/ProductImporter';
@@ -80,6 +80,9 @@ export const Admin = () => {
   const [productAiDescription, setProductAiDescription] = useState<string>('');
   const [isGeneratingAI, setIsGeneratingAI] = useState(false);
   const [isGeneratingAdvice, setIsGeneratingAdvice] = useState(false);
+  const [isGeneratingBundle, setIsGeneratingBundle] = useState(false);
+  const [bundleItems, setBundleItems] = useState<string[]>([]);
+  const [isBundle, setIsBundle] = useState(false);
 
   useEffect(() => {
     if (editingProduct) {
@@ -87,11 +90,15 @@ export const Admin = () => {
       setGalleryImages(editingProduct.images || []);
       setProductDescription(editingProduct.description || '');
       setProductAiDescription(editingProduct.aiDescription || '');
+      setBundleItems(editingProduct.bundle_items || []);
+      setIsBundle(editingProduct.isBundle === 1 || editingProduct.isBundle === true);
     } else {
       setMainImage('');
       setGalleryImages([]);
       setProductDescription('');
       setProductAiDescription('');
+      setBundleItems([]);
+      setIsBundle(false);
     }
   }, [editingProduct, showProductModal]);
 
@@ -622,6 +629,23 @@ export const Admin = () => {
     }
   };
 
+  const handleAIGenerateBundle = async (name: string, category: string) => {
+    setIsGeneratingBundle(true);
+    try {
+      const suggestedIds = await suggestBundleItems(name, category, products);
+      if (suggestedIds && suggestedIds.length > 0) {
+        setBundleItems(suggestedIds);
+      } else {
+        alert('ШІ не зміг підібрати товари для набору');
+      }
+    } catch (err) {
+      console.error(err);
+      alert('Помилка при генерації набору');
+    } finally {
+      setIsGeneratingBundle(false);
+    }
+  };
+
   const handleProductSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
@@ -630,7 +654,8 @@ export const Admin = () => {
       image: mainImage,
       images: galleryImages,
       isPopular: formData.get('isPopular') === 'on',
-      isBundle: formData.get('isBundle') === 'on',
+      isBundle: isBundle,
+      bundle_items: bundleItems,
       price: Number(formData.get('price')),
       stock: Number(formData.get('stock')),
       bonusPoints: Number(formData.get('bonusPoints')),
@@ -1643,13 +1668,114 @@ export const Admin = () => {
                   </div>
                 </div>
 
+                {isBundle && (
+                  <div className="bg-slate-50 p-6 rounded-3xl space-y-4">
+                    <div className="flex items-center justify-between">
+                      <label className="text-xs font-bold text-slate-400 uppercase">Товари в наборі</label>
+                      <button 
+                        type="button"
+                        onClick={() => {
+                          const form = document.querySelector('form');
+                          const name = (form?.querySelector('input[name="name"]') as HTMLInputElement)?.value;
+                          const category = (form?.querySelector('select[name="category"]') as HTMLSelectElement)?.value;
+                          if (name) handleAIGenerateBundle(name, category);
+                          else alert('Введіть назву товару');
+                        }}
+                        disabled={isGeneratingBundle}
+                        className="flex items-center gap-2 px-3 py-1.5 bg-indigo-50 text-indigo-600 rounded-lg text-[10px] font-bold hover:bg-indigo-100 transition-all disabled:opacity-50 border border-indigo-100 shadow-sm"
+                      >
+                        {isGeneratingBundle ? <Loader2 size={12} className="animate-spin" /> : <Sparkles size={12} className="text-indigo-500" />}
+                        <span>Підібрати ШІ</span>
+                      </button>
+                    </div>
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <label className="text-[10px] font-bold text-slate-400 uppercase">Вибрати товари</label>
+                        <select 
+                          className="w-full bg-white border-none rounded-xl p-3 text-sm focus:ring-2 focus:ring-tiffany"
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            if (val && !bundleItems.includes(val)) {
+                              setBundleItems(prev => [...prev, val]);
+                            }
+                            e.target.value = '';
+                          }}
+                        >
+                          <option value="">Додати товар...</option>
+                          {products
+                            .filter(p => p.id !== editingProduct?.id && !bundleItems.includes(p.id))
+                            .map(p => (
+                              <option key={p.id} value={p.id}>{p.name}</option>
+                            ))
+                          }
+                        </select>
+                      </div>
+                      
+                      <div className="space-y-2">
+                        <label className="text-[10px] font-bold text-slate-400 uppercase">Вибрані товари ({bundleItems.length})</label>
+                        <div className="space-y-2 max-h-40 overflow-y-auto pr-2">
+                          {bundleItems.length === 0 ? (
+                            <div className="text-xs text-slate-400 italic">Товари не вибрано</div>
+                          ) : (
+                            <>
+                              {bundleItems.map(id => {
+                                const p = products.find(prod => prod.id === id);
+                                return (
+                                  <div key={id} className="flex items-center justify-between bg-white p-2 rounded-lg border border-slate-100">
+                                    <div className="flex items-center gap-2">
+                                      <img src={p?.image} className="w-8 h-8 rounded object-cover" alt="" />
+                                      <span className="text-xs font-medium truncate max-w-[150px]">{p?.name || 'Невідомий товар'}</span>
+                                    </div>
+                                    <button 
+                                      type="button"
+                                      onClick={() => setBundleItems(prev => prev.filter(item => item !== id))}
+                                      className="text-red-400 hover:text-red-500 p-1"
+                                    >
+                                      <Trash2 size={14} />
+                                    </button>
+                                  </div>
+                                );
+                              })}
+                              <button 
+                                type="button"
+                                onClick={() => {
+                                  const total = bundleItems.reduce((acc, id) => {
+                                    const p = products.find(prod => prod.id === id);
+                                    return acc + (p?.price || 0);
+                                  }, 0);
+                                  // Apply a default 15% discount for the bundle price suggestion
+                                  const discounted = Math.round(total * 0.85);
+                                  const priceInput = document.querySelector('input[name="price"]') as HTMLInputElement;
+                                  if (priceInput) {
+                                    priceInput.value = discounted.toString();
+                                  }
+                                }}
+                                className="w-full mt-2 text-[10px] font-bold text-tiffany hover:underline"
+                              >
+                                Розрахувати ціну зі знижкою 15% ({Math.round(bundleItems.reduce((acc, id) => acc + (products.find(p => p.id === id)?.price || 0), 0) * 0.85)} грн)
+                              </button>
+                            </>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-6 bg-slate-50 p-6 rounded-3xl">
                   <div className="flex items-center gap-3">
                     <input type="checkbox" name="isPopular" defaultChecked={editingProduct?.isPopular} className="w-5 h-5 rounded border-slate-300 text-tiffany focus:ring-tiffany" />
                     <label className="text-xs font-bold text-slate-700">Популярний</label>
                   </div>
                   <div className="flex items-center gap-3">
-                    <input type="checkbox" name="isBundle" defaultChecked={editingProduct?.isBundle} className="w-5 h-5 rounded border-slate-300 text-tiffany focus:ring-tiffany" />
+                    <input 
+                      type="checkbox" 
+                      name="isBundle" 
+                      checked={isBundle} 
+                      onChange={e => setIsBundle(e.target.checked)}
+                      className="w-5 h-5 rounded border-slate-300 text-tiffany focus:ring-tiffany" 
+                    />
                     <label className="text-xs font-bold text-slate-700">Набір (Bundle)</label>
                   </div>
                   <div className="space-y-1">

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, ShoppingCart, Star, ShieldCheck, Truck, RotateCcw, Bell, Heart } from 'lucide-react';
+import { X, ShoppingCart, Star, ShieldCheck, Truck, RotateCcw, Bell, Heart, ArrowRight } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import { Product } from '../types';
 import { useCart } from '../store/CartContext';
 import { useAuth } from '../store/AuthContext';
@@ -18,10 +19,12 @@ export const QuickView: React.FC<QuickViewProps> = ({ product, onClose }) => {
   const [isSubscribed, setIsSubscribed] = useState(false);
   const [subscribing, setSubscribing] = useState(false);
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
+  const [isExpanded, setIsExpanded] = useState(false);
 
   useEffect(() => {
     if (product) {
       setSelectedImage(product.image);
+      setIsExpanded(false);
     }
   }, [product]);
 
@@ -119,9 +122,26 @@ export const QuickView: React.FC<QuickViewProps> = ({ product, onClose }) => {
             <h2 className="text-3xl font-serif font-bold text-slate-900 mb-4">{product.name}</h2>
             <div className="text-2xl font-bold text-slate-900 mb-6">{product.price} грн</div>
             
-            <p className="text-slate-500 mb-8 line-clamp-3 leading-relaxed">
-              {product.description}
-            </p>
+            <div className="relative mb-8">
+              <p className={`text-slate-500 leading-relaxed transition-all duration-300 ${isExpanded ? '' : 'line-clamp-3'}`}>
+                {product.description}
+              </p>
+              <div className="flex items-center gap-4 mt-2">
+                <button 
+                  onClick={() => setIsExpanded(!isExpanded)}
+                  className="text-tiffany font-bold text-[10px] uppercase tracking-wider hover:underline"
+                >
+                  {isExpanded ? 'Згорнути' : 'Читати повністю'}
+                </button>
+                <Link 
+                  to={`/product/${product.id}`}
+                  onClick={onClose}
+                  className="text-slate-400 font-bold text-[10px] uppercase tracking-wider hover:text-slate-900 flex items-center gap-1"
+                >
+                  Сторінка товару <ArrowRight size={10} />
+                </Link>
+              </div>
+            </div>
 
             <div className="space-y-4 mb-8">
               <div className="flex items-center gap-3 text-xs text-slate-600">
