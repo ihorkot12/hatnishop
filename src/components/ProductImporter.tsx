@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import * as XLSX from 'xlsx';
 import { generateDescription as aiGenerateDescription, generateProductImage as aiGenerateProductImage } from '../services/aiService';
+import { fileToBase64 } from '../utils/imageUtils';
 import { Upload, FileText, Check, X, Sparkles, Image as ImageIcon, Loader2, Save, AlertTriangle } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -199,11 +200,12 @@ export const ProductImporter = ({ onComplete, categories }: { onComplete: () => 
       if (res.ok) {
         setDrafts(prev => prev.map(d => d.id === id ? { ...d, status: 'saved' } : d));
       } else {
-        const errorData = await res.json();
+        const errorData = await res.json().catch(() => ({}));
+        const statusText = res.status === 413 ? 'Файл занадто великий (Payload Too Large)' : res.statusText;
         setDrafts(prev => prev.map(d => d.id === id ? { 
           ...d, 
           status: 'error', 
-          errorMessage: errorData.error || 'Помилка при збереженні' 
+          errorMessage: errorData.error || statusText || 'Помилка при збереженні' 
         } : d));
       }
     } catch (err) {
@@ -495,14 +497,11 @@ export const ProductImporter = ({ onComplete, categories }: { onComplete: () => 
                             <input 
                               type="file" 
                               accept="image/*"
-                              onChange={(e) => {
+                              onChange={async (e) => {
                                 const file = e.target.files?.[0];
                                 if (file) {
-                                  const reader = new FileReader();
-                                  reader.readAsDataURL(file);
-                                  reader.onload = () => {
-                                    setDrafts(prev => prev.map(d => d.id === draft.id ? { ...d, image: reader.result as string } : d));
-                                  };
+                                  const base64 = await fileToBase64(file);
+                                  setDrafts(prev => prev.map(d => d.id === draft.id ? { ...d, image: base64 } : d));
                                 }
                               }}
                               className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { generateDescription, generateProductImage, generateStylingTip } from '../services/aiService';
+import { fileToBase64 } from '../utils/imageUtils';
 import { Package, ShoppingCart, TrendingUp, Plus, Edit2, Trash2, CheckCircle, Clock, Star, Truck, Users, Shield, UserPlus, Filter, Settings, MessageSquare, Tag, Upload, Loader2, Sparkles, Share2 } from 'lucide-react';
 import { ProductImporter } from '../components/ProductImporter';
 import { MOCK_PRODUCTS } from '../constants';
@@ -79,15 +80,6 @@ export const Admin = () => {
   const [productAiDescription, setProductAiDescription] = useState<string>('');
   const [isGeneratingAI, setIsGeneratingAI] = useState(false);
   const [isGeneratingAdvice, setIsGeneratingAdvice] = useState(false);
-
-  const fileToBase64 = (file: File): Promise<string> => {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.readAsDataURL(file);
-      reader.onload = () => resolve(reader.result as string);
-      reader.onerror = error => reject(error);
-    });
-  };
 
   useEffect(() => {
     if (editingProduct) {
@@ -661,7 +653,8 @@ export const Admin = () => {
         fetchProducts();
       } else {
         const errorData = await res.json().catch(() => ({}));
-        alert(`Помилка збереження: ${errorData.error || res.statusText}`);
+        const statusText = res.status === 413 ? 'Файл занадто великий (Payload Too Large)' : res.statusText;
+        alert(`Помилка збереження: ${errorData.error || statusText || `Статус ${res.status}`}`);
       }
     } catch (err: any) {
       console.error(err);
