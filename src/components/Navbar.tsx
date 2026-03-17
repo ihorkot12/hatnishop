@@ -68,7 +68,7 @@ export const Navbar = () => {
                       initial={{ opacity: 0, y: 10 }}
                       animate={{ opacity: 1, y: 0 }}
                       exit={{ opacity: 0, y: 10 }}
-                      className="absolute top-full left-0 w-[600px] bg-white shadow-2xl border border-slate-100 p-8 rounded-3xl z-50 grid grid-cols-3 gap-8"
+                      className="absolute top-full left-0 w-[500px] max-w-[calc(100vw-2rem)] bg-white shadow-2xl border border-slate-100 p-8 rounded-3xl z-50 grid grid-cols-2 gap-8"
                     >
                       {categories.filter(c => !c.parent_id).map(parent => (
                         <div key={parent.id} className="space-y-4">
@@ -97,7 +97,7 @@ export const Navbar = () => {
                   )}
                 </AnimatePresence>
               </div>
-              {categories.filter(c => !c.parent_id).map(cat => (
+              {categories.filter(c => !c.parent_id).slice(0, 4).map(cat => (
                 <NavLink key={cat.id} to={`/catalog?category=${cat.slug}`} className={navLinkClass}>
                   {cat.name}
                 </NavLink>

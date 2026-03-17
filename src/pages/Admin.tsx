@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { generateDescription, generateProductImage } from '../services/aiService';
+import { generateDescription, generateProductImage, generateStylingTip } from '../services/aiService';
 import { Package, ShoppingCart, TrendingUp, Plus, Edit2, Trash2, CheckCircle, Clock, Star, Truck, Users, Shield, UserPlus, Filter, Settings, MessageSquare, Tag, Upload, Loader2, Sparkles, Share2 } from 'lucide-react';
 import { ProductImporter } from '../components/ProductImporter';
 import { MOCK_PRODUCTS } from '../constants';
@@ -78,6 +78,7 @@ export const Admin = () => {
   const [productDescription, setProductDescription] = useState<string>('');
   const [productAiDescription, setProductAiDescription] = useState<string>('');
   const [isGeneratingAI, setIsGeneratingAI] = useState(false);
+  const [isGeneratingAdvice, setIsGeneratingAdvice] = useState(false);
 
   const fileToBase64 = (file: File): Promise<string> => {
     return new Promise((resolve, reject) => {
@@ -605,6 +606,27 @@ export const Admin = () => {
       alert('Помилка при генерації зображення');
     } finally {
       setIsGeneratingAI(false);
+    }
+  };
+
+  const handleAIGenerateAdvice = async (name: string, category: string) => {
+    if (productAiDescription && productAiDescription.trim().length > 0) {
+      if (!confirm('Порада вже існує. Ви впевнені, що хочете перегенерувати її?')) {
+        return;
+      }
+    }
+
+    setIsGeneratingAdvice(true);
+    try {
+      const advice = await generateStylingTip(name, category);
+      if (advice) {
+        setProductAiDescription(advice);
+      }
+    } catch (err) {
+      console.error(err);
+      alert('Помилка при генерації поради');
+    } finally {
+      setIsGeneratingAdvice(false);
     }
   };
 
@@ -1396,6 +1418,22 @@ export const Admin = () => {
               initial={{ opacity: 0, scale: 0.95, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              onPaste={async (e) => {
+                const items = e.clipboardData.items;
+                for (let i = 0; i < items.length; i++) {
+                  if (items[i].type.indexOf('image') !== -1) {
+                    const blob = items[i].getAsFile();
+                    if (blob) {
+                      const base64 = await fileToBase64(blob);
+                      if (!mainImage) {
+                        setMainImage(base64);
+                      } else {
+                        setGalleryImages(prev => [...prev, base64]);
+                      }
+                    }
+                  }
+                }
+              }}
               className="relative w-full max-w-4xl bg-white rounded-[2.5rem] shadow-2xl p-8 overflow-y-auto max-h-[90vh]"
             >
               <h2 className="text-2xl font-bold mb-8">{editingProduct ? 'Редагувати товар' : 'Додати новий товар'}</h2>
@@ -1495,7 +1533,7 @@ export const Admin = () => {
                         </label>
                         <div className="mt-2">
                           <input 
-                            placeholder="Або вставте URL"
+                            placeholder="Або вставте URL / Вставте фото (Ctrl+V)"
                             className="w-full bg-white border border-slate-200 rounded-lg p-2 text-xs"
                             value={mainImage}
                             onChange={(e) => setMainImage(e.target.value)}
@@ -1538,7 +1576,7 @@ export const Admin = () => {
                     <div className="flex gap-2">
                       <input 
                         id="gallery-url-input"
-                        placeholder="Додати URL зображення"
+                        placeholder="Додати URL / Вставити фото (Ctrl+V)"
                         className="flex-1 bg-slate-50 border-none rounded-lg p-2 text-xs focus:ring-2 focus:ring-tiffany"
                         onKeyDown={(e) => {
                           if (e.key === 'Enter') {
@@ -1584,7 +1622,24 @@ export const Admin = () => {
                     />
                   </div>
                   <div className="space-y-2">
-                    <label className="text-xs font-bold text-slate-400 uppercase">Порада від ШІ (AI Advice)</label>
+                    <div className="flex items-center justify-between">
+                      <label className="text-xs font-bold text-slate-400 uppercase">Порада від ШІ (AI Advice)</label>
+                      <button 
+                        type="button"
+                        onClick={() => {
+                          const form = document.querySelector('form');
+                          const name = (form?.querySelector('input[name="name"]') as HTMLInputElement)?.value;
+                          const category = (form?.querySelector('select[name="category"]') as HTMLSelectElement)?.value;
+                          if (name) handleAIGenerateAdvice(name, category);
+                          else alert('Введіть назву товару');
+                        }}
+                        disabled={isGeneratingAdvice}
+                        className="flex items-center gap-2 px-3 py-1.5 bg-emerald-50 text-emerald-600 rounded-lg text-[10px] font-bold hover:bg-emerald-100 transition-all disabled:opacity-50 border border-emerald-100 shadow-sm"
+                      >
+                        {isGeneratingAdvice ? <Loader2 size={12} className="animate-spin" /> : <Sparkles size={12} className="text-emerald-500" />}
+                        <span>Згенерувати пораду ШІ</span>
+                      </button>
+                    </div>
                     <textarea 
                       name="aiDescription" 
                       value={productAiDescription} 

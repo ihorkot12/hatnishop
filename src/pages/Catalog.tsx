@@ -81,7 +81,7 @@ export const Catalog = () => {
     if (sortBy === 'popular') result.sort((a, b) => (b.isPopular ? 1 : 0) - (a.isPopular ? 1 : 0));
 
     return result;
-  }, [categoryFilter, minPrice, maxPrice, popularOnly, searchQuery, sortBy]);
+  }, [categoryFilter, minPrice, maxPrice, popularOnly, searchQuery, sortBy, products, categories]);
 
   return (
     <div className="bg-[#F9F7F5] min-h-screen">
