@@ -12,7 +12,11 @@ export const CategoryGrid = () => {
     fetch('/api/categories')
       .then(res => res.json())
       .then(data => {
-        setCategories(data.filter((c: Category) => !c.parent_id));
+        if (Array.isArray(data)) {
+          setCategories(data.filter((c: Category) => !c.parent_id));
+        } else {
+          setCategories([]);
+        }
         setIsLoading(false);
       })
       .catch(err => {

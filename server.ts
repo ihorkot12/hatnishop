@@ -21,67 +21,54 @@ const asyncHandler = (fn: any) => (req: any, res: any, next: any) => {
 
 // --- Database Initialization & Seeding ---
 let dbInitialized = false;
+let isInitializing = false;
 
 async function ensureDb() {
-  if (dbInitialized) return;
+  if (dbInitialized || isInitializing) return;
+  isInitializing = true;
 
-  // Initialize DB Schema
-  await db.init();
+  try {
+    console.log("Initializing database...");
+    // Initialize DB Schema
+    await db.init();
 
-  // Seed Products
-  const products = await db.getProducts();
-  if (products.length === 0) {
-    // We need to access the underlying DB for raw inserts or add a seed method to the adapter.
-    // For simplicity, let's assume the adapter handles initialization or we add a specific seed method if needed.
-    // However, since we are abstracting, we should probably add a seed method or just rely on the adapter's init.
-    // But the original code had explicit seeding. Let's add a quick check and manual seed if possible, 
-    // or better, just skip complex seeding for now and rely on the adapter to be ready.
-    // Actually, let's just use the raw SQL in the adapter if we really need to seed, 
-    // but for this refactor, let's assume the adapter's init is sufficient for schema.
-    // To properly seed, we should probably add a `seed()` method to the interface, but let's keep it simple.
-    // The previous code inserted products if count was 0.
-    // Let's just leave it for now or implement a basic seed if needed.
-    // For Vercel Postgres, we might want to run a seed script separately.
-    // But let's try to keep the behavior.
-    // Since we don't have a generic "insert product" method exposed for seeding in the interface (only createOrder uses it implicitly or we need to add it),
-    // let's skip auto-seeding products in this refactor to keep the adapter clean, 
-    // OR we can add a `seedProducts` method to the adapter.
-    // Let's add a simple check: if no products, we might want to log it.
-    // For now, let's assume the database might be empty initially on Vercel.
-  }
+    // Seed Admins
+    const admins = [
+      { email: "admin@homecraft.com", pass: "admin123", name: "Адміністратор", id: "admin-1" },
+      { email: "ihorkot12@gmail.com", pass: "4756500", name: "Ihor Kot", id: "admin-2" }
+    ];
 
-  // Seed Admins
-  const admins = [
-    { email: "admin@homecraft.com", pass: "admin123", name: "Адміністратор", id: "admin-1" },
-    { email: "ihorkot12@gmail.com", pass: "4756500", name: "Ihor Kot", id: "admin-2" }
-  ];
-
-  for (const admin of admins) {
-    const exists = await db.getUserByEmail(admin.email);
-    if (!exists) {
-      const hashed = await bcrypt.hash(admin.pass, 10);
-      await db.createUser({
-        id: admin.id,
-        email: admin.email,
-        password: hashed,
-        name: admin.name,
-        role: "admin"
-      });
+    for (const admin of admins) {
+      try {
+        const exists = await db.getUserByEmail(admin.email);
+        if (!exists) {
+          const hashed = await bcrypt.hash(admin.pass, 10);
+          await db.createUser({
+            id: admin.id,
+            email: admin.email,
+            password: hashed,
+            name: admin.name,
+            role: "admin"
+          });
+        }
+      } catch (err) {
+        console.error(`Error seeding admin ${admin.email}:`, err);
+      }
     }
-  }
 
-  dbInitialized = true;
+    dbInitialized = true;
+    console.log("Database initialized successfully.");
+  } catch (err) {
+    console.error("Database initialization failed:", err);
+    throw err; // Re-throw to be caught by startViteAndListen
+  } finally {
+    isInitializing = false;
+  }
 }
 
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
 app.use(cookieParser());
-
-// Lazy DB Init Middleware
-app.use(asyncHandler(async (req: any, res: any, next: any) => {
-  await ensureDb();
-  next();
-}));
 
 // Auth Middleware
 const authenticate = (req: any, res: any, next: any) => {
@@ -592,9 +579,24 @@ async function startViteAndListen() {
   // Global Error Handler
   app.use((err: any, req: any, res: any, next: any) => {
     console.error("Server Error:", err);
-    res.status(err.status || 500).json({
-      error: err.message || "Internal Server Error",
-      stack: process.env.NODE_ENV === "development" ? err.stack : undefined
+    const status = err.status || 500;
+    const message = err.message || "Internal Server Error";
+    const stack = err.stack || "No stack trace available";
+    
+    // Handle Neon specific quota errors
+    if (message.includes("quota") || message.includes("402") || (err.code && err.code === "402")) {
+      return res.status(402).json({
+        error: "Database Quota Exceeded",
+        message: "Ваш проект перевищив квоту передачі даних бази даних Neon. Будь ласка, зачекайте або оновіть план.",
+        sourceError: message,
+        stack: stack
+      });
+    }
+
+    res.status(status).json({
+      error: message,
+      sourceError: message,
+      stack: stack
     });
   });
 }

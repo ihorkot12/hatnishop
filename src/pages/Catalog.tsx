@@ -48,8 +48,8 @@ export const Catalog = () => {
           prodRes.json(),
           catRes.json()
         ]);
-        setProducts(prodData);
-        setCategories(catData);
+        setProducts(Array.isArray(prodData) ? prodData : []);
+        setCategories(Array.isArray(catData) ? catData : []);
       } catch (err) {
         console.error('Failed to fetch data:', err);
       } finally {

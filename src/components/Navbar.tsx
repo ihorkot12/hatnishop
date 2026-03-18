@@ -23,7 +23,13 @@ export const Navbar = () => {
   React.useEffect(() => {
     fetch('/api/categories')
       .then(res => res.json())
-      .then(data => setCategories(data))
+      .then(data => {
+        if (Array.isArray(data)) {
+          setCategories(data);
+        } else {
+          setCategories([]);
+        }
+      })
       .catch(err => console.error(err));
   }, []);
 

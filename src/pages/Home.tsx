@@ -32,7 +32,7 @@ export const Home = () => {
   }, []);
 
   const bestSellers = products.filter(p => p.isPopular).slice(0, 4);
-  const featuredProduct = products.find(p => p.id === siteSettings?.hero_featured_product_id);
+  const featuredProduct = products.find(p => p.id === siteSettings?.hero_featured_product_id) || (loading ? undefined : products[0]);
 
   return (
     <div className="bg-white pb-24">
@@ -41,6 +41,7 @@ export const Home = () => {
         subtitle={siteSettings?.hero_subtitle}
         badge={siteSettings?.hero_badge}
         featuredProduct={featuredProduct}
+        loading={loading}
       />
       
       <CategoryGrid />

@@ -392,44 +392,50 @@ export class NeonAdapter implements DatabaseAdapter {
 
   async getAllOrders(): Promise<any[]> {
     const orders = await this.sql`SELECT * FROM orders ORDER BY created_at DESC`;
-    const result = [];
-    for (const order of orders) {
-      const items = await this.sql`
-        SELECT oi.*, p.name, p.image 
-        FROM order_items oi 
-        JOIN products p ON oi.product_id = p.id 
-        WHERE oi.order_id = ${order.id}
-      `;
-      result.push({
-        id: order.id,
-        total: Number(order.total),
-        bonusUsed: Number(order.bonus_used || 0),
-        finalTotal: Number(order.final_total || order.total),
-        paymentMethod: order.payment_method,
-        status: order.status,
-        createdAt: order.created_at,
-        bonusesCredited: order.bonuses_credited,
-        trackingNumber: order.tracking_number,
-        comment: order.comment,
-        customer: {
-          name: order.customer_name,
-          phone: order.customer_phone,
-          email: order.customer_email,
-          city: order.customer_city,
-          address: order.customer_address,
-          deliveryMethod: order.delivery_method,
-          warehouse: order.warehouse
-        },
-        items: items.map((item: any) => ({
-          id: item.product_id,
-          name: item.name,
-          image: item.image,
-          price: Number(item.price),
-          quantity: item.quantity
-        }))
-      });
-    }
-    return result;
+    if (orders.length === 0) return [];
+
+    const orderIds = orders.map((o: any) => o.id);
+    const allItems = await this.sql`
+      SELECT oi.*, p.name, p.image 
+      FROM order_items oi 
+      JOIN products p ON oi.product_id = p.id 
+      WHERE oi.order_id IN (${orderIds})
+    `;
+
+    const itemsByOrderId = allItems.reduce((acc: any, item: any) => {
+      if (!acc[item.order_id]) acc[item.order_id] = [];
+      acc[item.order_id].push(item);
+      return acc;
+    }, {});
+
+    return orders.map((order: any) => ({
+      id: order.id,
+      total: Number(order.total),
+      bonusUsed: Number(order.bonus_used || 0),
+      finalTotal: Number(order.final_total || order.total),
+      paymentMethod: order.payment_method,
+      status: order.status,
+      createdAt: order.created_at,
+      bonusesCredited: order.bonuses_credited,
+      trackingNumber: order.tracking_number,
+      comment: order.comment,
+      customer: {
+        name: order.customer_name,
+        phone: order.customer_phone,
+        email: order.customer_email,
+        city: order.customer_city,
+        address: order.customer_address,
+        deliveryMethod: order.delivery_method,
+        warehouse: order.warehouse
+      },
+      items: (itemsByOrderId[order.id] || []).map((item: any) => ({
+        id: item.product_id,
+        name: item.name,
+        image: item.image,
+        price: Number(item.price),
+        quantity: item.quantity
+      }))
+    }));
   }
 
   async updateOrderStatus(id: string, status: string): Promise<void> {
@@ -616,13 +622,23 @@ export class NeonAdapter implements DatabaseAdapter {
     salesByDay: { name: string; sales: number }[];
     salesByCategory: { name: string; value: number }[];
   }> {
-    const orders = await this.sql`SELECT total, final_total, created_at FROM orders WHERE status != 'cancelled'`;
-    const totalSales = orders.reduce((sum: number, o: any) => sum + Number(o.final_total || o.total), 0);
-    const orderCount = orders.length;
-    const avgOrderValue = orderCount > 0 ? totalSales / orderCount : 0;
+    const [orderStats] = await this.sql`
+      SELECT 
+        SUM(COALESCE(final_total, total)) as total_sales,
+        COUNT(*) as order_count,
+        AVG(COALESCE(final_total, total)) as avg_order_value
+      FROM orders 
+      WHERE status != 'cancelled'
+    `;
 
-    const users = await this.sql`SELECT bonuses FROM users`;
-    const totalBonuses = users.reduce((sum: number, u: any) => sum + Number(u.bonuses), 0);
+    const [userStats] = await this.sql`
+      SELECT SUM(bonuses) as total_bonuses FROM users
+    `;
+
+    const totalSales = Number(orderStats?.total_sales || 0);
+    const orderCount = Number(orderStats?.order_count || 0);
+    const avgOrderValue = Number(orderStats?.avg_order_value || 0);
+    const totalBonuses = Number(userStats?.total_bonuses || 0);
 
     // Sales by day (last 7 days)
     const days = ['Нд', 'Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб'];
@@ -636,10 +652,20 @@ export class NeonAdapter implements DatabaseAdapter {
       };
     });
 
-    orders.forEach((o: any) => {
-      const dateStr = new Date(o.created_at).toISOString().split('T')[0];
+    const dailySales = await this.sql`
+      SELECT 
+        DATE(created_at) as date,
+        SUM(COALESCE(final_total, total)) as sales
+      FROM orders
+      WHERE status != 'cancelled'
+      AND created_at >= CURRENT_DATE - INTERVAL '7 days'
+      GROUP BY DATE(created_at)
+    `;
+
+    dailySales.forEach((row: any) => {
+      const dateStr = new Date(row.date).toISOString().split('T')[0];
       const day = last7Days.find(d => d.dateStr === dateStr);
-      if (day) day.sales += Number(o.final_total || o.total);
+      if (day) day.sales = Number(row.sales);
     });
 
     // Sales by category

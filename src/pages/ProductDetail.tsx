@@ -436,10 +436,10 @@ export const ProductDetail = () => {
                 </div>
                 <div>
                   <div className="text-3xl font-bold text-tiffany">
-                    {Math.round((product.price + (bundleProducts.length > 0 ? bundleProducts.reduce((acc, p) => acc + p.price, 0) : (relatedProducts[0]?.price || 0))) * 0.85)} грн
+                    {Math.round((Number(product.price) + (bundleProducts.length > 0 ? bundleProducts.reduce((acc, p) => acc + Number(p.price), 0) : Number(relatedProducts[0]?.price || 0))) * 0.85)} грн
                   </div>
                   <div className="text-sm text-white/40 line-through">
-                    {product.price + (bundleProducts.length > 0 ? bundleProducts.reduce((acc, p) => acc + p.price, 0) : (relatedProducts[0]?.price || 0))} грн
+                    {Number(product.price) + (bundleProducts.length > 0 ? bundleProducts.reduce((acc, p) => acc + Number(p.price), 0) : Number(relatedProducts[0]?.price || 0))} грн
                   </div>
                 </div>
               </div>

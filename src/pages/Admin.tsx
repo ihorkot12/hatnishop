@@ -138,6 +138,7 @@ export const Admin = () => {
       fetchProducts();
       fetchOrders();
       fetchSiteSettings();
+      fetchReviews();
     }
     if (activeTab === 'bonus-codes') fetchBonusCodes();
     if (activeTab === 'reviews') fetchReviews();
@@ -819,9 +820,14 @@ export const Admin = () => {
                           siteSettings,
                           reviews
                         });
-                        setAiReport(report);
-                      } catch (err) {
-                        alert('Помилка при генерації звіту');
+                        if (report) {
+                          setAiReport(report);
+                        } else {
+                          throw new Error('Отримано порожній звіт');
+                        }
+                      } catch (err: any) {
+                        console.error('AI Director Error:', err);
+                        alert(`Помилка при генерації звіту: ${err.message || 'Невідома помилка'}`);
                       } finally {
                         setIsGeneratingReport(false);
                       }
@@ -1454,7 +1460,15 @@ export const Admin = () => {
                             </select>
                           </td>
                           <td className="px-8 py-6">
-                            <button className="text-tiffany hover:text-slate-900 font-bold text-sm">Деталі</button>
+                            <button 
+                              onClick={() => {
+                                setEditingOrder(order);
+                                setShowOrderModal(true);
+                              }}
+                              className="text-tiffany hover:text-slate-900 font-bold text-sm"
+                            >
+                              Деталі
+                            </button>
                           </td>
                         </tr>
                       ))}
@@ -1936,7 +1950,7 @@ export const Admin = () => {
                                 onClick={() => {
                                   const total = bundleItems.reduce((acc, id) => {
                                     const p = products.find(prod => prod.id === id);
-                                    return acc + (p?.price || 0);
+                                    return acc + Number(p?.price || 0);
                                   }, 0);
                                   // Apply a default 15% discount for the bundle price suggestion
                                   const discounted = Math.round(total * 0.85);
@@ -1947,7 +1961,7 @@ export const Admin = () => {
                                 }}
                                 className="w-full mt-2 text-[10px] font-bold text-tiffany hover:underline"
                               >
-                                Розрахувати ціну зі знижкою 15% ({Math.round(bundleItems.reduce((acc, id) => acc + (products.find(p => p.id === id)?.price || 0), 0) * 0.85)} грн)
+                                Розрахувати ціну зі знижкою 15% ({Math.round(bundleItems.reduce((acc, id) => acc + Number(products.find(p => p.id === id)?.price || 0), 0) * 0.85)} грн)
                               </button>
                             </>
                           )}
@@ -2088,114 +2102,210 @@ export const Admin = () => {
               exit={{ opacity: 0, scale: 0.95, y: 20 }}
               className="relative w-full max-w-3xl bg-white rounded-[2.5rem] shadow-2xl p-8 overflow-y-auto max-h-[90vh]"
             >
-              <h2 className="text-2xl font-bold mb-8">Створити замовлення вручну</h2>
-              <form onSubmit={handleOrderSubmit} className="space-y-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div className="space-y-2">
-                    <label className="text-xs font-bold text-slate-400 uppercase">Ім'я клієнта</label>
-                    <input name="customerName" required className="w-full bg-slate-50 border-none rounded-xl p-4 focus:ring-2 focus:ring-tiffany" />
+              {editingOrder ? (
+                <div className="space-y-8">
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <h2 className="text-2xl font-bold mb-2">Замовлення #{editingOrder.id.slice(0, 8)}</h2>
+                      <p className="text-slate-500">{new Date(editingOrder.created_at).toLocaleString('uk-UA')}</p>
+                    </div>
+                    <div className={`px-4 py-2 rounded-full text-xs font-bold uppercase ${
+                      editingOrder.status === 'completed' ? 'bg-emerald-100 text-emerald-600' :
+                      editingOrder.status === 'cancelled' ? 'bg-red-100 text-red-600' :
+                      'bg-amber-100 text-amber-600'
+                    }`}>
+                      {editingOrder.status === 'pending' ? 'Очікує' :
+                       editingOrder.status === 'paid' ? 'Оплачено' :
+                       editingOrder.status === 'shipped' ? 'Відправлено' :
+                       editingOrder.status === 'completed' ? 'Виконано' : 'Скасовано'}
+                    </div>
                   </div>
-                  <div className="space-y-2">
-                    <label className="text-xs font-bold text-slate-400 uppercase">Email</label>
-                    <input name="customerEmail" type="email" className="w-full bg-slate-50 border-none rounded-xl p-4 focus:ring-2 focus:ring-tiffany" />
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-xs font-bold text-slate-400 uppercase">Телефон</label>
-                    <input name="customerPhone" required className="w-full bg-slate-50 border-none rounded-xl p-4 focus:ring-2 focus:ring-tiffany" />
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-xs font-bold text-slate-400 uppercase">Місто</label>
-                    <input name="customerCity" required className="w-full bg-slate-50 border-none rounded-xl p-4 focus:ring-2 focus:ring-tiffany" />
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-xs font-bold text-slate-400 uppercase">Спосіб доставки</label>
-                    <select name="deliveryMethod" className="w-full bg-slate-50 border-none rounded-xl p-4 focus:ring-2 focus:ring-tiffany">
-                      <option value="nova-poshta">Нова Пошта</option>
-                      <option value="ukr-poshta">Укрпошта</option>
-                    </select>
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-xs font-bold text-slate-400 uppercase">Спосіб оплати</label>
-                    <select name="paymentMethod" className="w-full bg-slate-50 border-none rounded-xl p-4 focus:ring-2 focus:ring-tiffany">
-                      <option value="card">Карта</option>
-                      <option value="cash">Накладений платіж</option>
-                    </select>
-                  </div>
-                </div>
 
-                <div className="space-y-4">
-                  <div className="flex justify-between items-center">
-                    <h3 className="font-bold">Товари у замовленні</h3>
-                    <select 
-                      onChange={(e) => {
-                        if (e.target.value) {
-                          addManualItem(e.target.value);
-                          e.target.value = '';
-                        }
-                      }}
-                      className="bg-slate-100 border-none rounded-lg px-4 py-2 text-sm focus:ring-2 focus:ring-tiffany"
-                    >
-                      <option value="">Додати товар...</option>
-                      {products.map(p => (
-                        <option key={p.id} value={p.id}>{p.name} - {p.price} грн</option>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                    <div className="space-y-4">
+                      <h3 className="text-sm font-bold text-slate-400 uppercase tracking-wider">Клієнт</h3>
+                      <div className="bg-slate-50 p-6 rounded-3xl space-y-3">
+                        <div className="flex justify-between">
+                          <span className="text-slate-500">Ім'я:</span>
+                          <span className="font-bold">{editingOrder.customer_name}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-slate-500">Email:</span>
+                          <span className="font-bold">{editingOrder.customer_email || '—'}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-slate-500">Телефон:</span>
+                          <span className="font-bold">{editingOrder.customer_phone}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-slate-500">Місто:</span>
+                          <span className="font-bold">{editingOrder.customer_city}</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="space-y-4">
+                      <h3 className="text-sm font-bold text-slate-400 uppercase tracking-wider">Доставка та оплата</h3>
+                      <div className="bg-slate-50 p-6 rounded-3xl space-y-3">
+                        <div className="flex justify-between">
+                          <span className="text-slate-500">Доставка:</span>
+                          <span className="font-bold">{editingOrder.delivery_method === 'nova-poshta' ? 'Нова Пошта' : 'Укрпошта'}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-slate-500">Оплата:</span>
+                          <span className="font-bold">{editingOrder.payment_method === 'card' ? 'Карта' : 'Накладений платіж'}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-slate-500">Бонуси:</span>
+                          <span className="font-bold text-emerald-600">-{editingOrder.bonuses_used} грн</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="space-y-4">
+                    <h3 className="text-sm font-bold text-slate-400 uppercase tracking-wider">Товари</h3>
+                    <div className="space-y-3">
+                      {editingOrder.items?.map((item: any, idx: number) => (
+                        <div key={idx} className="flex items-center justify-between bg-white border border-slate-100 p-4 rounded-2xl">
+                          <div className="flex items-center gap-4">
+                            <img src={item.image} className="w-12 h-12 rounded-xl object-cover" alt="" referrerPolicy="no-referrer" />
+                            <div>
+                              <div className="font-bold">{item.name}</div>
+                              <div className="text-xs text-slate-400">{item.price} грн × {item.quantity}</div>
+                            </div>
+                          </div>
+                          <div className="font-bold">{item.price * item.quantity} грн</div>
+                        </div>
                       ))}
-                    </select>
+                    </div>
                   </div>
-                  
-                  <div className="space-y-2">
-                    {manualOrderItems.map((item, idx) => (
-                      <div key={idx} className="flex items-center justify-between bg-slate-50 p-4 rounded-xl">
-                        <div className="flex items-center gap-4">
-                          <img src={item.image} className="w-10 h-10 rounded-lg object-cover" alt="" referrerPolicy="no-referrer" />
-                          <div>
-                            <div className="font-bold text-sm">{item.name}</div>
-                            <div className="text-xs text-slate-400">{item.price} грн</div>
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-4">
-                          <div className="flex items-center gap-2">
-                            <button 
-                              type="button"
-                              onClick={() => setManualOrderItems(prev => prev.map((it, i) => i === idx ? { ...it, quantity: Math.max(1, it.quantity - 1) } : it))}
-                              className="w-6 h-6 flex items-center justify-center bg-white rounded-md shadow-sm"
-                            >-</button>
-                            <span className="text-sm font-bold w-4 text-center">{item.quantity}</span>
-                            <button 
-                              type="button"
-                              onClick={() => setManualOrderItems(prev => prev.map((it, i) => i === idx ? { ...it, quantity: it.quantity + 1 } : it))}
-                              className="w-6 h-6 flex items-center justify-center bg-white rounded-md shadow-sm"
-                            >+</button>
-                          </div>
-                          <button 
-                            type="button"
-                            onClick={() => setManualOrderItems(prev => prev.filter((_, i) => i !== idx))}
-                            className="text-red-500 hover:bg-red-50 p-2 rounded-lg"
-                          >
-                            <Trash2 size={16} />
-                          </button>
-                        </div>
-                      </div>
-                    ))}
-                    {manualOrderItems.length === 0 && (
-                      <div className="text-center py-8 text-slate-400 text-sm border-2 border-dashed border-slate-100 rounded-2xl">
-                        Додайте товари до замовлення
-                      </div>
-                    )}
-                  </div>
-                </div>
 
-                <div className="flex justify-between items-center p-6 bg-slate-900 text-white rounded-2xl">
-                  <div className="text-sm font-medium opacity-70">Загальна сума:</div>
-                  <div className="text-2xl font-bold">
-                    {manualOrderItems.reduce((sum, item) => sum + item.price * item.quantity, 0)} грн
+                  <div className="flex justify-between items-center p-8 bg-slate-900 text-white rounded-[2rem]">
+                    <div>
+                      <div className="text-sm opacity-60">Разом до сплати</div>
+                      <div className="text-3xl font-bold">{editingOrder.total_amount} грн</div>
+                    </div>
+                    <button 
+                      onClick={() => setShowOrderModal(false)}
+                      className="px-8 py-4 bg-white/10 hover:bg-white/20 rounded-xl font-bold transition-all"
+                    >
+                      Закрити
+                    </button>
                   </div>
                 </div>
+              ) : (
+                <>
+                  <h2 className="text-2xl font-bold mb-8">Створити замовлення вручну</h2>
+                  <form onSubmit={handleOrderSubmit} className="space-y-6">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <div className="space-y-2">
+                        <label className="text-xs font-bold text-slate-400 uppercase">Ім'я клієнта</label>
+                        <input name="customerName" required className="w-full bg-slate-50 border-none rounded-xl p-4 focus:ring-2 focus:ring-tiffany" />
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-xs font-bold text-slate-400 uppercase">Email</label>
+                        <input name="customerEmail" type="email" className="w-full bg-slate-50 border-none rounded-xl p-4 focus:ring-2 focus:ring-tiffany" />
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-xs font-bold text-slate-400 uppercase">Телефон</label>
+                        <input name="customerPhone" required className="w-full bg-slate-50 border-none rounded-xl p-4 focus:ring-2 focus:ring-tiffany" />
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-xs font-bold text-slate-400 uppercase">Місто</label>
+                        <input name="customerCity" required className="w-full bg-slate-50 border-none rounded-xl p-4 focus:ring-2 focus:ring-tiffany" />
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-xs font-bold text-slate-400 uppercase">Спосіб доставки</label>
+                        <select name="deliveryMethod" className="w-full bg-slate-50 border-none rounded-xl p-4 focus:ring-2 focus:ring-tiffany">
+                          <option value="nova-poshta">Нова Пошта</option>
+                          <option value="ukr-poshta">Укрпошта</option>
+                        </select>
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-xs font-bold text-slate-400 uppercase">Спосіб оплати</label>
+                        <select name="paymentMethod" className="w-full bg-slate-50 border-none rounded-xl p-4 focus:ring-2 focus:ring-tiffany">
+                          <option value="card">Карта</option>
+                          <option value="cash">Накладений платіж</option>
+                        </select>
+                      </div>
+                    </div>
 
-                <div className="flex gap-4 pt-4">
-                  <button type="button" onClick={() => setShowOrderModal(false)} className="flex-1 px-6 py-4 rounded-xl font-bold text-slate-500 hover:bg-slate-50 transition-all">Скасувати</button>
-                  <button type="submit" disabled={manualOrderItems.length === 0} className="flex-1 bg-tiffany text-white px-6 py-4 rounded-xl font-bold hover:bg-slate-900 transition-all disabled:opacity-50">Створити замовлення</button>
-                </div>
-              </form>
+                    <div className="space-y-4">
+                      <div className="flex justify-between items-center">
+                        <h3 className="font-bold">Товари у замовленні</h3>
+                        <select 
+                          onChange={(e) => {
+                            if (e.target.value) {
+                              addManualItem(e.target.value);
+                              e.target.value = '';
+                            }
+                          }}
+                          className="bg-slate-100 border-none rounded-lg px-4 py-2 text-sm focus:ring-2 focus:ring-tiffany"
+                        >
+                          <option value="">Додати товар...</option>
+                          {products.map(p => (
+                            <option key={p.id} value={p.id}>{p.name} - {p.price} грн</option>
+                          ))}
+                        </select>
+                      </div>
+                      
+                      <div className="space-y-2">
+                        {manualOrderItems.map((item, idx) => (
+                          <div key={idx} className="flex items-center justify-between bg-slate-50 p-4 rounded-xl">
+                            <div className="flex items-center gap-4">
+                              <img src={item.image} className="w-10 h-10 rounded-lg object-cover" alt="" referrerPolicy="no-referrer" />
+                              <div>
+                                <div className="font-bold text-sm">{item.name}</div>
+                                <div className="text-xs text-slate-400">{item.price} грн</div>
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-4">
+                              <div className="flex items-center gap-2">
+                                <button 
+                                  type="button"
+                                  onClick={() => setManualOrderItems(prev => prev.map((it, i) => i === idx ? { ...it, quantity: Math.max(1, it.quantity - 1) } : it))}
+                                  className="w-6 h-6 flex items-center justify-center bg-white rounded-md shadow-sm"
+                                >-</button>
+                                <span className="text-sm font-bold w-4 text-center">{item.quantity}</span>
+                                <button 
+                                  type="button"
+                                  onClick={() => setManualOrderItems(prev => prev.map((it, i) => i === idx ? { ...it, quantity: it.quantity + 1 } : it))}
+                                  className="w-6 h-6 flex items-center justify-center bg-white rounded-md shadow-sm"
+                                >+</button>
+                              </div>
+                              <button 
+                                type="button"
+                                onClick={() => setManualOrderItems(prev => prev.filter((_, i) => i !== idx))}
+                                className="text-red-500 hover:bg-red-50 p-2 rounded-lg"
+                              >
+                                <Trash2 size={16} />
+                              </button>
+                            </div>
+                          </div>
+                        ))}
+                        {manualOrderItems.length === 0 && (
+                          <div className="text-center py-8 text-slate-400 text-sm border-2 border-dashed border-slate-100 rounded-2xl">
+                            Додайте товари до замовлення
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="flex justify-between items-center p-6 bg-slate-900 text-white rounded-2xl">
+                      <div className="text-sm font-medium opacity-70">Загальна сума:</div>
+                      <div className="text-2xl font-bold">
+                        {manualOrderItems.reduce((sum, item) => sum + item.price * item.quantity, 0)} грн
+                      </div>
+                    </div>
+
+                    <div className="flex gap-4 pt-4">
+                      <button type="button" onClick={() => setShowOrderModal(false)} className="flex-1 px-6 py-4 rounded-xl font-bold text-slate-500 hover:bg-slate-50 transition-all">Скасувати</button>
+                      <button type="submit" disabled={manualOrderItems.length === 0} className="flex-1 bg-tiffany text-white px-6 py-4 rounded-xl font-bold hover:bg-slate-900 transition-all disabled:opacity-50">Створити замовлення</button>
+                    </div>
+                  </form>
+                </>
+              )}
             </motion.div>
           </div>
         )}

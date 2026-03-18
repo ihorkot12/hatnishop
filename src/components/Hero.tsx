@@ -9,21 +9,14 @@ interface HeroProps {
   subtitle?: string;
   badge?: string;
   featuredProduct?: any;
+  loading?: boolean;
 }
 
-export const Hero = ({ title, subtitle, badge, featuredProduct: propProduct }: HeroProps) => {
+export const Hero = ({ title, subtitle, badge, featuredProduct: propProduct, loading }: HeroProps) => {
   const { addToCart } = useCart();
   
-  // Default featured product if none provided
-  const defaultProduct = {
-    id: 'p1',
-    name: 'Керамічна чашка "Ранкова кава"',
-    price: 350,
-    image: 'https://images.unsplash.com/photo-1514228742587-6b1558fcca3d?auto=format&fit=crop&w=800&q=80',
-    category: 'tableware'
-  };
-
-  const featuredProduct = propProduct || defaultProduct;
+  // Only use the provided product, or null if loading/missing
+  const featuredProduct = propProduct || null;
 
   return (
     <section className="relative min-h-[90vh] flex items-center overflow-hidden bg-warm-bg">
@@ -40,20 +33,27 @@ export const Hero = ({ title, subtitle, badge, featuredProduct: propProduct }: H
           >
             <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-tiffany/10 text-tiffany text-[10px] uppercase font-bold tracking-widest mb-8">
               <Star size={12} fill="currentColor" />
-              <span>{badge || 'Бестселер сезону'}</span>
+              <span>{badge || (loading ? 'Завантаження...' : 'Бестселер сезону')}</span>
             </div>
             
             <h1 className="text-6xl md:text-8xl font-serif font-bold text-slate-900 leading-[0.9] mb-8 tracking-tight">
-              {title ? (
+              {loading ? (
+                <div className="h-24 bg-slate-200 animate-pulse rounded-3xl w-3/4 mb-4" />
+              ) : title ? (
                 <div dangerouslySetInnerHTML={{ __html: title.replace('декор для дому', '<span class="text-tiffany italic">декор для дому</span>') }} />
               ) : (
                 <>Естетичний посуд та <span className="text-tiffany italic">декор для дому</span></>
               )}
             </h1>
             
-            <p className="text-xl text-slate-500 font-light leading-relaxed mb-12 max-w-lg">
-              {subtitle || 'Інтернет-магазин "Хатні Штучки" — ваш провідник у світ затишку. Купуйте кераміку, текстиль та аксесуари, які перетворюють оселю на місце сили.'}
-            </p>
+            <div className="text-xl text-slate-500 font-light leading-relaxed mb-12 max-w-lg">
+              {loading ? (
+                <div className="space-y-2">
+                  <div className="h-4 bg-slate-100 animate-pulse rounded w-full" />
+                  <div className="h-4 bg-slate-100 animate-pulse rounded w-5/6" />
+                </div>
+              ) : subtitle || 'Інтернет-магазин "Хатні Штучки" — ваш провідник у світ затишку. Купуйте кераміку, текстиль та аксесуари, які перетворюють оселю на місце сили.'}
+            </div>
             
             <div className="flex flex-wrap gap-4">
               <Link 
@@ -78,29 +78,35 @@ export const Hero = ({ title, subtitle, badge, featuredProduct: propProduct }: H
             transition={{ duration: 1, ease: "easeOut", delay: 0.2 }}
             className="relative"
           >
-            <div className="relative aspect-square rounded-[3rem] overflow-hidden shadow-2xl shadow-slate-900/10 group">
-              <img 
-                src={featuredProduct.image} 
-                alt={featuredProduct.name}
-                className="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-110"
-                referrerPolicy="no-referrer"
-              />
-              
-              {/* Floating Price Tag */}
-              <div className="absolute bottom-8 left-8 right-8 bg-white/80 backdrop-blur-xl p-6 rounded-3xl border border-white/20 flex justify-between items-center shadow-xl">
-                <div>
-                  <h3 className="text-slate-900 font-bold text-lg">{featuredProduct.name}</h3>
-                  <div className="text-tiffany font-bold text-2xl">
-                    {featuredProduct.price} <span className="text-sm font-normal text-slate-400">грн</span>
+            <div className="relative aspect-square rounded-[3rem] overflow-hidden shadow-2xl shadow-slate-900/10 group bg-slate-100">
+              {featuredProduct ? (
+                <>
+                  <img 
+                    src={featuredProduct.image} 
+                    alt={featuredProduct.name}
+                    className="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-110"
+                    referrerPolicy="no-referrer"
+                  />
+                  
+                  {/* Floating Price Tag */}
+                  <div className="absolute bottom-8 left-8 right-8 bg-white/80 backdrop-blur-xl p-6 rounded-3xl border border-white/20 flex justify-between items-center shadow-xl">
+                    <div>
+                      <h3 className="text-slate-900 font-bold text-lg">{featuredProduct.name}</h3>
+                      <div className="text-tiffany font-bold text-2xl">
+                        {featuredProduct.price} <span className="text-sm font-normal text-slate-400">грн</span>
+                      </div>
+                    </div>
+                    <button 
+                      onClick={() => addToCart(featuredProduct as any)}
+                      className="w-14 h-14 bg-slate-900 text-white rounded-2xl flex items-center justify-center hover:bg-tiffany transition-all shadow-lg"
+                    >
+                      <ShoppingCart size={24} />
+                    </button>
                   </div>
-                </div>
-                <button 
-                  onClick={() => addToCart(featuredProduct as any)}
-                  className="w-14 h-14 bg-slate-900 text-white rounded-2xl flex items-center justify-center hover:bg-tiffany transition-all shadow-lg"
-                >
-                  <ShoppingCart size={24} />
-                </button>
-              </div>
+                </>
+              ) : (
+                <div className="w-full h-full bg-slate-200 animate-pulse" />
+              )}
             </div>
             
             {/* 3D Parallax Accents */}
