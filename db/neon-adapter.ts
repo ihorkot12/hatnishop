@@ -505,7 +505,14 @@ export class NeonAdapter implements DatabaseAdapter {
       UPDATE site_settings SET 
         free_delivery_min = ${settings.free_delivery_min}, 
         return_days = ${settings.return_days}, 
-        cashback_percent = ${settings.cashback_percent}
+        cashback_percent = ${settings.cashback_percent},
+        hero_title = ${settings.hero_title},
+        hero_subtitle = ${settings.hero_subtitle},
+        hero_featured_product_id = ${settings.hero_featured_product_id},
+        hero_badge = ${settings.hero_badge},
+        bestsellers_badge = ${settings.bestsellers_badge},
+        bestsellers_title = ${settings.bestsellers_title},
+        bestsellers_subtitle = ${settings.bestsellers_subtitle}
       WHERE id = 'default'
     `;
   }

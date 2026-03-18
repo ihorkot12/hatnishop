@@ -108,6 +108,32 @@ export class SqliteAdapter implements DatabaseAdapter {
       INSERT OR IGNORE INTO site_settings (id, free_delivery_min, return_days, cashback_percent, hero_title, hero_subtitle, hero_featured_product_id, hero_badge, bestsellers_badge, bestsellers_title, bestsellers_subtitle) 
       VALUES ('default', 1500, 14, 5, 'Естетичний посуд та декор для дому', 'Інтернет-магазин "Хатні Штучки" — ваш провідник у світ затишку. Купуйте кераміку, текстиль та аксесуари, які перетворюють оселю на місце сили.', 'p1', 'Бестселер сезону', 'Наші бестселери', 'Популярні товари для вашого затишку', 'Обирайте найкращий посуд та декор, який став фаворитом наших покупців. Кожна річ у каталозі "Хатні Штучки" — це поєднання естетики та функціональності.');
 
+      // Migrations for site_settings
+      const columns = this.db.prepare("PRAGMA table_info(site_settings)").all() as any[];
+      const columnNames = columns.map(c => c.name);
+      
+      if (!columnNames.includes('hero_title')) {
+        this.db.prepare("ALTER TABLE site_settings ADD COLUMN hero_title TEXT DEFAULT 'Естетичний посуд та декор для дому'").run();
+      }
+      if (!columnNames.includes('hero_subtitle')) {
+        this.db.prepare("ALTER TABLE site_settings ADD COLUMN hero_subtitle TEXT DEFAULT 'Інтернет-магазин \"Хатні Штучки\" — ваш провідник у світ затишку. Купуйте кераміку, текстиль та аксесуари, які перетворюють оселю на місце сили.'").run();
+      }
+      if (!columnNames.includes('hero_featured_product_id')) {
+        this.db.prepare("ALTER TABLE site_settings ADD COLUMN hero_featured_product_id TEXT DEFAULT 'p1'").run();
+      }
+      if (!columnNames.includes('hero_badge')) {
+        this.db.prepare("ALTER TABLE site_settings ADD COLUMN hero_badge TEXT DEFAULT 'Бестселер сезону'").run();
+      }
+      if (!columnNames.includes('bestsellers_badge')) {
+        this.db.prepare("ALTER TABLE site_settings ADD COLUMN bestsellers_badge TEXT DEFAULT 'Наші бестселери'").run();
+      }
+      if (!columnNames.includes('bestsellers_title')) {
+        this.db.prepare("ALTER TABLE site_settings ADD COLUMN bestsellers_title TEXT DEFAULT 'Популярні товари для вашого затишку'").run();
+      }
+      if (!columnNames.includes('bestsellers_subtitle')) {
+        this.db.prepare("ALTER TABLE site_settings ADD COLUMN bestsellers_subtitle TEXT DEFAULT 'Обирайте найкращий посуд та декор, який став фаворитом наших покупців. Кожна річ у каталозі \"Хатні Штучки\" — це поєднання естетики та функціональності.'").run();
+      }
+
       CREATE TABLE IF NOT EXISTS reviews (
         id TEXT PRIMARY KEY,
         product_id TEXT,
@@ -441,7 +467,10 @@ export class SqliteAdapter implements DatabaseAdapter {
         hero_title = ?,
         hero_subtitle = ?,
         hero_featured_product_id = ?,
-        hero_badge = ?
+        hero_badge = ?,
+        bestsellers_badge = ?,
+        bestsellers_title = ?,
+        bestsellers_subtitle = ?
       WHERE id = 'default'
     `).run(
       settings.free_delivery_min, 
@@ -450,7 +479,10 @@ export class SqliteAdapter implements DatabaseAdapter {
       settings.hero_title,
       settings.hero_subtitle,
       settings.hero_featured_product_id,
-      settings.hero_badge
+      settings.hero_badge,
+      settings.bestsellers_badge,
+      settings.bestsellers_title,
+      settings.bestsellers_subtitle
     );
   }
 
