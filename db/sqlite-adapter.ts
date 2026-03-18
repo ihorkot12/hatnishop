@@ -99,11 +99,14 @@ export class SqliteAdapter implements DatabaseAdapter {
         hero_title TEXT DEFAULT 'Естетичний посуд та декор для дому',
         hero_subtitle TEXT DEFAULT 'Інтернет-магазин "Хатні Штучки" — ваш провідник у світ затишку. Купуйте кераміку, текстиль та аксесуари, які перетворюють оселю на місце сили.',
         hero_featured_product_id TEXT DEFAULT 'p1',
-        hero_badge TEXT DEFAULT 'Бестселер сезону'
+        hero_badge TEXT DEFAULT 'Бестселер сезону',
+        bestsellers_badge TEXT DEFAULT 'Наші бестселери',
+        bestsellers_title TEXT DEFAULT 'Популярні товари для вашого затишку',
+        bestsellers_subtitle TEXT DEFAULT 'Обирайте найкращий посуд та декор, який став фаворитом наших покупців. Кожна річ у каталозі "Хатні Штучки" — це поєднання естетики та функціональності.'
       );
 
-      INSERT OR IGNORE INTO site_settings (id, free_delivery_min, return_days, cashback_percent, hero_title, hero_subtitle, hero_featured_product_id, hero_badge) 
-      VALUES ('default', 1500, 14, 5, 'Естетичний посуд та декор для дому', 'Інтернет-магазин "Хатні Штучки" — ваш провідник у світ затишку. Купуйте кераміку, текстиль та аксесуари, які перетворюють оселю на місце сили.', 'p1', 'Бестселер сезону');
+      INSERT OR IGNORE INTO site_settings (id, free_delivery_min, return_days, cashback_percent, hero_title, hero_subtitle, hero_featured_product_id, hero_badge, bestsellers_badge, bestsellers_title, bestsellers_subtitle) 
+      VALUES ('default', 1500, 14, 5, 'Естетичний посуд та декор для дому', 'Інтернет-магазин "Хатні Штучки" — ваш провідник у світ затишку. Купуйте кераміку, текстиль та аксесуари, які перетворюють оселю на місце сили.', 'p1', 'Бестселер сезону', 'Наші бестселери', 'Популярні товари для вашого затишку', 'Обирайте найкращий посуд та декор, який став фаворитом наших покупців. Кожна річ у каталозі "Хатні Штучки" — це поєднання естетики та функціональності.');
 
       CREATE TABLE IF NOT EXISTS reviews (
         id TEXT PRIMARY KEY,

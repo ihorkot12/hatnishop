@@ -50,9 +50,17 @@ export const Home = () => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex flex-col md:flex-row justify-between items-end mb-16 gap-8">
             <div className="max-w-xl">
-              <div className="text-tiffany font-bold text-[10px] uppercase tracking-[0.2em] mb-4">Наші бестселери</div>
-              <h2 className="text-5xl font-serif font-bold text-slate-900 mb-6 leading-tight">Популярні товари для <span className="text-tiffany italic">вашого затишку</span></h2>
-              <p className="text-slate-500 text-lg">Обирайте найкращий посуд та декор, який став фаворитом наших покупців. Кожна річ у каталозі "Хатні Штучки" — це поєднання естетики та функціональності.</p>
+              <div className="text-tiffany font-bold text-[10px] uppercase tracking-[0.2em] mb-4">{siteSettings?.bestsellers_badge || 'Наші бестселери'}</div>
+              <h2 className="text-5xl font-serif font-bold text-slate-900 mb-6 leading-tight">
+                {siteSettings?.bestsellers_title ? (
+                  siteSettings.bestsellers_title.includes('вашого затишку') ? (
+                    <>Популярні товари для <span className="text-tiffany italic">вашого затишку</span></>
+                  ) : siteSettings.bestsellers_title
+                ) : (
+                  <>Популярні товари для <span className="text-tiffany italic">вашого затишку</span></>
+                )}
+              </h2>
+              <p className="text-slate-500 text-lg">{siteSettings?.bestsellers_subtitle || 'Обирайте найкращий посуд та декор, який став фаворитом наших покупців. Кожна річ у каталозі "Хатні Штучки" — це поєднання естетики та функціональності.'}</p>
             </div>
             <Link to="/catalog" className="flex items-center gap-2 text-tiffany font-bold hover:underline underline-offset-8">
               Дивитись всі товари <ArrowRight size={20} />

@@ -133,14 +133,34 @@ export class NeonAdapter implements DatabaseAdapter {
         id TEXT PRIMARY KEY,
         free_delivery_min NUMERIC DEFAULT 1500,
         return_days INTEGER DEFAULT 14,
-        cashback_percent INTEGER DEFAULT 5
+        cashback_percent INTEGER DEFAULT 5,
+        hero_title TEXT DEFAULT 'Естетичний посуд та декор для дому',
+        hero_subtitle TEXT DEFAULT 'Інтернет-магазин "Хатні Штучки" — ваш провідник у світ затишку. Купуйте кераміку, текстиль та аксесуари, які перетворюють оселю на місце сили.',
+        hero_featured_product_id TEXT DEFAULT 'p1',
+        hero_badge TEXT DEFAULT 'Бестселер сезону',
+        bestsellers_badge TEXT DEFAULT 'Наші бестселери',
+        bestsellers_title TEXT DEFAULT 'Популярні товари для вашого затишку',
+        bestsellers_subtitle TEXT DEFAULT 'Обирайте найкращий посуд та декор, який став фаворитом наших покупців. Кожна річ у каталозі "Хатні Штучки" — це поєднання естетики та функціональності.'
       );
     `;
 
     // Ensure initial site settings exist
     const settings = await this.sql`SELECT * FROM site_settings WHERE id = 'default'`;
     if (settings.length === 0) {
-      await this.sql`INSERT INTO site_settings (id, free_delivery_min, return_days, cashback_percent) VALUES ('default', 1500, 14, 5)`;
+      await this.sql`INSERT INTO site_settings (id, free_delivery_min, return_days, cashback_percent, hero_title, hero_subtitle, hero_featured_product_id, hero_badge, bestsellers_badge, bestsellers_title, bestsellers_subtitle) VALUES ('default', 1500, 14, 5, 'Естетичний посуд та декор для дому', 'Інтернет-магазин "Хатні Штучки" — ваш провідник у світ затишку. Купуйте кераміку, текстиль та аксесуари, які перетворюють оселю на місце сили.', 'p1', 'Бестселер сезону', 'Наші бестселери', 'Популярні товари для вашого затишку', 'Обирайте найкращий посуд та декор, який став фаворитом наших покупців. Кожна річ у каталозі "Хатні Штучки" — це поєднання естетики та функціональності.')`;
+    }
+
+    // Migration for existing table
+    try {
+      await this.sql`ALTER TABLE site_settings ADD COLUMN IF NOT EXISTS hero_title TEXT DEFAULT 'Естетичний посуд та декор для дому'`;
+      await this.sql`ALTER TABLE site_settings ADD COLUMN IF NOT EXISTS hero_subtitle TEXT DEFAULT 'Інтернет-магазин "Хатні Штучки" — ваш провідник у світ затишку. Купуйте кераміку, текстиль та аксесуари, які перетворюють оселю на місце сили.'`;
+      await this.sql`ALTER TABLE site_settings ADD COLUMN IF NOT EXISTS hero_featured_product_id TEXT DEFAULT 'p1'`;
+      await this.sql`ALTER TABLE site_settings ADD COLUMN IF NOT EXISTS hero_badge TEXT DEFAULT 'Бестселер сезону'`;
+      await this.sql`ALTER TABLE site_settings ADD COLUMN IF NOT EXISTS bestsellers_badge TEXT DEFAULT 'Наші бестселери'`;
+      await this.sql`ALTER TABLE site_settings ADD COLUMN IF NOT EXISTS bestsellers_title TEXT DEFAULT 'Популярні товари для вашого затишку'`;
+      await this.sql`ALTER TABLE site_settings ADD COLUMN IF NOT EXISTS bestsellers_subtitle TEXT DEFAULT 'Обирайте найкращий посуд та декор, який став фаворитом наших покупців. Кожна річ у каталозі "Хатні Штучки" — це поєднання естетики та функціональності.'`;
+    } catch (e) {
+      console.log("Site settings columns might already exist:", e);
     }
 
     await this.sql`

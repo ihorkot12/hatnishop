@@ -111,13 +111,15 @@ export const ChatAssistant = () => {
       const response = await ai.models.generateContent({
         model: "gemini-3-flash-preview",
         contents: [
-          { role: 'user', parts: [{ text: systemInstruction }] },
           ...messages.map(m => ({
             role: m.role,
             parts: [{ text: m.text }]
           })),
           { role: 'user', parts: [{ text: userMessage }] }
         ],
+        config: {
+          systemInstruction: systemInstruction
+        }
       });
 
       const aiText = response.text || "Вибачте, я зараз не можу відповісти. Спробуйте пізніше.";

@@ -1,7 +1,17 @@
-import { GoogleGenAI } from "@google/genai";
+import { GoogleGenAI, Type } from "@google/genai";
 
 const getAI = () => {
-  return new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey) {
+    console.warn("GEMINI_API_KEY is not set. AI features may not work.");
+  }
+  return new GoogleGenAI({ apiKey: apiKey || "" });
+};
+
+const cleanJSON = (text: string) => {
+  if (!text) return "[]";
+  // Remove markdown code blocks if present
+  return text.replace(/```json\n?|```/g, '').trim();
 };
 
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
@@ -143,15 +153,25 @@ export const suggestBundleItems = async (productName: string, productCategory: s
       model: "gemini-3-flash-preview",
       contents: [{ role: "user", parts: [{ text: prompt }] }],
       config: {
-        responseMimeType: "application/json"
+        responseMimeType: "application/json",
+        responseSchema: {
+          type: Type.ARRAY,
+          items: {
+            type: Type.STRING
+          }
+        }
       }
     });
     
     try {
-      const text = response.text || "[]";
-      return JSON.parse(text.trim());
+      const text = cleanJSON(response.text || "[]");
+      console.log("AI Bundle Suggestion Raw:", response.text);
+      console.log("AI Bundle Suggestion Cleaned:", text);
+      const parsed = JSON.parse(text);
+      return Array.isArray(parsed) ? parsed : [];
     } catch (e) {
       console.error("Failed to parse AI bundle suggestion:", e);
+      console.log("Raw response that failed to parse:", response.text);
       return [];
     }
   });

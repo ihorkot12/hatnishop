@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { generateDescription, generateProductImage, generateStylingTip, suggestBundleItems } from '../services/aiService';
 import { fileToBase64 } from '../utils/imageUtils';
@@ -30,6 +30,7 @@ const categoryData = [
 export const Admin = () => {
   const { user, loading } = useAuth();
   const navigate = useNavigate();
+  const productFormRef = useRef<HTMLFormElement>(null);
   const [activeTab, setActiveTab] = useState<'products' | 'orders' | 'analytics' | 'users' | 'categories' | 'bonus-codes' | 'reviews' | 'settings' | 'import'>('analytics');
   const [orders, setOrders] = useState<Order[]>([]);
   const [products, setProducts] = useState<any[]>([]);
@@ -50,7 +51,10 @@ export const Admin = () => {
     hero_title: '',
     hero_subtitle: '',
     hero_featured_product_id: '',
-    hero_badge: ''
+    hero_badge: '',
+    bestsellers_badge: '',
+    bestsellers_title: '',
+    bestsellers_subtitle: ''
   });
   const [newBonusCode, setNewBonusCode] = useState({
     code: '',
@@ -1224,6 +1228,45 @@ export const Admin = () => {
                     </div>
                   </div>
 
+                  <div className="h-px bg-slate-100" />
+                  
+                  <div className="space-y-6">
+                    <h3 className="font-bold text-lg">Секція бестселерів</h3>
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <div className="space-y-2">
+                        <label className="text-xs font-bold text-slate-400 uppercase">Бейдж секції</label>
+                        <input 
+                          type="text" 
+                          className="w-full bg-slate-50 border-none rounded-xl p-4 focus:ring-2 focus:ring-tiffany"
+                          value={siteSettings.bestsellers_badge}
+                          onChange={e => setSiteSettings({...siteSettings, bestsellers_badge: e.target.value})}
+                          placeholder="Наші бестселери"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-xs font-bold text-slate-400 uppercase">Заголовок секції</label>
+                        <input 
+                          type="text" 
+                          className="w-full bg-slate-50 border-none rounded-xl p-4 focus:ring-2 focus:ring-tiffany"
+                          value={siteSettings.bestsellers_title}
+                          onChange={e => setSiteSettings({...siteSettings, bestsellers_title: e.target.value})}
+                          placeholder="Популярні товари для вашого затишку"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <label className="text-xs font-bold text-slate-400 uppercase">Підзаголовок секції</label>
+                      <textarea 
+                        className="w-full bg-slate-50 border-none rounded-xl p-4 focus:ring-2 focus:ring-tiffany min-h-[100px]"
+                        value={siteSettings.bestsellers_subtitle}
+                        onChange={e => setSiteSettings({...siteSettings, bestsellers_subtitle: e.target.value})}
+                        placeholder="Опис секції бестселерів..."
+                      />
+                    </div>
+                  </div>
+
                   <button 
                     type="submit"
                     className="w-full bg-slate-900 text-white py-5 rounded-2xl font-bold hover:bg-tiffany transition-all shadow-xl shadow-slate-900/10"
@@ -1516,7 +1559,7 @@ export const Admin = () => {
               className="relative w-full max-w-4xl bg-white rounded-[2.5rem] shadow-2xl p-8 overflow-y-auto max-h-[90vh]"
             >
               <h2 className="text-2xl font-bold mb-8">{editingProduct ? 'Редагувати товар' : 'Додати новий товар'}</h2>
-              <form onSubmit={handleProductSubmit} className="space-y-6">
+              <form ref={productFormRef} onSubmit={handleProductSubmit} className="space-y-6">
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                   <div className="space-y-2">
                     <label className="text-xs font-bold text-slate-400 uppercase">Назва</label>
@@ -1560,7 +1603,7 @@ export const Admin = () => {
                       <button 
                         type="button"
                         onClick={() => {
-                          const form = document.querySelector('form');
+                          const form = productFormRef.current;
                           const name = (form?.querySelector('input[name="name"]') as HTMLInputElement)?.value;
                           const category = (form?.querySelector('select[name="category"]') as HTMLSelectElement)?.value;
                           if (name) handleAIGenerateImage(name, category);
@@ -1679,7 +1722,7 @@ export const Admin = () => {
                       <button 
                         type="button"
                         onClick={() => {
-                          const form = document.querySelector('form');
+                          const form = productFormRef.current;
                           const name = (form?.querySelector('input[name="name"]') as HTMLInputElement)?.value;
                           const category = (form?.querySelector('select[name="category"]') as HTMLSelectElement)?.value;
                           if (name) handleAIGenerateDescription(name, category);
@@ -1706,7 +1749,7 @@ export const Admin = () => {
                       <button 
                         type="button"
                         onClick={() => {
-                          const form = document.querySelector('form');
+                          const form = productFormRef.current;
                           const name = (form?.querySelector('input[name="name"]') as HTMLInputElement)?.value;
                           const category = (form?.querySelector('select[name="category"]') as HTMLSelectElement)?.value;
                           if (name) handleAIGenerateAdvice(name, category);
@@ -1736,7 +1779,7 @@ export const Admin = () => {
                       <button 
                         type="button"
                         onClick={() => {
-                          const form = document.querySelector('form');
+                          const form = productFormRef.current;
                           const name = (form?.querySelector('input[name="name"]') as HTMLInputElement)?.value;
                           const category = (form?.querySelector('select[name="category"]') as HTMLSelectElement)?.value;
                           if (name) handleAIGenerateBundle(name, category);
