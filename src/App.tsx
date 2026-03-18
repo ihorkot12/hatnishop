@@ -4,7 +4,6 @@ import { AuthProvider } from './store/AuthContext';
 import { WishlistProvider } from './store/WishlistContext';
 import { NotificationProvider } from './store/NotificationContext';
 import { Navbar } from './components/Navbar';
-import { ChatAssistant } from './components/ChatAssistant';
 import { Home } from './pages/Home';
 import { Catalog } from './pages/Catalog';
 import { ProductDetail } from './pages/ProductDetail';
@@ -39,7 +38,6 @@ export default function App() {
               </Routes>
             </main>
             <SpecialOffers />
-            <ChatAssistant />
           <footer className="bg-slate-900 text-white py-20">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
               <div className="grid grid-cols-1 md:grid-cols-4 gap-12 mb-16">

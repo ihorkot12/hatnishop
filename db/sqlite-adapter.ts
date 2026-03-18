@@ -44,7 +44,8 @@ export class SqliteAdapter implements DatabaseAdapter {
         ai_description TEXT,
         images TEXT,
         bonus_points INTEGER DEFAULT 0,
-        bundle_items TEXT DEFAULT '[]'
+        bundle_items TEXT DEFAULT '[]',
+        cost_price REAL
       );
 
       CREATE TABLE IF NOT EXISTS orders (
@@ -190,6 +191,8 @@ export class SqliteAdapter implements DatabaseAdapter {
     try { this.db.prepare("ALTER TABLE categories ADD COLUMN parent_id TEXT").run(); } catch (e) {}
     try { this.db.prepare("ALTER TABLE products ADD COLUMN images TEXT").run(); } catch (e) {}
     try { this.db.prepare("ALTER TABLE products ADD COLUMN bonus_points INTEGER DEFAULT 0").run(); } catch (e) {}
+    try { this.db.prepare("ALTER TABLE products ADD COLUMN bundle_items TEXT DEFAULT '[]'").run(); } catch (e) {}
+    try { this.db.prepare("ALTER TABLE products ADD COLUMN cost_price REAL").run(); } catch (e) {}
     try { this.db.prepare("ALTER TABLE site_settings ADD COLUMN hero_title TEXT DEFAULT 'Естетичний посуд та декор для дому'").run(); } catch (e) {}
     try { this.db.prepare("ALTER TABLE site_settings ADD COLUMN hero_subtitle TEXT DEFAULT 'Інтернет-магазин \"Хатні Штучки\" — ваш провідник у світ затишку. Купуйте кераміку, текстиль та аксесуари, які перетворюють оселю на місце сили.'").run(); } catch (e) {}
     try { this.db.prepare("ALTER TABLE site_settings ADD COLUMN hero_featured_product_id TEXT DEFAULT 'p1'").run(); } catch (e) {}
@@ -257,11 +260,11 @@ export class SqliteAdapter implements DatabaseAdapter {
 
   async createProduct(product: Partial<Product>): Promise<void> {
     this.db.prepare(`
-      INSERT INTO products (id, name, category, price, image, description, material, brand, isPopular, isBundle, stock, images, bonus_points, bundle_items)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO products (id, name, category, price, image, description, material, brand, isPopular, isBundle, stock, images, bonus_points, bundle_items, cost_price)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).run(
       product.id, product.name, product.category, product.price, product.image,
-      product.description, product.material, product.brand, product.isPopular ? 1 : 0, product.isBundle ? 1 : 0, product.stock, product.images || '[]', product.bonusPoints || 0, product.bundle_items || '[]'
+      product.description, product.material, product.brand, product.isPopular ? 1 : 0, product.isBundle ? 1 : 0, product.stock, product.images || '[]', product.bonusPoints || 0, product.bundle_items || '[]', product.cost_price
     );
   }
 

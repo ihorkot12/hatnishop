@@ -27,6 +27,7 @@ export interface Product {
   images?: string;
   bonusPoints?: number;
   bundle_items?: string; // JSON array of product IDs
+  cost_price?: number;
 }
 
 export interface Order {

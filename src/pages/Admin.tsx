@@ -1,7 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { generateDescription, generateProductImage, generateStylingTip, suggestBundleItems } from '../services/aiService';
+import { generateDirectorReport } from '../services/aiDirectorService';
 import { fileToBase64 } from '../utils/imageUtils';
+import Markdown from 'react-markdown';
 import { Package, ShoppingCart, TrendingUp, Plus, Edit2, Trash2, CheckCircle, Clock, Star, Truck, Users, Shield, UserPlus, Filter, Settings, MessageSquare, Tag, Upload, Loader2, Sparkles, Share2 } from 'lucide-react';
 import { ProductImporter } from '../components/ProductImporter';
 import { MOCK_PRODUCTS } from '../constants';
@@ -31,7 +33,7 @@ export const Admin = () => {
   const { user, loading } = useAuth();
   const navigate = useNavigate();
   const productFormRef = useRef<HTMLFormElement>(null);
-  const [activeTab, setActiveTab] = useState<'products' | 'orders' | 'analytics' | 'users' | 'categories' | 'bonus-codes' | 'reviews' | 'settings' | 'import'>('analytics');
+  const [activeTab, setActiveTab] = useState<'products' | 'orders' | 'analytics' | 'users' | 'categories' | 'bonus-codes' | 'reviews' | 'settings' | 'import' | 'ai-director'>('analytics');
   const [orders, setOrders] = useState<Order[]>([]);
   const [products, setProducts] = useState<any[]>([]);
   const [categories, setCategories] = useState<any[]>([]);
@@ -91,6 +93,8 @@ export const Admin = () => {
   const [isGeneratingBundle, setIsGeneratingBundle] = useState(false);
   const [bundleItems, setBundleItems] = useState<string[]>([]);
   const [isBundle, setIsBundle] = useState(false);
+  const [aiReport, setAiReport] = useState<string>('');
+  const [isGeneratingReport, setIsGeneratingReport] = useState(false);
 
   useEffect(() => {
     if (editingProduct) {
@@ -129,7 +133,12 @@ export const Admin = () => {
     if (activeTab === 'products') fetchProducts();
     if (activeTab === 'orders') fetchOrders();
     if (activeTab === 'categories' || activeTab === 'import') fetchCategories();
-    if (activeTab === 'analytics') fetchStats();
+    if (activeTab === 'analytics' || activeTab === 'ai-director') fetchStats();
+    if (activeTab === 'ai-director') {
+      fetchProducts();
+      fetchOrders();
+      fetchSiteSettings();
+    }
     if (activeTab === 'bonus-codes') fetchBonusCodes();
     if (activeTab === 'reviews') fetchReviews();
     if (activeTab === 'settings') fetchSiteSettings();
@@ -665,6 +674,7 @@ export const Admin = () => {
       isBundle: isBundle,
       bundle_items: bundleItems,
       price: Number(formData.get('price')),
+      cost_price: formData.get('cost_price') ? Number(formData.get('cost_price')) : undefined,
       stock: Number(formData.get('stock')),
       bonusPoints: Number(formData.get('bonusPoints')),
       reviewCount: editingProduct?.reviewCount || 0,
@@ -713,6 +723,12 @@ export const Admin = () => {
             className={`w-full flex items-center gap-3 px-6 py-4 rounded-2xl font-bold transition-all ${activeTab === 'analytics' ? 'bg-slate-900 text-white shadow-lg' : 'text-slate-500 hover:bg-slate-100'}`}
           >
             <TrendingUp size={20} /> Аналітика
+          </button>
+          <button 
+            onClick={() => setActiveTab('ai-director')}
+            className={`w-full flex items-center gap-3 px-6 py-4 rounded-2xl font-bold transition-all ${activeTab === 'ai-director' ? 'bg-gradient-to-r from-tiffany to-slate-900 text-white shadow-lg' : 'text-tiffany hover:bg-tiffany/5'}`}
+          >
+            <Sparkles size={20} /> AI Директор
           </button>
           <button 
             onClick={() => setActiveTab('orders')}
@@ -784,6 +800,76 @@ export const Admin = () => {
                     fetchProducts();
                   }} 
                 />
+              </div>
+            ) : activeTab === 'ai-director' ? (
+              <div className="space-y-8">
+                <div className="flex justify-between items-center">
+                  <div>
+                    <h2 className="text-2xl font-bold">AI Директор з аналітики та росту</h2>
+                    <p className="text-slate-500">Стратегічні рекомендації на основі даних вашого магазину</p>
+                  </div>
+                  <button 
+                    onClick={async () => {
+                      setIsGeneratingReport(true);
+                      try {
+                        const report = await generateDirectorReport({
+                          products,
+                          orders,
+                          stats,
+                          siteSettings,
+                          reviews
+                        });
+                        setAiReport(report);
+                      } catch (err) {
+                        alert('Помилка при генерації звіту');
+                      } finally {
+                        setIsGeneratingReport(false);
+                      }
+                    }}
+                    disabled={isGeneratingReport}
+                    className="flex items-center gap-2 px-6 py-3 bg-slate-900 text-white rounded-2xl font-bold hover:bg-tiffany transition-all shadow-xl shadow-slate-900/10 disabled:opacity-50"
+                  >
+                    {isGeneratingReport ? (
+                      <><Loader2 size={20} className="animate-spin" /> Аналізую...</>
+                    ) : (
+                      <><Sparkles size={20} /> Сформувати звіт</>
+                    )}
+                  </button>
+                </div>
+
+                {aiReport ? (
+                  <motion.div 
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="bg-white p-10 rounded-[3rem] border border-slate-100 shadow-sm prose prose-slate max-w-none"
+                  >
+                    <div className="flex items-center gap-4 mb-8 p-4 bg-tiffany/5 rounded-2xl border border-tiffany/10">
+                      <div className="w-12 h-12 bg-tiffany text-white rounded-xl flex items-center justify-center">
+                        <Sparkles size={24} />
+                      </div>
+                      <div>
+                        <div className="font-bold text-slate-900">Звіт сформовано AI Директором</div>
+                        <div className="text-xs text-slate-400">На основі аналізу {products.length} товарів та {orders.length} замовлень</div>
+                      </div>
+                    </div>
+                    
+                    <div className="markdown-body">
+                      <Markdown>
+                        {aiReport}
+                      </Markdown>
+                    </div>
+                  </motion.div>
+                ) : (
+                  <div className="bg-white p-20 rounded-[3rem] border border-dashed border-slate-200 text-center">
+                    <div className="w-20 h-20 bg-slate-50 text-slate-300 rounded-full flex items-center justify-center mx-auto mb-6">
+                      <TrendingUp size={40} />
+                    </div>
+                    <h3 className="text-xl font-bold text-slate-900 mb-2">Звіт ще не сформовано</h3>
+                    <p className="text-slate-500 max-w-md mx-auto mb-8">
+                      Натисніть кнопку вище, щоб AI Директор проаналізував ваші продажі, залишки та поведінку клієнтів для надання стратегічних порад.
+                    </p>
+                  </div>
+                )}
               </div>
             ) : activeTab === 'analytics' ? (
             <div className="space-y-8">
@@ -1581,6 +1667,10 @@ export const Admin = () => {
                   <div className="space-y-2">
                     <label className="text-xs font-bold text-slate-400 uppercase">Ціна (грн)</label>
                     <input name="price" type="number" defaultValue={editingProduct?.price} required className="w-full bg-slate-50 border-none rounded-xl p-4 focus:ring-2 focus:ring-tiffany" />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-xs font-bold text-slate-400 uppercase">Собівартість (грн)</label>
+                    <input name="cost_price" type="number" step="0.01" defaultValue={editingProduct?.cost_price} className="w-full bg-slate-50 border-none rounded-xl p-4 focus:ring-2 focus:ring-tiffany" />
                   </div>
                   <div className="space-y-2">
                     <label className="text-xs font-bold text-slate-400 uppercase">Залишок</label>

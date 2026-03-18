@@ -303,26 +303,26 @@ export const ProductDetail = () => {
               </div>
             )}
             
-            <AnimatePresence>
-              {loadingAi ? (
-                <div className="animate-pulse flex space-x-4 mt-8 bg-tiffany/5 p-6 rounded-3xl border border-tiffany/10">
-                  <div className="flex-1 space-y-4 py-1">
-                    <div className="h-4 bg-tiffany/10 rounded w-3/4"></div>
-                    <div className="h-4 bg-tiffany/10 rounded"></div>
-                  </div>
-                </div>
-              ) : stylingTip && (
-                <motion.div 
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  className="mt-8 p-8 bg-tiffany/5 rounded-[2.5rem] border border-tiffany/10 italic text-slate-700 relative group"
-                >
-                  <div className="flex items-center justify-between mb-4">
-                    <div className="flex items-center gap-2">
-                      <Sparkles size={16} className="text-tiffany" />
-                      <p className="text-xs font-bold text-tiffany uppercase tracking-widest">Порада від Хатніх Штучок:</p>
+            {user?.role === 'admin' && (
+              <AnimatePresence>
+                {loadingAi ? (
+                  <div className="animate-pulse flex space-x-4 mt-8 bg-tiffany/5 p-6 rounded-3xl border border-tiffany/10">
+                    <div className="flex-1 space-y-4 py-1">
+                      <div className="h-4 bg-tiffany/10 rounded w-3/4"></div>
+                      <div className="h-4 bg-tiffany/10 rounded"></div>
                     </div>
-                    {user?.role === 'admin' && (
+                  </div>
+                ) : stylingTip && (
+                  <motion.div 
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="mt-8 p-8 bg-tiffany/5 rounded-[2.5rem] border border-tiffany/10 italic text-slate-700 relative group"
+                  >
+                    <div className="flex items-center justify-between mb-4">
+                      <div className="flex items-center gap-2">
+                        <Sparkles size={16} className="text-tiffany" />
+                        <p className="text-xs font-bold text-tiffany uppercase tracking-widest">Порада від Хатніх Штучок (Лише для Адміна):</p>
+                      </div>
                       <button 
                         onClick={fetchStylingTip}
                         className="opacity-0 group-hover:opacity-100 transition-opacity p-2 hover:bg-tiffany/10 rounded-xl text-tiffany"
@@ -330,12 +330,12 @@ export const ProductDetail = () => {
                       >
                         <RotateCcw size={14} />
                       </button>
-                    )}
-                  </div>
-                  <p className="text-lg leading-relaxed">"{stylingTip}"</p>
-                </motion.div>
-              )}
-            </AnimatePresence>
+                    </div>
+                    <p className="text-lg leading-relaxed">"{stylingTip}"</p>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            )}
           </div>
 
           <div className="grid grid-cols-2 gap-6 mb-12">

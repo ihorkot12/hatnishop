@@ -55,26 +55,42 @@
   @apply text-gold font-medium;
 }
 
+.markdown-body h1 {
+  @apply text-3xl font-bold mb-6 mt-8 text-slate-900 border-b border-slate-100 pb-4;
+}
+
+.markdown-body h2 {
+  @apply text-xl font-bold mb-4 mt-8 text-tiffany flex items-center gap-2;
+}
+
+.markdown-body h2::before {
+  content: "✦";
+  @apply text-tiffany text-sm;
+}
+
 .markdown-body p {
-  margin-bottom: 0.5rem;
+  @apply mb-4 text-slate-600 leading-relaxed;
 }
 
-.markdown-body p:last-child {
-  margin-bottom: 0;
-}
-
-.markdown-body ul, .markdown-body ol {
-  margin-bottom: 0.5rem;
-  padding-left: 1.25rem;
+.markdown-body ul {
+  @apply mb-6 space-y-2 list-none;
 }
 
 .markdown-body li {
-  margin-bottom: 0.25rem;
+  @apply relative pl-6 text-slate-600;
+}
+
+.markdown-body li::before {
+  content: "•";
+  @apply absolute left-0 text-tiffany font-bold;
 }
 
 .markdown-body strong {
-  font-weight: 700;
-  color: #81D8D0;
+  @apply font-bold text-slate-900;
+}
+
+.markdown-body blockquote {
+  @apply border-l-4 border-tiffany bg-tiffany/5 p-4 rounded-r-xl italic my-6;
 }
 
 /* Custom Scrollbar */

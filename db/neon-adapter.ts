@@ -41,7 +41,9 @@ export class NeonAdapter implements DatabaseAdapter {
         review_count INTEGER DEFAULT 0,
         ai_description TEXT,
         images TEXT,
-        bonus_points INTEGER DEFAULT 0
+        bonus_points INTEGER DEFAULT 0,
+        bundle_items TEXT DEFAULT '[]',
+        cost_price NUMERIC
       );
     `;
 
@@ -221,6 +223,8 @@ export class NeonAdapter implements DatabaseAdapter {
 
     try {
       await this.sql`ALTER TABLE products ADD COLUMN IF NOT EXISTS bonus_points INTEGER DEFAULT 0`;
+      await this.sql`ALTER TABLE products ADD COLUMN IF NOT EXISTS bundle_items TEXT DEFAULT '[]'`;
+      await this.sql`ALTER TABLE products ADD COLUMN IF NOT EXISTS cost_price NUMERIC`;
     } catch (e) {
       // Ignore if column exists
     }
@@ -310,8 +314,8 @@ export class NeonAdapter implements DatabaseAdapter {
 
   async createProduct(product: Partial<Product>): Promise<void> {
     await this.sql`
-      INSERT INTO products (id, name, category, price, image, description, material, brand, isPopular, isBundle, stock, images, bonus_points)
-      VALUES (${product.id}, ${product.name}, ${product.category}, ${product.price}, ${product.image}, ${product.description}, ${product.material}, ${product.brand}, ${product.isPopular || false}, ${product.isBundle || false}, ${product.stock || 0}, ${product.images || '[]'}, ${product.bonusPoints || 0})
+      INSERT INTO products (id, name, category, price, image, description, material, brand, isPopular, isBundle, stock, images, bonus_points, bundle_items, cost_price)
+      VALUES (${product.id}, ${product.name}, ${product.category}, ${product.price}, ${product.image}, ${product.description}, ${product.material}, ${product.brand}, ${product.isPopular || false}, ${product.isBundle || false}, ${product.stock || 0}, ${product.images || '[]'}, ${product.bonusPoints || 0}, ${product.bundle_items || '[]'}, ${product.cost_price})
     `;
   }
 
@@ -329,7 +333,9 @@ export class NeonAdapter implements DatabaseAdapter {
         isBundle = ${product.isBundle || false}, 
         stock = ${product.stock || 0},
         images = ${product.images || '[]'},
-        bonus_points = ${product.bonusPoints || 0}
+        bonus_points = ${product.bonusPoints || 0},
+        bundle_items = ${product.bundle_items || '[]'},
+        cost_price = ${product.cost_price}
       WHERE id = ${id}
     `;
   }
