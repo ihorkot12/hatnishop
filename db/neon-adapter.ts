@@ -27,9 +27,9 @@ export class NeonAdapter implements DatabaseAdapter {
     await this.sql`
       CREATE TABLE IF NOT EXISTS products (
         id TEXT PRIMARY KEY,
-        name TEXT,
-        category TEXT,
-        price NUMERIC,
+        name TEXT NOT NULL,
+        category TEXT NOT NULL,
+        price NUMERIC NOT NULL,
         image TEXT,
         description TEXT,
         material TEXT,
@@ -45,6 +45,8 @@ export class NeonAdapter implements DatabaseAdapter {
         bundle_items TEXT DEFAULT '[]',
         cost_price NUMERIC
       );
+      CREATE INDEX IF NOT EXISTS idx_products_category ON products(category);
+      CREATE INDEX IF NOT EXISTS idx_products_popular ON products(isPopular) WHERE isPopular = TRUE;
     `;
 
     await this.sql`
@@ -61,23 +63,25 @@ export class NeonAdapter implements DatabaseAdapter {
       CREATE TABLE IF NOT EXISTS orders (
         id TEXT PRIMARY KEY,
         user_id TEXT REFERENCES users(id),
-        customer_name TEXT,
-        customer_phone TEXT,
+        customer_name TEXT NOT NULL,
+        customer_phone TEXT NOT NULL,
         customer_email TEXT,
         customer_city TEXT,
         customer_address TEXT,
         delivery_method TEXT,
         warehouse TEXT,
-        total NUMERIC,
+        total NUMERIC NOT NULL,
         bonus_used NUMERIC DEFAULT 0,
-        final_total NUMERIC,
+        final_total NUMERIC NOT NULL,
         bonuses_credited BOOLEAN DEFAULT FALSE,
         tracking_number TEXT,
         comment TEXT,
         payment_method TEXT,
-        status TEXT,
+        status TEXT DEFAULT 'pending',
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
+      CREATE INDEX IF NOT EXISTS idx_orders_user_id ON orders(user_id);
+      CREATE INDEX IF NOT EXISTS idx_orders_created_at ON orders(created_at DESC);
     `;
 
     // Try to add missing columns if table already exists
@@ -97,11 +101,12 @@ export class NeonAdapter implements DatabaseAdapter {
 
     await this.sql`
       CREATE TABLE IF NOT EXISTS order_items (
-        order_id TEXT REFERENCES orders(id),
+        order_id TEXT REFERENCES orders(id) ON DELETE CASCADE,
         product_id TEXT,
-        quantity INTEGER,
-        price NUMERIC
+        quantity INTEGER NOT NULL,
+        price NUMERIC NOT NULL
       );
+      CREATE INDEX IF NOT EXISTS idx_order_items_order_id ON order_items(order_id);
     `;
 
     await this.sql`
@@ -168,14 +173,16 @@ export class NeonAdapter implements DatabaseAdapter {
     await this.sql`
       CREATE TABLE IF NOT EXISTS reviews (
         id TEXT PRIMARY KEY,
-        product_id TEXT REFERENCES products(id),
+        product_id TEXT REFERENCES products(id) ON DELETE CASCADE,
         user_id TEXT REFERENCES users(id),
         user_name TEXT,
-        rating INTEGER,
+        rating INTEGER NOT NULL,
         comment TEXT,
         is_approved BOOLEAN DEFAULT FALSE,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
+      CREATE INDEX IF NOT EXISTS idx_reviews_product_id ON reviews(product_id);
+      CREATE INDEX IF NOT EXISTS idx_reviews_approved ON reviews(is_approved) WHERE is_approved = TRUE;
     `;
 
     // Migration: Add is_approved to reviews if it doesn't exist
@@ -199,13 +206,15 @@ export class NeonAdapter implements DatabaseAdapter {
     await this.sql`
       CREATE TABLE IF NOT EXISTS notifications (
         id TEXT PRIMARY KEY,
-        user_id TEXT REFERENCES users(id),
+        user_id TEXT REFERENCES users(id) ON DELETE CASCADE,
         title TEXT,
         message TEXT,
         type TEXT,
         is_read INTEGER DEFAULT 0,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
+      CREATE INDEX IF NOT EXISTS idx_notifications_user_id ON notifications(user_id);
+      CREATE INDEX IF NOT EXISTS idx_notifications_unread ON notifications(user_id) WHERE is_read = 0;
     `;
 
     // Seed Categories
@@ -291,8 +300,17 @@ export class NeonAdapter implements DatabaseAdapter {
   }
 
   async getProducts(): Promise<Product[]> {
-    const rows = await this.sql`SELECT * FROM products`;
+    const rows = await this.sql`SELECT * FROM products ORDER BY name ASC`;
     return rows as Product[];
+  }
+
+  async getProductsSummary(): Promise<Partial<Product>[]> {
+    const rows = await this.sql`
+      SELECT id, name, category, price, image, material, brand, isPopular, isBundle, stock, rating, review_count, bonus_points 
+      FROM products 
+      ORDER BY name ASC
+    `;
+    return rows as Partial<Product>[];
   }
 
   async getProductById(id: string): Promise<Product | null> {

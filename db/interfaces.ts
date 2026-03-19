@@ -102,6 +102,7 @@ export interface DatabaseAdapter {
   createUser(user: Partial<User>): Promise<void>;
   updateUserRole(id: string, role: string): Promise<void>;
   getProducts(): Promise<Product[]>;
+  getProductsSummary(): Promise<Partial<Product>[]>;
   getProductById(id: string): Promise<Product | null>;
   updateProductPrice(id: string, price: number): Promise<void>;
   updateProductStock(id: string, quantity: number): Promise<void>;

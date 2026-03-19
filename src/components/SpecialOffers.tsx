@@ -28,7 +28,7 @@ export const SpecialOffers = () => {
       .catch(err => console.error(err));
 
     // Fetch products for bundles
-    fetch('/api/products')
+    fetch('/api/products/catalog')
       .then(res => res.json())
       .then(data => {
         if (Array.isArray(data)) {

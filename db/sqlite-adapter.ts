@@ -239,7 +239,15 @@ export class SqliteAdapter implements DatabaseAdapter {
   }
 
   async getProducts(): Promise<Product[]> {
-    return this.db.prepare("SELECT * FROM products").all() as Product[];
+    return this.db.prepare("SELECT * FROM products ORDER BY name ASC").all() as Product[];
+  }
+
+  async getProductsSummary(): Promise<Partial<Product>[]> {
+    return this.db.prepare(`
+      SELECT id, name, category, price, image, material, brand, isPopular, isBundle, stock, rating, review_count, bonus_points 
+      FROM products 
+      ORDER BY name ASC
+    `).all() as Partial<Product>[];
   }
 
   async getProductById(id: string): Promise<Product | null> {

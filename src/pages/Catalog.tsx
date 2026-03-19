@@ -41,7 +41,7 @@ export const Catalog = () => {
       setIsLoading(true);
       try {
         const [prodRes, catRes] = await Promise.all([
-          fetch('/api/products'),
+          fetch('/api/products/catalog'),
           fetch('/api/categories')
         ]);
         const [prodData, catData] = await Promise.all([

@@ -19,6 +19,35 @@ const asyncHandler = (fn: any) => (req: any, res: any, next: any) => {
   Promise.resolve(fn(req, res, next)).catch(next);
 };
 
+// --- Caching Logic ---
+const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+let productsCache: { data: any, timestamp: number } | null = null;
+let categoriesCache: { data: any, timestamp: number } | null = null;
+let productsSummaryCache: { data: any, timestamp: number } | null = null;
+let siteSettingsCache: { data: any, timestamp: number } | null = null;
+
+const DEFAULT_SITE_SETTINGS = {
+  id: 'default',
+  free_delivery_min: 1500,
+  return_days: 14,
+  cashback_percent: 5,
+  hero_title: 'Естетичний посуд та декор для дому',
+  hero_subtitle: 'Інтернет-магазин "Хатні Штучки" — ваш провідник у світ затишку. Купуйте кераміку, текстиль та аксесуари, які перетворюють оселю на місце сили.',
+  hero_featured_product_id: 'p1',
+  hero_badge: 'Бестселер сезону',
+  bestsellers_badge: 'Наші бестселери',
+  bestsellers_title: 'Популярні товари для вашого затишку',
+  bestsellers_subtitle: 'Обирайте найкращий посуд та декор, який став фаворитом наших покупців. Кожна річ у каталозі "Хатні Штучки" — це поєднання естетики та функціональності.'
+};
+
+const clearCache = () => {
+  productsCache = null;
+  categoriesCache = null;
+  productsSummaryCache = null;
+  siteSettingsCache = null;
+  console.log("Cache cleared");
+};
+
 // --- Database Initialization & Seeding ---
 let dbInitialized = false;
 let isInitializing = false;
@@ -276,13 +305,58 @@ app.post("/api/auth/register", asyncHandler(async (req: any, res: any) => {
 
   // API Routes
   app.get("/api/products", asyncHandler(async (req: any, res: any) => {
-    const products = await db.getProducts();
-    const formattedProducts = products.map(p => ({
-      ...p,
-      images: p.images ? (typeof p.images === 'string' ? JSON.parse(p.images) : p.images) : [],
-      bundle_items: p.bundle_items ? (typeof p.bundle_items === 'string' ? JSON.parse(p.bundle_items) : p.bundle_items) : []
-    }));
-    res.json(formattedProducts);
+    const now = Date.now();
+    if (productsCache && (now - productsCache.timestamp < CACHE_TTL)) {
+      return res.json(productsCache.data);
+    }
+    try {
+      const products = await db.getProducts();
+      const formattedProducts = products.map(p => ({
+        ...p,
+        images: p.images ? (typeof p.images === 'string' ? JSON.parse(p.images) : p.images) : [],
+        bundle_items: p.bundle_items ? (typeof p.bundle_items === 'string' ? JSON.parse(p.bundle_items) : p.bundle_items) : []
+      }));
+      productsCache = { data: formattedProducts, timestamp: now };
+      res.json(formattedProducts);
+    } catch (error) {
+      console.error("Error fetching products, using cache if available:", error);
+      if (productsCache) return res.json(productsCache.data);
+      res.json([]); // Fallback to empty array
+    }
+  }));
+
+  app.get("/api/products/:id", asyncHandler(async (req: any, res: any) => {
+    const product = await db.getProductById(req.params.id);
+    if (!product) {
+      return res.status(404).json({ error: "Product not found" });
+    }
+    const formatted = {
+      ...product,
+      images: product.images ? (typeof product.images === 'string' ? JSON.parse(product.images) : product.images) : [],
+      bundle_items: product.bundle_items ? (typeof product.bundle_items === 'string' ? JSON.parse(product.bundle_items) : product.bundle_items) : []
+    };
+    res.json(formatted);
+  }));
+
+  app.get("/api/products/catalog", asyncHandler(async (req: any, res: any) => {
+    const now = Date.now();
+    if (productsSummaryCache && (now - productsSummaryCache.timestamp < CACHE_TTL)) {
+      return res.json(productsSummaryCache.data);
+    }
+    try {
+      const products = await db.getProductsSummary();
+      const formattedProducts = products.map(p => ({
+        ...p,
+        images: p.images ? (typeof p.images === 'string' ? JSON.parse(p.images) : p.images) : [],
+        bundle_items: p.bundle_items ? (typeof p.bundle_items === 'string' ? JSON.parse(p.bundle_items) : p.bundle_items) : []
+      }));
+      productsSummaryCache = { data: formattedProducts, timestamp: now };
+      res.json(formattedProducts);
+    } catch (error) {
+      console.error("Error fetching products summary, using cache if available:", error);
+      if (productsSummaryCache) return res.json(productsSummaryCache.data);
+      res.json([]); // Fallback to empty array
+    }
   }));
 
   app.post("/api/admin/products", authenticate, asyncHandler(async (req: any, res: any) => {
@@ -304,6 +378,7 @@ app.post("/api/auth/register", asyncHandler(async (req: any, res: any) => {
     }
     if (!product.id) product.id = Math.random().toString(36).substr(2, 9);
     await db.createProduct(product);
+    clearCache();
     res.json({ success: true, product });
   }));
 
@@ -317,12 +392,14 @@ app.post("/api/auth/register", asyncHandler(async (req: any, res: any) => {
       product.bundle_items = JSON.stringify(product.bundle_items);
     }
     await db.updateProduct(req.params.id, product);
+    clearCache();
     res.json({ success: true });
   }));
 
   app.delete("/api/admin/products/:id", authenticate, asyncHandler(async (req: any, res: any) => {
     if (req.user.role !== 'admin') return res.status(403).json({ error: "Forbidden" });
     await db.deleteProduct(req.params.id);
+    clearCache();
     res.json({ success: true });
   }));
 
@@ -371,8 +448,19 @@ app.post("/api/auth/register", asyncHandler(async (req: any, res: any) => {
   }));
 
   app.get("/api/categories", asyncHandler(async (req: any, res: any) => {
-    const categories = await db.getCategories();
-    res.json(categories);
+    const now = Date.now();
+    if (categoriesCache && (now - categoriesCache.timestamp < CACHE_TTL)) {
+      return res.json(categoriesCache.data);
+    }
+    try {
+      const categories = await db.getCategories();
+      categoriesCache = { data: categories, timestamp: now };
+      res.json(categories);
+    } catch (error) {
+      console.error("Error fetching categories, using cache if available:", error);
+      if (categoriesCache) return res.json(categoriesCache.data);
+      res.json([]); // Fallback to empty array
+    }
   }));
 
   app.post("/api/admin/categories", authenticate, asyncHandler(async (req: any, res: any) => {
@@ -380,18 +468,21 @@ app.post("/api/auth/register", asyncHandler(async (req: any, res: any) => {
     const category = req.body;
     if (!category.id) category.id = Math.random().toString(36).substr(2, 9);
     await db.createCategory(category);
+    clearCache();
     res.json({ success: true, category });
   }));
 
   app.put("/api/admin/categories/:id", authenticate, asyncHandler(async (req: any, res: any) => {
     if (req.user.role !== 'admin') return res.status(403).json({ error: "Forbidden" });
     await db.updateCategory(req.params.id, req.body);
+    clearCache();
     res.json({ success: true });
   }));
 
   app.delete("/api/admin/categories/:id", authenticate, asyncHandler(async (req: any, res: any) => {
     if (req.user.role !== 'admin') return res.status(403).json({ error: "Forbidden" });
     await db.deleteCategory(req.params.id);
+    clearCache();
     res.json({ success: true });
   }));
 
@@ -429,8 +520,19 @@ app.get("/api/admin/users", authenticate, asyncHandler(async (req: any, res: any
   }));
 
   app.get("/api/site-settings", asyncHandler(async (req: any, res: any) => {
-    const settings = await db.getSiteSettings();
-    res.json(settings);
+    const now = Date.now();
+    if (siteSettingsCache && (now - siteSettingsCache.timestamp < CACHE_TTL)) {
+      return res.json(siteSettingsCache.data);
+    }
+    try {
+      const settings = await db.getSiteSettings();
+      siteSettingsCache = { data: settings || DEFAULT_SITE_SETTINGS, timestamp: now };
+      res.json(settings || DEFAULT_SITE_SETTINGS);
+    } catch (error) {
+      console.error("Error fetching site settings, using cache or fallback:", error);
+      if (siteSettingsCache) return res.json(siteSettingsCache.data);
+      res.json(DEFAULT_SITE_SETTINGS);
+    }
   }));
 
   app.put("/api/admin/site-settings", authenticate, asyncHandler(async (req: any, res: any) => {

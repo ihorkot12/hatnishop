@@ -256,8 +256,17 @@ export class PostgresAdapter implements DatabaseAdapter {
   }
 
   async getProducts(): Promise<Product[]> {
-    const { rows } = await sql`SELECT * FROM products`;
+    const { rows } = await sql`SELECT * FROM products ORDER BY name ASC`;
     return rows as Product[];
+  }
+
+  async getProductsSummary(): Promise<Partial<Product>[]> {
+    const { rows } = await sql`
+      SELECT id, name, category, price, image, material, brand, "isPopular", "isBundle", stock, rating, review_count, bonus_points 
+      FROM products 
+      ORDER BY name ASC
+    `;
+    return rows as Partial<Product>[];
   }
 
   async getProductById(id: string): Promise<Product | null> {

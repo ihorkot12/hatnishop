@@ -35,22 +35,27 @@ export const ProductDetail = () => {
   useEffect(() => {
     const fetchProduct = async () => {
       try {
-        const res = await fetch('/api/products');
-        const products = await res.json();
-        const found = products.find((p: any) => p.id === id);
-        if (found) {
+        const [prodRes, allRes] = await Promise.all([
+          fetch(`/api/products/${id}`),
+          fetch('/api/products/catalog')
+        ]);
+        
+        const found = await prodRes.json();
+        const allProducts = await allRes.json();
+
+        if (found && !found.error) {
           setProduct(found);
           setSelectedImage(found.image);
           
           // Set related products from same category
-          const related = products
+          const related = allProducts
             .filter((p: any) => p.category === found.category && p.id !== found.id)
             .slice(0, 4);
           setRelatedProducts(related);
 
           // Fetch bundle products if they exist
           if (found.bundle_items && found.bundle_items.length > 0) {
-            const bundleItems = products.filter((p: any) => found.bundle_items.includes(p.id));
+            const bundleItems = allProducts.filter((p: any) => found.bundle_items.includes(p.id));
             setBundleProducts(bundleItems);
           } else {
             setBundleProducts([]);
