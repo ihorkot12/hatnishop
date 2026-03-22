@@ -4,7 +4,7 @@ import { generateDescription, generateProductImage, generateStylingTip, suggestB
 import { generateDirectorReport } from '../services/aiDirectorService';
 import { fileToBase64 } from '../utils/imageUtils';
 import Markdown from 'react-markdown';
-import { Package, ShoppingCart, TrendingUp, Plus, Edit2, Trash2, CheckCircle, Clock, Star, Truck, Users, Shield, UserPlus, Filter, Settings, MessageSquare, Tag, Upload, Loader2, Sparkles, Share2 } from 'lucide-react';
+import { Package, ShoppingCart, TrendingUp, Plus, Edit2, Trash2, CheckCircle, Clock, Star, Truck, Users, Shield, UserPlus, Filter, Settings, MessageSquare, Tag, Upload, Loader2, Sparkles, Share2, Database, RefreshCw, AlertTriangle } from 'lucide-react';
 import { ProductImporter } from '../components/ProductImporter';
 import { MOCK_PRODUCTS } from '../constants';
 import { Order, User } from '../types';
@@ -95,6 +95,47 @@ export const Admin = () => {
   const [isBundle, setIsBundle] = useState(false);
   const [aiReport, setAiReport] = useState<string>('');
   const [isGeneratingReport, setIsGeneratingReport] = useState(false);
+  const [dbStatus, setDbStatus] = useState<any>(null);
+  const [isDbStatusLoading, setIsDbStatusLoading] = useState(false);
+  const [isResettingDb, setIsResettingDb] = useState(false);
+
+  useEffect(() => {
+    if (activeTab === 'settings') {
+      fetchDbStatus();
+    }
+  }, [activeTab]);
+
+  const fetchDbStatus = async () => {
+    setIsDbStatusLoading(true);
+    try {
+      const res = await fetch('/api/admin/db/status');
+      if (res.ok) {
+        const data = await res.json();
+        setDbStatus(data);
+      }
+    } catch (error) {
+      console.error('Error fetching DB status:', error);
+    } finally {
+      setIsDbStatusLoading(false);
+    }
+  };
+
+  const resetDbDegradedMode = async () => {
+    if (!window.confirm('Ви впевнені, що хочете скинути обмеження бази даних? Це призведе до спроби підключення при наступному запиті.')) return;
+    
+    setIsResettingDb(true);
+    try {
+      const res = await fetch('/api/admin/db/reset-degraded', { method: 'POST' });
+      if (res.ok) {
+        alert('Обмеження скинуто. База даних спробує підключитися знову.');
+        fetchDbStatus();
+      }
+    } catch (error) {
+      console.error('Error resetting DB status:', error);
+    } finally {
+      setIsResettingDb(false);
+    }
+  };
 
   useEffect(() => {
     if (editingProduct) {
@@ -1366,6 +1407,83 @@ export const Admin = () => {
                     Зберегти всі налаштування
                   </button>
                 </form>
+              </div>
+
+              <div className="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-sm max-w-4xl">
+                <div className="flex items-center gap-4 mb-8">
+                  <div className="p-3 bg-indigo-50 text-indigo-600 rounded-2xl">
+                    <Database size={24} />
+                  </div>
+                  <div>
+                    <h3 className="text-xl font-bold">Статус бази даних</h3>
+                    <p className="text-sm text-slate-500">Моніторинг підключення та квот Neon</p>
+                  </div>
+                </div>
+
+                {isDbStatusLoading ? (
+                  <div className="flex justify-center py-8">
+                    <Loader2 className="animate-spin text-tiffany" />
+                  </div>
+                ) : dbStatus ? (
+                  <div className="space-y-6">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className={`p-6 rounded-3xl border ${dbStatus.isDegraded ? 'bg-amber-50 border-amber-100' : 'bg-emerald-50 border-emerald-100'}`}>
+                        <div className="flex items-center gap-3 mb-2">
+                          {dbStatus.isDegraded ? (
+                            <AlertTriangle className="text-amber-500" size={20} />
+                          ) : (
+                            <CheckCircle className="text-emerald-500" size={20} />
+                          )}
+                          <span className="font-bold uppercase text-xs tracking-wider">Режим роботи</span>
+                        </div>
+                        <div className={`text-xl font-bold ${dbStatus.isDegraded ? 'text-amber-700' : 'text-emerald-700'}`}>
+                          {dbStatus.isDegraded ? 'Обмежений (Квота вичерпана)' : 'Нормальний'}
+                        </div>
+                        {dbStatus.isDegraded && (
+                          <p className="text-xs text-amber-600 mt-2">
+                            Сайт працює на кешованих даних. Наступна спроба підключення: {new Date(dbStatus.retryAt).toLocaleTimeString()}
+                          </p>
+                        )}
+                      </div>
+
+                      <div className="p-6 bg-slate-50 rounded-3xl border border-slate-100">
+                        <div className="flex items-center gap-3 mb-2 text-slate-400">
+                          <Clock size={20} />
+                          <span className="font-bold uppercase text-xs tracking-wider">Остання помилка</span>
+                        </div>
+                        <div className="text-xl font-bold text-slate-700">
+                          {dbStatus.lastError ? new Date(dbStatus.lastError).toLocaleTimeString() : 'Відсутня'}
+                        </div>
+                        {dbStatus.lastError && (
+                          <p className="text-xs text-slate-400 mt-2">
+                            {new Date(dbStatus.lastError).toLocaleDateString()}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="bg-slate-900 text-white p-6 rounded-3xl flex flex-col md:flex-row items-center justify-between gap-4">
+                      <div className="flex items-center gap-4">
+                        <div className="w-12 h-12 bg-white/10 rounded-2xl flex items-center justify-center">
+                          <RefreshCw className={isResettingDb ? 'animate-spin' : ''} size={24} />
+                        </div>
+                        <div>
+                          <div className="font-bold">Скинути обмеження</div>
+                          <div className="text-xs opacity-60">Примусово спробувати підключення до БД</div>
+                        </div>
+                      </div>
+                      <button 
+                        onClick={resetDbDegradedMode}
+                        disabled={isResettingDb}
+                        className="w-full md:w-auto px-8 py-4 bg-tiffany text-white rounded-xl font-bold hover:bg-white hover:text-slate-900 transition-all disabled:opacity-50"
+                      >
+                        {isResettingDb ? 'Скидання...' : 'Скинути зараз'}
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="text-center py-8 text-slate-400">Не вдалося отримати статус</div>
+                )}
               </div>
             </div>
           ) : (

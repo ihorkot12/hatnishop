@@ -22,16 +22,15 @@ export const Home = () => {
     document.title = "Хатні Штучки — Естетичні товари для дому та затишку | Купити посуд, декор, текстиль";
     
     Promise.all([
-      fetch('/api/products/catalog').then(res => res.json()),
-      fetch('/api/site-settings').then(res => res.json())
+      fetch('/api/products/catalog').then(res => res.ok ? res.json() : []),
+      fetch('/api/site-settings').then(res => res.ok ? res.json() : null)
     ]).then(([productsData, settingsData]) => {
-      if (Array.isArray(productsData)) {
-        setProducts(productsData);
-      } else {
-        console.error("Products data is not an array:", productsData);
-        setProducts([]);
-      }
+      setProducts(Array.isArray(productsData) ? productsData : []);
       setSiteSettings(settingsData);
+      setLoading(false);
+    }).catch(err => {
+      console.error("Home data fetch error:", err);
+      setProducts([]);
       setLoading(false);
     });
   }, []);

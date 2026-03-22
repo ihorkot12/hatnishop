@@ -10,7 +10,7 @@ export const CategoryGrid = () => {
 
   useEffect(() => {
     fetch('/api/categories')
-      .then(res => res.json())
+      .then(res => res.ok ? res.json() : [])
       .then(data => {
         if (Array.isArray(data)) {
           setCategories(data.filter((c: Category) => !c.parent_id));

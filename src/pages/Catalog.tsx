@@ -44,14 +44,16 @@ export const Catalog = () => {
           fetch('/api/products/catalog'),
           fetch('/api/categories')
         ]);
-        const [prodData, catData] = await Promise.all([
-          prodRes.json(),
-          catRes.json()
-        ]);
+        
+        const prodData = prodRes.ok ? await prodRes.json() : [];
+        const catData = catRes.ok ? await catRes.json() : [];
+        
         setProducts(Array.isArray(prodData) ? prodData : []);
         setCategories(Array.isArray(catData) ? catData : []);
       } catch (err) {
         console.error('Failed to fetch data:', err);
+        setProducts([]);
+        setCategories([]);
       } finally {
         setIsLoading(false);
       }

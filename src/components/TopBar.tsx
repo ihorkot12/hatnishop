@@ -10,7 +10,7 @@ export const TopBar = () => {
 
   useEffect(() => {
     fetch('/api/site-settings')
-      .then(res => res.json())
+      .then(res => res.ok ? res.json() : null)
       .then(data => {
         if (data) setSettings(data);
       })

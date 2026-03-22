@@ -17,9 +17,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   useEffect(() => {
     fetch('/api/auth/me')
-      .then(res => res.json())
+      .then(res => res.ok ? res.json() : { user: null })
       .then(data => {
-        if (data.user) setUser(data.user);
+        if (data && data.user) {
+          setUser(data.user);
+        }
         setLoading(false);
       })
       .catch(() => setLoading(false));

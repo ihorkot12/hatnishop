@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Link, NavLink } from 'react-router-dom';
-import { ShoppingBag, Search, Menu, User, LogOut, Heart, X, Bell, BellOff } from 'lucide-react';
+import { ShoppingBag, Search, Menu, User, LogOut, Heart, X, Bell, BellOff, AlertTriangle } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useCart } from '../store/CartContext';
 import { useAuth } from '../store/AuthContext';
@@ -22,7 +22,7 @@ export const Navbar = () => {
 
   React.useEffect(() => {
     fetch('/api/categories')
-      .then(res => res.json())
+      .then(res => res.ok ? res.json() : [])
       .then(data => {
         if (Array.isArray(data)) {
           setCategories(data);
@@ -49,6 +49,12 @@ export const Navbar = () => {
 
   return (
     <div className="sticky top-0 z-50">
+      {user?.isDegraded && (
+        <div className="bg-amber-500 text-white py-2 px-4 text-center text-xs font-bold flex items-center justify-center gap-2">
+          <AlertTriangle size={14} />
+          <span>Сайт працює в обмеженому режимі через технічні роботи. Деякі функції можуть бути недоступні.</span>
+        </div>
+      )}
       <TopBar />
       <nav className="bg-white/80 backdrop-blur-2xl border-b border-slate-200/50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">

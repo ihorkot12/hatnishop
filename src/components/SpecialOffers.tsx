@@ -15,7 +15,7 @@ export const SpecialOffers = () => {
   useEffect(() => {
     // Fetch bonus codes
     fetch('/api/bonus-codes')
-      .then(res => res.json())
+      .then(res => res.ok ? res.json() : [])
       .then(data => {
         if (Array.isArray(data)) {
           // Show promo codes only if show_in_site is true
@@ -29,7 +29,7 @@ export const SpecialOffers = () => {
 
     // Fetch products for bundles
     fetch('/api/products/catalog')
-      .then(res => res.json())
+      .then(res => res.ok ? res.json() : [])
       .then(data => {
         if (Array.isArray(data)) {
           setBundles(data.filter(p => p.isBundle));

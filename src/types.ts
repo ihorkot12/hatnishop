@@ -61,6 +61,7 @@ export interface UserProfile {
   total_spent: number;
   avatar?: string;
   role?: 'user' | 'admin';
+  isDegraded?: boolean;
 }
 
 export type User = UserProfile;

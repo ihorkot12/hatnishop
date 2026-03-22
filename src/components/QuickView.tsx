@@ -31,10 +31,13 @@ export const QuickView: React.FC<QuickViewProps> = ({ product, onClose }) => {
   useEffect(() => {
     if (user && product) {
       fetch('/api/subscriptions/price-drop')
-        .then(res => res.json())
+        .then(res => res.ok ? res.json() : [])
         .then(data => {
-          setIsSubscribed(data.some((s: any) => s.product_id === product.id));
-        });
+          if (Array.isArray(data)) {
+            setIsSubscribed(data.some((s: any) => s.product_id === product.id));
+          }
+        })
+        .catch(err => console.error(err));
     }
   }, [user, product]);
 

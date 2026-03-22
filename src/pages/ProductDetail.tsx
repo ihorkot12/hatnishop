@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ShoppingCart, Heart, Share2, ShieldCheck, Truck, RotateCcw, Star, Send, User, Bell, Sparkles, MessageSquare } from 'lucide-react';
+import { ShoppingCart, Heart, Share2, ShieldCheck, Truck, RotateCcw, Star, Send, User, Bell, Sparkles, MessageSquare, ArrowRight } from 'lucide-react';
 import { MOCK_PRODUCTS } from '../constants';
 import { useCart } from '../store/CartContext';
 import { useAuth } from '../store/AuthContext';
@@ -40,22 +40,22 @@ export const ProductDetail = () => {
           fetch('/api/products/catalog')
         ]);
         
-        const found = await prodRes.json();
-        const allProducts = await allRes.json();
+        const found = prodRes.ok ? await prodRes.json() : null;
+        const allProducts = allRes.ok ? await allRes.json() : [];
 
         if (found && !found.error) {
           setProduct(found);
           setSelectedImage(found.image);
           
           // Set related products from same category
-          const related = allProducts
+          const related = Array.isArray(allProducts) ? allProducts
             .filter((p: any) => p.category === found.category && p.id !== found.id)
-            .slice(0, 4);
+            .slice(0, 4) : [];
           setRelatedProducts(related);
 
           // Fetch bundle products if they exist
-          if (found.bundle_items && found.bundle_items.length > 0) {
-            const bundleItems = allProducts.filter((p: any) => found.bundle_items.includes(p.id));
+          if (found.bundle_items && Array.isArray(found.bundle_items) && found.bundle_items.length > 0) {
+            const bundleItems = Array.isArray(allProducts) ? allProducts.filter((p: any) => found.bundle_items.includes(p.id)) : [];
             setBundleProducts(bundleItems);
           } else {
             setBundleProducts([]);
@@ -196,7 +196,25 @@ export const ProductDetail = () => {
       <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-tiffany"></div>
     </div>
   );
-  if (!product) return <div className="text-center py-20">Товар не знайдено</div>;
+  if (!product) return (
+    <div className="min-h-screen flex flex-col items-center justify-center bg-[#F9F7F5] px-4">
+      <div className="text-center max-w-md">
+        <div className="w-24 h-24 bg-white rounded-full flex items-center justify-center mx-auto mb-8 shadow-xl border border-slate-100">
+          <ShoppingCart size={40} className="text-slate-300" />
+        </div>
+        <h1 className="text-4xl font-serif font-bold text-slate-900 mb-4">Товар не знайдено</h1>
+        <p className="text-slate-500 mb-10 leading-relaxed">
+          На жаль, ми не змогли знайти товар, який ви шукаєте. Можливо, він був видалений або посилання застаріло.
+        </p>
+        <Link 
+          to="/catalog" 
+          className="inline-flex items-center gap-3 bg-slate-900 text-white px-10 py-5 rounded-2xl font-bold hover:bg-tiffany transition-all shadow-xl shadow-slate-900/10"
+        >
+          Повернутись до каталогу <ArrowRight size={20} />
+        </Link>
+      </div>
+    </div>
+  );
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
