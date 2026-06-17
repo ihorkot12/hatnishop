@@ -52,7 +52,7 @@ export const SpecialOffers = () => {
         whileTap={{ scale: 0.96 }}
         onClick={() => setIsOpen(true)}
         aria-label="Відкрити акції та набори"
-        className="fixed bottom-4 left-4 z-40 flex h-12 items-center gap-2 rounded-lg bg-slate-950 px-4 text-sm font-bold text-white shadow-xl shadow-slate-950/20 transition-colors hover:bg-tiffany sm:bottom-6 sm:left-6"
+        className="fixed right-3 top-36 z-40 flex h-11 w-11 items-center justify-center rounded-lg bg-slate-950 text-sm font-bold text-white shadow-xl shadow-slate-950/20 transition-colors hover:bg-tiffany sm:bottom-6 sm:left-6 sm:right-auto sm:top-auto sm:h-12 sm:w-auto sm:gap-2 sm:px-4"
       >
         <Gift size={18} />
         <span className="hidden sm:inline">Акції</span>

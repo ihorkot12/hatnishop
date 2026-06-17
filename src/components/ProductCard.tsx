@@ -1,109 +1,131 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { ShoppingCart, Heart, Star, Eye } from 'lucide-react';
+import { Eye, Heart, ShoppingCart, Star } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import { Product } from '../types';
 import { useCart } from '../store/CartContext';
 import { useWishlist } from '../store/WishlistContext';
-import { Link } from 'react-router-dom';
 
 interface ProductCardProps {
   product: Product;
   onQuickView?: (product: Product) => void;
 }
 
+const formatPrice = (value: number | string) => `${Number(value || 0).toLocaleString('uk-UA')} грн`;
+
 export const ProductCard: React.FC<ProductCardProps> = ({ product, onQuickView }) => {
   const { addToCart } = useCart();
   const { toggleWishlist, isInWishlist } = useWishlist();
   const isWishlisted = isInWishlist(product.id);
+  const stock = Number(product.stock || 0);
+  const isLowStock = stock > 0 && stock < 5;
+  const isAvailable = stock > 0;
 
   return (
-    <motion.div 
-      initial={{ opacity: 0, y: 30 }}
+    <motion.article
+      initial={{ opacity: 0, y: 18 }}
       whileInView={{ opacity: 1, y: 0 }}
-      viewport={{ once: true }}
-      whileHover={{ y: -10 }}
-      className="group relative bg-white rounded-[2.5rem] overflow-hidden transition-all duration-700 hover:shadow-[0_40px_80px_-20px_rgba(0,0,0,0.12)] border border-slate-100"
+      viewport={{ once: true, margin: '-80px' }}
+      whileHover={{ y: -4 }}
+      className="group relative overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm transition-shadow duration-500 hover:shadow-2xl hover:shadow-slate-950/10"
     >
-      <Link to={`/product/${product.id}`} className="block aspect-square overflow-hidden relative">
-        <img 
-          src={product.image} 
+      <Link to={`/product/${product.id}`} className="relative block aspect-[4/5] overflow-hidden bg-[#f4f0ea] hover:no-underline">
+        <img
+          src={product.image}
           alt={product.name}
-          className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-125"
+          className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-[1.04]"
           referrerPolicy="no-referrer"
         />
-        
-        {/* Badges */}
-        <div className="absolute top-6 left-6 flex flex-col gap-2">
+
+        <div className="absolute left-4 top-4 flex flex-col gap-2">
           {product.isPopular && (
-            <div className="bg-slate-900 text-white px-4 py-1.5 rounded-full text-[9px] font-bold uppercase tracking-[0.2em] shadow-xl">
-              Top Choice
-            </div>
+            <span className="rounded-md bg-slate-950 px-3 py-1 text-[10px] font-bold uppercase text-white">
+              Вибір покупців
+            </span>
           )}
-          {product.stock < 5 && (
-            <div className="bg-red-500 text-white px-4 py-1.5 rounded-full text-[9px] font-bold uppercase tracking-[0.2em] shadow-xl animate-pulse">
-              Залишилось {product.stock} шт
-            </div>
+          {isLowStock && (
+            <span className="rounded-md bg-white px-3 py-1 text-[10px] font-bold uppercase text-red-600 shadow-sm">
+              Лишилось {stock} шт
+            </span>
+          )}
+          {!isAvailable && (
+            <span className="rounded-md bg-white px-3 py-1 text-[10px] font-bold uppercase text-slate-500 shadow-sm">
+              Немає в наявності
+            </span>
           )}
         </div>
 
-        {/* Quick Actions Overlay */}
-        <div className="absolute inset-0 bg-slate-900/0 group-hover:bg-slate-900/20 transition-colors duration-500 flex items-center justify-center gap-4 opacity-0 group-hover:opacity-100">
-          <button 
-            onClick={(e) => {
-              e.preventDefault();
-              addToCart(product);
+        <div className="absolute bottom-4 right-4 flex gap-2 opacity-0 transition-opacity duration-300 group-hover:opacity-100">
+          <button
+            type="button"
+            onClick={(event) => {
+              event.preventDefault();
+              if (isAvailable) addToCart(product);
             }}
-            className="w-14 h-14 bg-white text-slate-900 rounded-2xl flex items-center justify-center hover:bg-tiffany hover:text-white transition-all shadow-2xl scale-90 group-hover:scale-100 duration-500"
-            title="Додати в кошик"
+            disabled={!isAvailable}
+            aria-label={`Додати ${product.name} у кошик`}
+            className="flex h-11 w-11 items-center justify-center rounded-lg bg-white text-slate-950 shadow-lg transition-colors hover:bg-tiffany hover:text-white disabled:cursor-not-allowed disabled:text-slate-300"
           >
-            <ShoppingCart size={20} strokeWidth={1.5} />
+            <ShoppingCart size={19} strokeWidth={1.7} />
           </button>
           {onQuickView && (
-            <button 
-              onClick={(e) => {
-                e.preventDefault();
+            <button
+              type="button"
+              onClick={(event) => {
+                event.preventDefault();
                 onQuickView(product);
               }}
-              className="w-14 h-14 bg-white text-slate-900 rounded-2xl flex items-center justify-center hover:bg-slate-900 hover:text-white transition-all shadow-2xl scale-90 group-hover:scale-100 duration-500 delay-75"
-              title="Швидкий перегляд"
+              aria-label={`Швидко переглянути ${product.name}`}
+              className="flex h-11 w-11 items-center justify-center rounded-lg bg-white text-slate-950 shadow-lg transition-colors hover:bg-slate-950 hover:text-white"
             >
-              <Eye size={20} strokeWidth={1.5} />
+              <Eye size={19} strokeWidth={1.7} />
             </button>
           )}
         </div>
       </Link>
 
-      <div className="p-8">
-        <div className="flex justify-between items-start mb-3">
-          <div className="text-[10px] uppercase tracking-[0.2em] text-tiffany font-bold">
-            {product.category}
-          </div>
-          <div className="flex items-center gap-1 text-gold">
-            <Star size={12} fill="currentColor" />
-            <span className="text-[10px] font-bold text-slate-900">{product.rating || '5.0'}</span>
-            <span className="text-[10px] text-slate-400">({product.reviewCount || 0})</span>
-          </div>
+      <div className="p-5">
+        <div className="mb-3 flex items-center justify-between gap-3">
+          <span className="truncate text-[11px] font-bold uppercase text-slate-400">{product.category}</span>
+          <span className="flex items-center gap-1 text-xs font-bold text-slate-700">
+            <Star size={13} fill="currentColor" className="text-gold" />
+            {Number(product.rating || 5).toFixed(1)}
+          </span>
         </div>
 
-        <Link to={`/product/${product.id}`} className="block text-2xl font-serif text-slate-900 mb-6 hover:text-tiffany transition-colors duration-300 leading-tight">
+        <Link
+          to={`/product/${product.id}`}
+          className="line-clamp-2 min-h-[3.25rem] text-xl font-serif font-bold leading-tight text-slate-950 transition-colors hover:text-tiffany hover:no-underline"
+        >
           {product.name}
         </Link>
 
-        <div className="flex items-center justify-between pt-6 border-t border-slate-50">
-          <div className="text-2xl font-bold text-slate-900">
-            {product.price} <span className="text-xs font-normal text-slate-400 ml-1">грн</span>
+        <div className="mt-5 flex items-center justify-between gap-4 border-t border-slate-100 pt-4">
+          <div>
+            <div className="text-xl font-bold text-slate-950">{formatPrice(product.price)}</div>
+            {product.bonusPoints ? (
+              <div className="mt-1 text-[11px] font-bold text-emerald-600">+{product.bonusPoints} бонусів</div>
+            ) : (
+              <div className="mt-1 text-[11px] text-slate-400">Доставка по Україні</div>
+            )}
           </div>
-          <button 
-            onClick={(e) => {
-              e.preventDefault();
+          <button
+            type="button"
+            onClick={(event) => {
+              event.preventDefault();
               toggleWishlist(product);
             }}
-            className={`transition-all duration-300 ${isWishlisted ? 'text-pink-500' : 'text-slate-300 hover:text-pink-500'}`}
+            aria-label={isWishlisted ? `Прибрати ${product.name} з обраного` : `Додати ${product.name} в обране`}
+            className={`flex h-10 w-10 items-center justify-center rounded-lg border transition-colors ${
+              isWishlisted
+                ? 'border-pink-200 bg-pink-50 text-pink-500'
+                : 'border-slate-200 text-slate-400 hover:border-pink-200 hover:bg-pink-50 hover:text-pink-500'
+            }`}
           >
-            <Heart size={20} strokeWidth={1.5} fill={isWishlisted ? "currentColor" : "none"} />
+            <Heart size={18} strokeWidth={1.7} fill={isWishlisted ? 'currentColor' : 'none'} />
           </button>
         </div>
       </div>
-    </motion.div>
+    </motion.article>
   );
 };

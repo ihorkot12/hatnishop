@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
-import { ArrowRight, Star, ShoppingBag, TrendingUp, Users, CheckCircle2, Sparkles } from 'lucide-react';
+import { ArrowRight, CheckCircle2, PackageCheck, ShieldCheck, Star, Truck } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { Hero } from '../components/Hero';
 import { ProductCard } from '../components/ProductCard';
@@ -9,8 +9,28 @@ import { CategoryGrid } from '../components/CategoryGrid';
 import { ReadySolutions } from '../components/ReadySolutions';
 import { BonusSystem } from '../components/BonusSystem';
 import { Newsletter } from '../components/Newsletter';
-import { MOCK_PRODUCTS } from '../constants';
 import { Product } from '../types';
+
+const FALLBACK_HEADING = 'Популярні речі для оселі з характером';
+const FALLBACK_SUBTITLE = 'Кераміка, текстиль і декор, які виглядають зібраними, а не випадково доданими в кошик.';
+
+const serviceItems = [
+  {
+    title: 'Ретельний відбір',
+    text: 'У каталозі лишаються речі з виразною фактурою, зрозумілою користю і спокійним виглядом у реальному домі.',
+    icon: CheckCircle2,
+  },
+  {
+    title: 'Доставка по Україні',
+    text: 'Пакуємо крихке окремо, перевіряємо комплектацію і передаємо у доставку з запасом захисту.',
+    icon: Truck,
+  },
+  {
+    title: 'Повернення 14 днів',
+    text: 'Якщо річ не підійшла за розміром, кольором або настроєм, є час спокійно оформити повернення.',
+    icon: PackageCheck,
+  },
+];
 
 export const Home = () => {
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
@@ -19,144 +39,168 @@ export const Home = () => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    document.title = "Хатні Штучки — Естетичні товари для дому та затишку | Купити посуд, декор, текстиль";
-    
+    document.title = 'Хатні Штучки - естетичний посуд, декор і текстиль для дому';
+
     Promise.all([
-      fetch('/api/products/catalog').then(res => res.ok ? res.json() : []),
-      fetch('/api/site-settings').then(res => res.ok ? res.json() : null)
-    ]).then(([productsData, settingsData]) => {
-      setProducts(Array.isArray(productsData) ? productsData : []);
-      setSiteSettings(settingsData);
-      setLoading(false);
-    }).catch(err => {
-      console.error("Home data fetch error:", err);
-      setProducts([]);
-      setLoading(false);
-    });
+      fetch('/api/products/catalog').then((res) => (res.ok ? res.json() : [])),
+      fetch('/api/site-settings').then((res) => (res.ok ? res.json() : null)),
+    ])
+      .then(([productsData, settingsData]) => {
+        setProducts(Array.isArray(productsData) ? productsData : []);
+        setSiteSettings(settingsData);
+        setLoading(false);
+      })
+      .catch(() => {
+        setProducts([]);
+        setLoading(false);
+      });
   }, []);
 
-  const bestSellers = products.filter(p => p.isPopular).slice(0, 4);
-  const featuredProduct = products.find(p => p.id === siteSettings?.hero_featured_product_id) || (loading ? undefined : products[0]);
+  const bestSellers = useMemo(() => {
+    const popular = products.filter((product: any) => product.isPopular || product.ispopular);
+    return (popular.length ? popular : products).slice(0, 4);
+  }, [products]);
+
+  const featuredProduct = products.find((product) => product.id === siteSettings?.hero_featured_product_id) || (loading ? undefined : products[0]);
 
   return (
-    <div className="bg-white pb-24">
-      <Hero 
+    <div className="bg-white pb-16">
+      <Hero
         title={siteSettings?.hero_title}
         subtitle={siteSettings?.hero_subtitle}
         badge={siteSettings?.hero_badge}
         featuredProduct={featuredProduct}
         loading={loading}
       />
-      
+
       <CategoryGrid />
 
-      {/* Best Sellers */}
-      <section className="py-24 bg-warm-bg overflow-hidden">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex flex-col md:flex-row justify-between items-end mb-16 gap-8">
-            <div className="max-w-xl">
-              <div className="text-tiffany font-bold text-[10px] uppercase tracking-[0.2em] mb-4">{siteSettings?.bestsellers_badge || 'Наші бестселери'}</div>
-              <h2 className="text-5xl font-serif font-bold text-slate-900 mb-6 leading-tight">
-                {siteSettings?.bestsellers_title ? (
-                  siteSettings.bestsellers_title.includes('вашого затишку') ? (
-                    <>Популярні товари для <span className="text-tiffany italic">вашого затишку</span></>
-                  ) : siteSettings.bestsellers_title
-                ) : (
-                  <>Популярні товари для <span className="text-tiffany italic">вашого затишку</span></>
-                )}
+      <section className="bg-[#f8f4ef] py-20">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+          <div className="mb-10 grid gap-6 lg:grid-cols-[1fr_auto] lg:items-end">
+            <div className="max-w-3xl">
+              <div className="mb-3 text-[11px] font-bold uppercase text-tiffany">
+                {siteSettings?.bestsellers_badge || 'Вибір покупців'}
+              </div>
+              <h2 className="text-4xl font-serif font-bold leading-tight text-slate-950 sm:text-5xl">
+                {siteSettings?.bestsellers_title || FALLBACK_HEADING}
               </h2>
-              <p className="text-slate-500 text-lg">{siteSettings?.bestsellers_subtitle || 'Обирайте найкращий посуд та декор, який став фаворитом наших покупців. Кожна річ у каталозі "Хатні Штучки" — це поєднання естетики та функціональності.'}</p>
+              <p className="mt-4 text-lg leading-8 text-slate-600">
+                {siteSettings?.bestsellers_subtitle || FALLBACK_SUBTITLE}
+              </p>
             </div>
-            <Link to="/catalog" className="flex items-center gap-2 text-tiffany font-bold hover:underline underline-offset-8">
-              Дивитись всі товари <ArrowRight size={20} />
+            <Link
+              to="/catalog"
+              className="inline-flex items-center gap-2 rounded-lg bg-slate-950 px-5 py-3 text-sm font-bold text-white transition-colors hover:bg-tiffany hover:no-underline"
+            >
+              Дивитись каталог <ArrowRight size={18} />
             </Link>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
-            {bestSellers.map(product => (
-              <ProductCard 
-                key={product.id} 
-                product={product} 
-                onQuickView={(p) => setSelectedProduct(p)}
-              />
-            ))}
+          {bestSellers.length > 0 ? (
+            <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
+              {bestSellers.map((product) => (
+                <ProductCard key={product.id} product={product} onQuickView={(item) => setSelectedProduct(item)} />
+              ))}
+            </div>
+          ) : (
+            <div className="rounded-lg border border-dashed border-slate-300 bg-white p-10 text-center text-slate-500">
+              Товари завантажуються. Якщо каталог порожній, додайте позиції в адмінці.
+            </div>
+          )}
+        </div>
+      </section>
+
+      <section className="bg-white py-20">
+        <div className="mx-auto grid max-w-7xl gap-10 px-4 sm:px-6 lg:grid-cols-[0.85fr_1fr] lg:px-8">
+          <motion.div
+            initial={{ opacity: 0, y: 18 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            className="relative overflow-hidden rounded-lg border border-slate-200 bg-[#f4f0ea]"
+          >
+            <img
+              src="https://images.unsplash.com/photo-1556910103-1c02745aae4d?auto=format&fit=crop&w=1200&q=80"
+              alt="Тиха кухня з дерев'яними та керамічними деталями"
+              className="h-full min-h-[420px] w-full object-cover"
+            />
+            <div className="absolute bottom-0 left-0 right-0 bg-slate-950/80 p-5 text-white backdrop-blur-sm">
+              <div className="text-[11px] font-bold uppercase text-tiffany">Quiet Craft</div>
+              <p className="mt-2 text-sm leading-6 text-white/75">
+                Речі мають не перекривати дім, а збирати його в один спокійний образ.
+              </p>
+            </div>
+          </motion.div>
+
+          <div className="flex flex-col justify-center">
+            <div className="mb-4 text-[11px] font-bold uppercase text-tiffany">Чому це працює</div>
+            <h2 className="text-4xl font-serif font-bold leading-tight text-slate-950 sm:text-5xl">
+              Менше випадкових покупок, більше цілісних рішень
+            </h2>
+            <p className="mt-5 text-lg leading-8 text-slate-600">
+              Ми будуємо каталог як систему: предмети мають поєднуватись між собою, не сперечатись з інтер'єром і витримувати щоденне користування.
+            </p>
+
+            <div className="mt-9 grid gap-4">
+              {serviceItems.map((item, index) => {
+                const Icon = item.icon;
+                return (
+                  <motion.div
+                    key={item.title}
+                    initial={{ opacity: 0, x: 18 }}
+                    whileInView={{ opacity: 1, x: 0 }}
+                    transition={{ delay: index * 0.06 }}
+                    viewport={{ once: true }}
+                    className="grid grid-cols-[48px_1fr] gap-4 rounded-lg border border-slate-200 bg-white p-4"
+                  >
+                    <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-slate-950 text-tiffany">
+                      <Icon size={22} />
+                    </div>
+                    <div>
+                      <h3 className="font-bold text-slate-950">{item.title}</h3>
+                      <p className="mt-1 text-sm leading-6 text-slate-600">{item.text}</p>
+                    </div>
+                  </motion.div>
+                );
+              })}
+            </div>
           </div>
         </div>
       </section>
 
       <ReadySolutions />
 
-      {/* Social Proof */}
-      <section className="py-24 bg-white overflow-hidden">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-24 items-center">
-            <div className="relative">
-              <div className="grid grid-cols-2 gap-6">
-                <motion.div 
-                  initial={{ opacity: 0, y: 20 }}
-                  whileInView={{ opacity: 1, y: 0 }}
-                  className="aspect-[4/5] rounded-[2.5rem] overflow-hidden shadow-2xl"
-                >
-                  <img src="https://images.unsplash.com/photo-1556910103-1c02745aae4d?auto=format&fit=crop&w=800&q=80" alt="" className="w-full h-full object-cover" />
-                </motion.div>
-                <motion.div 
-                  initial={{ opacity: 0, y: 20 }}
-                  whileInView={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.2 }}
-                  className="aspect-[4/5] rounded-[2.5rem] overflow-hidden shadow-2xl translate-y-12"
-                >
-                  <img src="https://images.unsplash.com/photo-1517705008128-361805f42e86?auto=format&fit=crop&w=800&q=80" alt="" className="w-full h-full object-cover" />
-                </motion.div>
+      <section className="bg-white py-20">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+          <div className="grid gap-5 md:grid-cols-3">
+            {[
+              { value: '5 000+', label: 'задоволених клієнтів' },
+              { value: '4.9/5', label: 'середня оцінка товарів' },
+              { value: '24 год', label: 'на обробку більшості замовлень' },
+            ].map((stat) => (
+              <div key={stat.label} className="rounded-lg border border-slate-200 bg-[#f8f4ef] p-6">
+                <div className="text-4xl font-bold text-slate-950">{stat.value}</div>
+                <div className="mt-2 text-sm font-bold uppercase text-slate-500">{stat.label}</div>
               </div>
-              
-              {/* Floating Stats */}
-              <div className="absolute -bottom-10 -left-10 bg-white p-8 rounded-[2rem] shadow-2xl border border-slate-50 z-10">
-                <div className="flex items-center gap-4 mb-4">
-                  <div className="w-12 h-12 bg-tiffany/10 text-tiffany rounded-full flex items-center justify-center">
-                    <Users size={24} />
-                  </div>
-                  <div>
-                    <div className="text-2xl font-bold text-slate-900">5,000+</div>
-                    <div className="text-[10px] uppercase font-bold text-slate-400">Задоволених клієнтів</div>
-                  </div>
-                </div>
-                <div className="flex items-center gap-1 text-gold">
-                  <Star size={14} fill="currentColor" />
-                  <Star size={14} fill="currentColor" />
-                  <Star size={14} fill="currentColor" />
-                  <Star size={14} fill="currentColor" />
-                  <Star size={14} fill="currentColor" />
-                </div>
-              </div>
-            </div>
+            ))}
+          </div>
 
-            <div>
-              <div className="text-tiffany font-bold text-[10px] uppercase tracking-[0.2em] mb-4">Чому обирають нас</div>
-              <h2 className="text-5xl font-serif font-bold text-slate-900 mb-10 leading-tight">Створюємо простір, де <span className="text-tiffany italic">панує гармонія</span></h2>
-              
-              <div className="space-y-8">
-                {[
-                  { title: 'Якісний посуд та декор', desc: 'Ми ретельно відбираємо кожен предмет, щоб ви могли купити посуд найвищої якості, який слугуватиме роками.', icon: <CheckCircle2 size={24} /> },
-                  { title: 'Доставка по всій Україні', desc: 'Швидка відправка замовлень Новою Поштою у Київ, Львів, Одесу та будь-який інший куточок країни.', icon: <TrendingUp size={24} /> },
-                  { title: 'Естетика та затишок', desc: 'Наш асортимент — це не просто речі, а інструменти для створення особливої атмосфери у вашій оселі.', icon: <Star size={24} /> }
-                ].map((item, idx) => (
-                  <motion.div 
-                    key={idx}
-                    initial={{ opacity: 0, x: 20 }}
-                    whileInView={{ opacity: 1, x: 0 }}
-                    transition={{ delay: idx * 0.1 }}
-                    className="flex gap-6"
-                  >
-                    <div className="w-14 h-14 bg-slate-900 text-white rounded-2xl flex items-center justify-center shrink-0 shadow-xl shadow-slate-900/10">
-                      {item.icon}
-                    </div>
-                    <div>
-                      <h3 className="text-xl font-bold text-slate-900 mb-2">{item.title}</h3>
-                      <p className="text-slate-500 leading-relaxed">{item.desc}</p>
-                    </div>
-                  </motion.div>
+          <div className="mt-5 rounded-lg border border-slate-200 bg-white p-6">
+            <div className="flex flex-col gap-5 md:flex-row md:items-center md:justify-between">
+              <div className="flex items-center gap-3 text-gold">
+                {[...Array(5)].map((_, index) => (
+                  <Star key={index} size={18} fill="currentColor" />
                 ))}
+                <span className="ml-2 text-sm font-bold text-slate-950">Покупці відзначають пакування і швидкість відповіді</span>
               </div>
+              <a
+                href="https://t.me/+gcAKeeKFKL43NjYy"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-2 text-sm font-bold text-tiffany hover:no-underline"
+              >
+                Telegram-канал <ArrowRight size={17} />
+              </a>
             </div>
           </div>
         </div>
@@ -164,121 +208,34 @@ export const Home = () => {
 
       <BonusSystem />
 
-      {/* Testimonials */}
-      <section className="py-24 bg-warm-bg overflow-hidden">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-16">
-            <div className="text-tiffany font-bold text-[10px] uppercase tracking-[0.2em] mb-4">Відгуки наших клієнтів</div>
-            <h2 className="text-5xl font-serif font-bold text-slate-900 mb-6">Що про нас <span className="text-tiffany italic">говорять</span></h2>
-            <p className="text-slate-500 max-w-2xl mx-auto">Ваші емоції — наше головне натхнення. Ми вдячні кожному, хто ділиться частинкою свого затишку з нами.</p>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            {[
-              { name: 'Олена К.', city: 'Київ', text: 'Замовляла набір керамічного посуду. Якість просто неймовірна! Кожне горнятко — це витвір мистецтва. Окреме дякую за естетичне пакування.', rating: 5 },
-              { name: 'Марина С.', city: 'Львів', text: 'Текстиль від Хатніх Штучок — це любов з першого дотику. Лляна скатертина ідеально вписалася в наш інтер\'єр. Буду замовляти ще!', rating: 5 },
-              { name: 'Ірина В.', city: 'Одеса', text: 'Дуже швидка доставка та приємне спілкування. Товар приїхав надійно запакований, все ціле. Рекомендую всім, хто цінує затишок.', rating: 5 }
-            ].map((review, idx) => (
-              <motion.div 
-                key={idx}
-                initial={{ opacity: 0, y: 20 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                transition={{ delay: idx * 0.1 }}
-                className="bg-white p-10 rounded-[3rem] shadow-xl shadow-slate-200/50 border border-slate-50 relative"
-              >
-                <div className="flex gap-1 text-gold mb-6">
-                  {[...Array(review.rating)].map((_, i) => <Star key={i} size={16} fill="currentColor" />)}
-                </div>
-                <p className="text-slate-600 italic mb-8 leading-relaxed">"{review.text}"</p>
-                <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 bg-tiffany/10 rounded-full flex items-center justify-center text-tiffany font-bold">
-                    {review.name[0]}
-                  </div>
-                  <div>
-                    <div className="font-bold text-slate-900">{review.name}</div>
-                    <div className="text-[10px] uppercase font-bold text-slate-400 tracking-widest">{review.city}</div>
-                  </div>
-                </div>
-              </motion.div>
-            ))}
-          </div>
-
-          <div className="mt-20 text-center">
-            <div className="inline-flex items-center gap-4 p-2 bg-white rounded-2xl shadow-lg border border-slate-50">
-              <div className="flex -space-x-3">
-                {[1, 2, 3, 4].map(i => (
-                  <div key={i} className="w-10 h-10 rounded-full border-2 border-white overflow-hidden">
-                    <img src={`https://i.pravatar.cc/100?img=${i+10}`} alt="" className="w-full h-full object-cover" />
-                  </div>
-                ))}
-              </div>
-              <div className="pr-4">
-                <span className="text-sm font-bold text-slate-900">Більше 500+ відгуків в Instagram</span>
-              </div>
+      <section className="bg-slate-950 py-20 text-white">
+        <div className="mx-auto grid max-w-7xl gap-8 px-4 sm:px-6 lg:grid-cols-[1fr_auto] lg:items-center lg:px-8">
+          <div>
+            <div className="mb-3 inline-flex items-center gap-2 rounded-lg border border-white/10 px-4 py-2 text-[11px] font-bold uppercase text-tiffany">
+              <ShieldCheck size={14} />
+              Спільнота
             </div>
+            <h2 className="max-w-3xl text-4xl font-serif font-bold leading-tight sm:text-5xl">
+              Нові поставки, добірки і закриті промокоди в Telegram
+            </h2>
+            <p className="mt-5 max-w-2xl text-lg leading-8 text-white/65">
+              Канал для тих, хто любить бачити речі до того, як вони зникають із полиці.
+            </p>
           </div>
-        </div>
-      </section>
-
-      {/* Telegram Banner */}
-      <section className="py-12 bg-white">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="bg-slate-900 rounded-[3rem] p-12 relative overflow-hidden flex flex-col md:flex-row items-center justify-between gap-12">
-            <div className="absolute top-0 right-0 w-1/2 h-full opacity-10 pointer-events-none">
-              <svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg" className="w-full h-full">
-                <path fill="#0088cc" d="M44.7,-76.4C58.8,-69.2,71.8,-59.1,79.6,-45.8C87.4,-32.6,90,-16.3,88.5,-0.9C87,14.5,81.4,29,73.1,41.9C64.8,54.8,53.8,66.1,40.5,73.4C27.2,80.7,13.6,84,0.3,83.5C-13,83,-26.1,78.7,-38.9,71.8C-51.7,64.9,-64.3,55.4,-72.4,42.9C-80.5,30.4,-84.1,15.2,-83.7,0.2C-83.3,-14.8,-78.9,-29.6,-70.8,-42.1C-62.7,-54.6,-50.9,-64.8,-37.7,-72.5C-24.5,-80.2,-9.9,-85.4,3.1,-90.7C16.1,-96,30.6,-83.6,44.7,-76.4Z" transform="translate(100 100)" />
-              </svg>
-            </div>
-            
-            <div className="relative z-10 max-w-2xl text-center md:text-left">
-              <div className="inline-flex items-center gap-2 bg-tiffany/20 text-tiffany px-4 py-2 rounded-full text-xs font-bold uppercase tracking-widest mb-6">
-                <Sparkles size={14} /> Наша спільнота
-              </div>
-              <h2 className="text-4xl md:text-5xl font-serif font-bold text-white mb-6 leading-tight">
-                Приєднуйтесь до нашого <span className="text-tiffany italic">Telegram-каналу</span>
-              </h2>
-              <p className="text-white/60 text-lg mb-8">
-                Отримуйте доступ до ексклюзивних новинок, секретних розпродажів та натхнення для вашого дому кожного дня.
-              </p>
-              <div className="flex flex-col sm:flex-row items-center gap-4">
-                <a 
-                  href="https://t.me/+gcAKeeKFKL43NjYy" 
-                  target="_blank" 
-                  rel="noopener noreferrer"
-                  className="bg-tiffany text-white px-10 py-5 rounded-2xl font-bold hover:bg-white hover:text-slate-900 transition-all shadow-xl shadow-tiffany/20 flex items-center gap-3"
-                >
-                  Підписатись на канал <ArrowRight size={20} />
-                </a>
-                <div className="text-white/40 text-sm font-medium">
-                  Вже понад 1,200 підписників
-                </div>
-              </div>
-            </div>
-
-            <div className="relative z-10 w-full md:w-auto flex justify-center">
-              <div className="w-64 h-64 bg-white/5 rounded-[2.5rem] border border-white/10 flex items-center justify-center backdrop-blur-sm rotate-6 hover:rotate-0 transition-transform duration-500">
-                <div className="text-center">
-                  <div className="w-20 h-20 bg-tiffany rounded-3xl flex items-center justify-center mx-auto mb-4 shadow-2xl shadow-tiffany/40">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-10 h-10">
-                      <path d="m22 2-7 20-4-9-9-4Z" />
-                      <path d="M22 2 11 13" />
-                    </svg>
-                  </div>
-                  <div className="text-white font-bold">@hatni_shtuchky</div>
-                  <div className="text-white/40 text-xs">Новинки щодня</div>
-                </div>
-              </div>
-            </div>
-          </div>
+          <a
+            href="https://t.me/+gcAKeeKFKL43NjYy"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center justify-center gap-3 rounded-lg bg-tiffany px-7 py-4 font-bold text-slate-950 transition-colors hover:bg-white hover:no-underline"
+          >
+            Підписатися <ArrowRight size={19} />
+          </a>
         </div>
       </section>
 
       <Newsletter />
-      
-      <QuickView 
-        product={selectedProduct} 
-        onClose={() => setSelectedProduct(null)} 
-      />
+
+      <QuickView product={selectedProduct} onClose={() => setSelectedProduct(null)} />
     </div>
   );
 };
