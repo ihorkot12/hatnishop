@@ -55,7 +55,7 @@ export const BonusSystem = () => {
               {[
                 'Увійдіть у профіль перед покупкою',
                 'Оплатіть або завершіть замовлення',
-                'Використайте бонуси до 50% наступної суми',
+                'Використайте бонуси до 30% наступної суми',
               ].map((item, index) => (
                 <div key={item} className="border-l border-slate-200 pl-4">
                   <div className="mb-3 text-xs font-bold text-tiffany">0{index + 1}</div>
@@ -67,7 +67,7 @@ export const BonusSystem = () => {
           <div className="flex items-center justify-between gap-6 bg-slate-950 p-6 text-white sm:p-8">
             <ShieldCheck size={38} className="shrink-0 text-tiffany" />
             <div>
-              <div className="text-4xl font-bold">50%</div>
+              <div className="text-4xl font-bold">30%</div>
               <p className="mt-1 text-sm leading-6 text-white/65">максимум замовлення, який можна оплатити бонусами</p>
             </div>
           </div>

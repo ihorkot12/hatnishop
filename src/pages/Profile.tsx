@@ -125,8 +125,8 @@ export const Profile = () => {
           <div className="bg-slate-900 text-white p-10 rounded-[3rem] shadow-2xl shadow-slate-900/20">
             <h3 className="text-xl font-bold mb-4">Система кешбеку</h3>
             <p className="text-white/60 text-sm mb-6 leading-relaxed">
-              Отримуйте 5% від кожного замовлення на свій бонусний рахунок. 
-              Використовуйте бонуси для оплати до 50% вартості нових покупок!
+              Отримуйте кешбек 5%, 7% або 10% залежно від історії покупок.
+              Використовуйте бонуси для оплати до 30% вартості нових покупок!
             </p>
             <div className="space-y-4">
               <div className="flex items-center gap-3 text-sm font-bold">

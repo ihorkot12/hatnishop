@@ -102,10 +102,6 @@ export const Hero = ({ title, subtitle, badge, featuredProduct: propProduct, loa
             className="relative"
           >
             <div className="absolute -left-5 top-8 hidden h-[72%] w-px bg-slate-300/60 lg:block" />
-            <div className="mb-3 hidden items-center justify-between text-[10px] font-bold uppercase text-slate-400 lg:flex">
-              <span>Curated object</span>
-              <span>Hatni index 01</span>
-            </div>
             <div className="overflow-hidden rounded-lg border border-white/85 bg-white shadow-2xl shadow-slate-900/10">
               <div className="relative aspect-[4/5] bg-slate-100">
                 {featuredProduct ? (

@@ -345,7 +345,7 @@ export const ProductDetail = () => {
               onClick={() => addToCart(product)}
               className="product-buy-button flex flex-1 items-center justify-center gap-3 rounded-2xl bg-slate-900 px-5 text-base font-bold text-white shadow-xl shadow-slate-900/15 transition-all hover:bg-tiffany active:scale-95 sm:text-lg"
             >
-              <ShoppingCart size={22} /> Додати в кошик
+              <ShoppingCart size={22} /> {isBundleProduct ? 'Додати набір у кошик' : 'Додати в кошик'}
             </button>
             <div className="grid grid-cols-2 gap-3 sm:flex sm:gap-4">
               <button
@@ -479,7 +479,7 @@ export const ProductDetail = () => {
       </div>
 
       {/* Buy Together / Bundles */}
-      {(bundleProducts.length > 0 || relatedProducts.length > 0) && (
+      {!isBundleProduct && relatedProducts.length > 0 && (
         <section className="mb-32 bg-slate-900 rounded-[4rem] p-12 md:p-20 text-white overflow-hidden relative">
           <div className="absolute top-0 right-0 w-1/2 h-full bg-tiffany/10 -skew-x-12 translate-x-1/4" />
           <div className="relative z-10 flex flex-col lg:flex-row items-center justify-between gap-16">
@@ -487,16 +487,14 @@ export const ProductDetail = () => {
               <div className="text-tiffany font-bold text-xs uppercase tracking-[0.3em] mb-6">Економія 15%</div>
               <h2 className="text-4xl md:text-5xl font-serif font-bold mb-8 leading-tight">Купуйте разом та економте</h2>
               <p className="text-white/60 text-lg mb-10 leading-relaxed">
-                {bundleProducts.length > 0 
-                  ? "Ми підібрали ідеальний набір для вас. Купуючи ці товари разом, ви отримуєте спеціальну знижку 15%."
-                  : "Ми підібрали ідеальне доповнення до вашого вибору. Купуючи ці товари разом, ви отримуєте спеціальну знижку 15%."}
+                  Ми підібрали ідеальне доповнення до вашого вибору. Купуючи ці товари разом, ви отримуєте спеціальну знижку 15%.
               </p>
               <div className="flex items-center gap-8">
                 <div className="flex -space-x-6">
                   <div className="w-20 h-20 rounded-full border-4 border-slate-900 overflow-hidden shadow-2xl">
                     <img src={product.image} alt="" className="w-full h-full object-cover" />
                   </div>
-                  {(bundleProducts.length > 0 ? bundleProducts : [relatedProducts[0]]).map((p, i) => (
+                  {[relatedProducts[0]].map((p, i) => (
                     <div key={p.id} className="w-20 h-20 rounded-full border-4 border-slate-900 overflow-hidden shadow-2xl" style={{ zIndex: 10 - i }}>
                       <img src={p.image} alt="" className="w-full h-full object-cover" />
                     </div>
@@ -504,10 +502,10 @@ export const ProductDetail = () => {
                 </div>
                 <div>
                   <div className="text-3xl font-bold text-tiffany">
-                    {Math.round((Number(product.price) + (bundleProducts.length > 0 ? bundleProducts.reduce((acc, p) => acc + Number(p.price), 0) : Number(relatedProducts[0]?.price || 0))) * 0.85)} грн
+                    {Math.round((Number(product.price) + Number(relatedProducts[0]?.price || 0)) * 0.85)} грн
                   </div>
                   <div className="text-sm text-white/40 line-through">
-                    {Number(product.price) + (bundleProducts.length > 0 ? bundleProducts.reduce((acc, p) => acc + Number(p.price), 0) : Number(relatedProducts[0]?.price || 0))} грн
+                    {Number(product.price) + Number(relatedProducts[0]?.price || 0)} грн
                   </div>
                 </div>
               </div>
@@ -515,9 +513,7 @@ export const ProductDetail = () => {
             <button 
               onClick={() => {
                 addToCart(product);
-                if (bundleProducts.length > 0) {
-                  bundleProducts.forEach(p => addToCart(p));
-                } else if (relatedProducts[0]) {
+                if (relatedProducts[0]) {
                   addToCart(relatedProducts[0]);
                 }
               }}
