@@ -324,7 +324,13 @@ let dbInitialized = false;
 let isInitializing = false;
 
 async function ensureDb() {
-  if (dbInitialized || isInitializing) return;
+  if (dbInitialized) return;
+  if (isInitializing) {
+    for (let i = 0; i < 100 && isInitializing; i += 1) {
+      await new Promise(resolve => setTimeout(resolve, 100));
+    }
+    return;
+  }
   isInitializing = true;
 
   try {
