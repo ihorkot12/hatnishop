@@ -12,7 +12,9 @@ import fs from "fs";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const CACHE_FILE = path.join(__dirname, "db_cache.json");
+const CACHE_FILE = process.env.VERCEL
+  ? path.join("/tmp", "db_cache.json")
+  : path.join(__dirname, "db_cache.json");
 
 const JWT_SECRET = process.env.JWT_SECRET;
 if (!JWT_SECRET && (process.env.NODE_ENV === "production" || process.env.VERCEL)) {
