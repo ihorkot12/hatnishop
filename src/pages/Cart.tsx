@@ -5,10 +5,19 @@ import { useCart } from '../store/CartContext';
 import { useAuth } from '../store/AuthContext';
 import { Link } from 'react-router-dom';
 
+const BONUS_SPEND_LIMIT_RATE = 0.3;
+
+const getCashbackRate = (totalSpent = 0) => {
+  if (totalSpent >= 15000) return 0.1;
+  if (totalSpent >= 5000) return 0.07;
+  return 0.05;
+};
+
 export const Cart = () => {
   const { cart, updateQuantity, removeFromCart, totalPrice, clearCart, userBonuses, appliedBonuses, applyBonuses } = useCart();
   const { user } = useAuth();
   const [isSuccess, setIsSuccess] = useState(false);
+  const [completedOrder, setCompletedOrder] = useState<{ cashbackPending: number } | null>(null);
   const [formData, setFormData] = useState({
     name: user?.name || '',
     phone: '',
@@ -16,11 +25,13 @@ export const Cart = () => {
     city: '',
     deliveryMethod: 'nova-poshta' as 'nova-poshta' | 'ukr-poshta',
     warehouse: '',
-    paymentMethod: 'cash' as 'mono' | 'liqpay' | 'cash',
+    paymentMethod: 'cash' as 'mono' | 'liqpay' | 'cash' | 'card' | 'bank',
     comment: ''
   });
 
   const [useBonuses, setUseBonuses] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [checkoutError, setCheckoutError] = useState('');
   const [isQuickOrder, setIsQuickOrder] = useState(false);
   const [bonusCode, setBonusCode] = useState('');
   const [appliedBonusCode, setAppliedBonusCode] = useState<any>(null);
@@ -33,13 +44,21 @@ export const Cart = () => {
   const calculateDiscount = () => {
     if (!appliedBonusCode) return 0;
     if (appliedBonusCode.discount_type === 'percent') {
-      return (totalPrice * appliedBonusCode.discount_amount) / 100;
+      return Math.floor((totalPrice * Number(appliedBonusCode.discount_amount || 0)) / 100);
     }
-    return appliedBonusCode.discount_amount;
+    return Math.floor(Number(appliedBonusCode.discount_amount || 0));
   };
 
-  const discount = Math.min(calculateDiscount(), totalPrice);
-  const finalTotal = Math.max(0, totalPrice - (useBonuses ? appliedBonuses : 0) - discount);
+  const discount = Math.min(Math.max(calculateDiscount(), 0), totalPrice);
+  const bonusBase = Math.max(0, totalPrice - discount);
+  const bonusSpendLimit = Math.floor(bonusBase * BONUS_SPEND_LIMIT_RATE);
+  const availableBonuses = Math.max(0, Math.floor(userBonuses || 0));
+  const usableBonusAmount = user ? Math.min(availableBonuses, bonusSpendLimit) : 0;
+  const appliedBonusAmount = useBonuses ? Math.min(appliedBonuses, usableBonusAmount) : 0;
+  const finalTotal = Math.max(0, bonusBase - appliedBonusAmount);
+  const cashbackRate = getCashbackRate(user?.total_spent || 0);
+  const cashbackPercent = Math.round(cashbackRate * 100);
+  const estimatedBonuses = user ? Math.floor(finalTotal * cashbackRate) : Math.floor(finalTotal * 0.05);
 
   const handleApplyBonusCode = async () => {
     if (!bonusCode.trim()) return;
@@ -64,6 +83,9 @@ export const Cart = () => {
 
   const handleCheckout = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isSubmitting) return;
+    setCheckoutError('');
+    setIsSubmitting(true);
     const order = {
       id: Math.random().toString(36).substr(2, 9).toUpperCase(),
       userId: user?.id,
@@ -78,7 +100,7 @@ export const Cart = () => {
       },
       items: cart,
       total: totalPrice,
-      bonusUsed: useBonuses ? appliedBonuses : 0,
+      bonusUsed: appliedBonusAmount,
       promoCode: appliedBonusCode?.code,
       finalTotal: finalTotal,
       paymentMethod: formData.paymentMethod,
@@ -92,18 +114,28 @@ export const Cart = () => {
         credentials: 'same-origin',
         body: JSON.stringify(order)
       });
+      const data = await res.json().catch(() => ({}));
       if (res.ok) {
+        setCompletedOrder({
+          cashbackPending: Number(data.cashbackPending ?? estimatedBonuses)
+        });
         setIsSuccess(true);
         clearCart();
+      } else {
+        setCheckoutError(data.error || 'Не вдалося оформити замовлення. Перевірте дані та спробуйте ще раз.');
       }
     } catch (err) {
       console.error(err);
+      setCheckoutError('Не вдалося звʼязатися з магазином. Спробуйте ще раз за хвилину.');
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
   const toggleBonuses = () => {
     if (!useBonuses) {
-      applyBonuses(Math.min(userBonuses, totalPrice * 0.5));
+      if (usableBonusAmount <= 0) return;
+      applyBonuses(usableBonusAmount);
     }
     setUseBonuses(!useBonuses);
   };
@@ -126,8 +158,8 @@ export const Cart = () => {
             <span className="text-slate-900 font-bold">Наш менеджер зв'яжеться з вами у Viber або Telegram</span> для підтвердження та надання реквізитів для оплати.
           </p>
           <div className="bg-tiffany/5 p-6 rounded-3xl mb-10 border border-tiffany/10">
-            <p className="text-tiffany font-bold text-lg mb-1">Ви отримаєте +{Math.floor(finalTotal * 0.05)} бонусів!</p>
-            <p className="text-xs text-slate-400">Бонуси будуть нараховані на ваш рахунок після того, як замовлення отримає статус "Виконано".</p>
+            <p className="text-tiffany font-bold text-lg mb-1">Очікується +{completedOrder?.cashbackPending ?? estimatedBonuses} бонусів</p>
+            <p className="text-xs text-slate-400">Бонуси зарахуються після підтвердження оплати або виконання замовлення.</p>
           </div>
           <Link to="/" className="inline-block bg-slate-900 text-white px-10 py-4 rounded-2xl font-bold hover:bg-tiffany transition-all">
             На головну
@@ -173,7 +205,7 @@ export const Cart = () => {
                   <Star size={24} fill="currentColor" />
                 </div>
                 <div>
-                  <h3 className="font-bold text-lg">Отримайте {Math.floor(totalPrice * 0.05)} бонусів!</h3>
+                  <h3 className="font-bold text-lg">Отримайте до {estimatedBonuses} бонусів!</h3>
                   <p className="text-white/50 text-sm">Зареєструйтесь зараз, щоб отримати кешбек та доступ до системи бонусів.</p>
                 </div>
               </div>
@@ -182,6 +214,7 @@ export const Cart = () => {
                   Увійти / Реєстрація
                 </Link>
                 <button 
+                  type="button"
                   onClick={() => setIsQuickOrder(true)}
                   className="bg-white/10 text-white px-6 py-3 rounded-xl font-bold text-sm hover:bg-white/20 transition-all border border-white/10"
                 >
@@ -404,19 +437,40 @@ export const Cart = () => {
                       </div>
                       <div>
                         <h3 className="font-bold text-slate-900 text-sm">Ваші бонуси</h3>
-                        <p className="text-xs text-slate-500">{userBonuses} доступно</p>
+                        <p className="text-xs text-slate-500">{availableBonuses} доступно · {cashbackPercent}% кешбек</p>
                       </div>
                     </div>
                     <button 
+                      type="button"
                       onClick={toggleBonuses}
-                      className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${useBonuses ? 'bg-gold text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
+                      disabled={!useBonuses && usableBonusAmount <= 0}
+                      className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${
+                        useBonuses
+                          ? 'bg-gold text-white'
+                          : usableBonusAmount > 0
+                            ? 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                            : 'bg-slate-50 text-slate-300 cursor-not-allowed'
+                      }`}
                     >
-                      {useBonuses ? 'Застосовано' : 'Застосувати'}
+                      {useBonuses ? 'Застосовано' : usableBonusAmount > 0 ? 'Застосувати' : 'Недоступно'}
                     </button>
                   </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="rounded-2xl bg-slate-50 p-4">
+                      <div className="text-[10px] uppercase tracking-widest text-slate-400 font-bold">Можна списати</div>
+                      <div className="text-lg font-bold text-slate-900">{usableBonusAmount} грн</div>
+                    </div>
+                    <div className="rounded-2xl bg-tiffany/5 p-4">
+                      <div className="text-[10px] uppercase tracking-widest text-slate-400 font-bold">Ліміт</div>
+                      <div className="text-lg font-bold text-tiffany">30%</div>
+                    </div>
+                  </div>
+                  <p className="mt-3 text-[11px] leading-relaxed text-slate-400">
+                    Списання працює після промокоду: 1 бонус = 1 грн, максимум 30% суми.
+                  </p>
                   {useBonuses && (
-                    <div className="text-[10px] text-gold font-bold uppercase tracking-widest">
-                      Знижка: -{appliedBonuses} грн
+                    <div className="mt-3 text-[10px] text-gold font-bold uppercase tracking-widest">
+                      Знижка: -{appliedBonusAmount} грн
                     </div>
                   )}
                 </div>
@@ -434,6 +488,7 @@ export const Cart = () => {
                     className="flex-1 bg-slate-50 border-none rounded-xl px-4 py-2 text-sm focus:ring-2 focus:ring-tiffany transition-all"
                   />
                   <button 
+                    type="button"
                     onClick={handleApplyBonusCode}
                     className="bg-slate-900 text-white px-4 py-2 rounded-xl text-xs font-bold hover:bg-tiffany transition-all"
                   >
@@ -458,10 +513,10 @@ export const Cart = () => {
                   <span>Товари ({cart.length})</span>
                   <span>{totalPrice} грн</span>
                 </div>
-                {useBonuses && (
+                {useBonuses && appliedBonusAmount > 0 && (
                   <div className="flex justify-between text-gold text-sm">
                     <span>Бонуси</span>
-                    <span>-{appliedBonuses} грн</span>
+                    <span>-{appliedBonusAmount} грн</span>
                   </div>
                 )}
                 {appliedBonusCode && (
@@ -480,17 +535,26 @@ export const Cart = () => {
                   <span className="text-tiffany">{finalTotal} грн</span>
                 </div>
                 <div className="bg-white/5 p-4 rounded-2xl text-center">
-                  <div className="text-tiffany font-bold text-sm">+{Math.floor(finalTotal * 0.05)} бонусів</div>
-                  <div className="text-[10px] text-white/30 uppercase tracking-widest font-bold">Отримаєте за покупку</div>
+                  <div className="text-tiffany font-bold text-sm">+{estimatedBonuses} бонусів</div>
+                  <div className="text-[10px] text-white/30 uppercase tracking-widest font-bold">Після оплати · {cashbackPercent}% кешбек</div>
                 </div>
               </div>
+              {checkoutError && (
+                <div className="mb-4 rounded-2xl border border-red-400/20 bg-red-500/10 p-4 text-sm text-red-100">
+                  {checkoutError}
+                </div>
+              )}
 
               <button 
                 form="checkout-form"
                 type="submit"
-                className="w-full bg-tiffany text-white py-5 rounded-2xl font-bold text-lg flex items-center justify-center gap-3 hover:bg-white hover:text-tiffany transition-all shadow-xl shadow-tiffany/20"
+                disabled={isSubmitting}
+                className={`w-full bg-tiffany text-white py-5 rounded-2xl font-bold text-lg flex items-center justify-center gap-3 transition-all shadow-xl shadow-tiffany/20 ${
+                  isSubmitting ? 'opacity-70 cursor-wait' : 'hover:bg-white hover:text-tiffany'
+                }`}
               >
-                Підтвердити замовлення
+                {isSubmitting ? 'Створюємо замовлення...' : 'Підтвердити замовлення'}
+                {!isSubmitting && <ArrowRight size={18} />}
               </button>
               
               <div className="mt-8 space-y-4">

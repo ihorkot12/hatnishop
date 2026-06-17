@@ -48,6 +48,7 @@ export interface Order {
   comment?: string;
   trackingNumber?: string;
   bonusesCredited?: boolean;
+  bonusesRestored?: boolean;
   created_at?: string;
 }
 
@@ -115,6 +116,7 @@ export interface DatabaseAdapter {
   updateOrderStatus(id: string, status: string): Promise<void>;
   updateOrderTrackingNumber(id: string, trackingNumber: string): Promise<void>;
   markOrderBonusesCredited(id: string): Promise<void>;
+  markOrderBonusesRestored(id: string): Promise<void>;
   getCategories(): Promise<Category[]>;
   createCategory(category: Partial<Category>): Promise<void>;
   updateCategory(id: string, category: Partial<Category>): Promise<void>;
@@ -148,5 +150,6 @@ export interface DatabaseAdapter {
     salesByCategory: { name: string; value: number }[];
   }>;
   updateUserBonuses(id: string, bonuses: number): Promise<void>;
+  addUserTotalSpent(id: string, amount: number): Promise<void>;
   resetStats(): Promise<void>;
 }

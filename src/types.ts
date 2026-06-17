@@ -46,7 +46,7 @@ export interface Order {
     city: string;
     warehouse: string;
   };
-  paymentMethod: 'mono' | 'liqpay' | 'cash';
+  paymentMethod: 'mono' | 'liqpay' | 'cash' | 'card' | 'bank';
   status: 'pending' | 'paid' | 'shipped' | 'completed' | 'cancelled';
   createdAt: string;
   comment?: string;

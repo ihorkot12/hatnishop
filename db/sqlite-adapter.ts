@@ -62,6 +62,7 @@ export class SqliteAdapter implements DatabaseAdapter {
         bonus_used REAL DEFAULT 0,
         final_total REAL,
         bonuses_credited INTEGER DEFAULT 0,
+        bonuses_restored INTEGER DEFAULT 0,
         tracking_number TEXT,
         comment TEXT,
         payment_method TEXT,
@@ -167,6 +168,7 @@ export class SqliteAdapter implements DatabaseAdapter {
     try { this.db.prepare("ALTER TABLE products ADD COLUMN bonus_points INTEGER DEFAULT 0").run(); } catch (e) {}
     try { this.db.prepare("ALTER TABLE products ADD COLUMN bundle_items TEXT DEFAULT '[]'").run(); } catch (e) {}
     try { this.db.prepare("ALTER TABLE products ADD COLUMN cost_price REAL").run(); } catch (e) {}
+    try { this.db.prepare("ALTER TABLE orders ADD COLUMN bonuses_restored INTEGER DEFAULT 0").run(); } catch (e) {}
     try { this.db.prepare("ALTER TABLE site_settings ADD COLUMN hero_title TEXT DEFAULT 'Естетичний посуд та декор для дому'").run(); } catch (e) {}
     try { this.db.prepare("ALTER TABLE site_settings ADD COLUMN hero_subtitle TEXT DEFAULT 'Інтернет-магазин \"Хатні Штучки\" — ваш провідник у світ затишку. Купуйте кераміку, текстиль та аксесуари, які перетворюють оселю на місце сили.'").run(); } catch (e) {}
     try { this.db.prepare("ALTER TABLE site_settings ADD COLUMN hero_featured_product_id TEXT DEFAULT 'p1'").run(); } catch (e) {}
@@ -285,7 +287,7 @@ export class SqliteAdapter implements DatabaseAdapter {
       VALUES (?, ?, ?, ?)
     `);
 
-    const updateBonuses = this.db.prepare("UPDATE users SET bonuses = MAX(bonuses - ?, 0), total_spent = total_spent + ? WHERE id = ?");
+    const updateBonuses = this.db.prepare("UPDATE users SET bonuses = MAX(bonuses - ?, 0) WHERE id = ?");
     const updateStock = this.db.prepare("UPDATE products SET stock = stock - ? WHERE id = ?");
 
     const transaction = this.db.transaction(() => {
@@ -313,7 +315,7 @@ export class SqliteAdapter implements DatabaseAdapter {
       }
 
       if (order.user_id) {
-        updateBonuses.run(bonusUsed || 0, finalTotal, order.user_id);
+        updateBonuses.run(bonusUsed || 0, order.user_id);
       }
     });
 
@@ -332,6 +334,7 @@ export class SqliteAdapter implements DatabaseAdapter {
       `).all(order.id) as any[];
       result.push({
         id: order.id,
+        user_id: order.user_id,
         total: Number(order.total),
         bonusUsed: Number(order.bonus_used || 0),
         finalTotal: Number(order.final_total || order.total),
@@ -339,6 +342,7 @@ export class SqliteAdapter implements DatabaseAdapter {
         status: order.status,
         createdAt: order.created_at,
         bonusesCredited: !!order.bonuses_credited,
+        bonusesRestored: !!order.bonuses_restored,
         trackingNumber: order.tracking_number,
         comment: order.comment,
         customer: {
@@ -372,6 +376,14 @@ export class SqliteAdapter implements DatabaseAdapter {
 
   async markOrderBonusesCredited(id: string): Promise<void> {
     this.db.prepare("UPDATE orders SET bonuses_credited = 1 WHERE id = ?").run(id);
+  }
+
+  async markOrderBonusesRestored(id: string): Promise<void> {
+    this.db.prepare("UPDATE orders SET bonuses_restored = 1 WHERE id = ?").run(id);
+  }
+
+  async addUserTotalSpent(id: string, amount: number): Promise<void> {
+    this.db.prepare("UPDATE users SET total_spent = MAX(total_spent + ?, 0) WHERE id = ?").run(amount, id);
   }
 
   async getCategories(): Promise<Category[]> {

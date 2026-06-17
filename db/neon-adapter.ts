@@ -74,6 +74,7 @@ export class NeonAdapter implements DatabaseAdapter {
         bonus_used NUMERIC DEFAULT 0,
         final_total NUMERIC NOT NULL,
         bonuses_credited BOOLEAN DEFAULT FALSE,
+        bonuses_restored BOOLEAN DEFAULT FALSE,
         tracking_number TEXT,
         comment TEXT,
         payment_method TEXT,
@@ -93,6 +94,7 @@ export class NeonAdapter implements DatabaseAdapter {
       await this.sql`ALTER TABLE orders ADD COLUMN IF NOT EXISTS bonus_used NUMERIC DEFAULT 0`;
       await this.sql`ALTER TABLE orders ADD COLUMN IF NOT EXISTS final_total NUMERIC`;
       await this.sql`ALTER TABLE orders ADD COLUMN IF NOT EXISTS bonuses_credited BOOLEAN DEFAULT FALSE`;
+      await this.sql`ALTER TABLE orders ADD COLUMN IF NOT EXISTS bonuses_restored BOOLEAN DEFAULT FALSE`;
       await this.sql`ALTER TABLE orders ADD COLUMN IF NOT EXISTS tracking_number TEXT`;
       await this.sql`ALTER TABLE orders ADD COLUMN IF NOT EXISTS comment TEXT`;
     } catch (e) {
@@ -403,8 +405,7 @@ export class NeonAdapter implements DatabaseAdapter {
     if (order.user_id) {
       await this.sql`
         UPDATE users 
-        SET bonuses = GREATEST(bonuses - ${bonusUsed || 0}, 0), 
-            total_spent = total_spent + ${finalTotal} 
+        SET bonuses = GREATEST(bonuses - ${bonusUsed || 0}, 0)
         WHERE id = ${order.user_id}
       `;
     }
@@ -430,6 +431,7 @@ export class NeonAdapter implements DatabaseAdapter {
 
     return orders.map((order: any) => ({
       id: order.id,
+      user_id: order.user_id,
       total: Number(order.total),
       bonusUsed: Number(order.bonus_used || 0),
       finalTotal: Number(order.final_total || order.total),
@@ -437,6 +439,7 @@ export class NeonAdapter implements DatabaseAdapter {
       status: order.status,
       createdAt: order.created_at,
       bonusesCredited: order.bonuses_credited,
+      bonusesRestored: order.bonuses_restored,
       trackingNumber: order.tracking_number,
       comment: order.comment,
       customer: {
@@ -468,6 +471,14 @@ export class NeonAdapter implements DatabaseAdapter {
 
   async markOrderBonusesCredited(id: string): Promise<void> {
     await this.sql`UPDATE orders SET bonuses_credited = TRUE WHERE id = ${id}`;
+  }
+
+  async markOrderBonusesRestored(id: string): Promise<void> {
+    await this.sql`UPDATE orders SET bonuses_restored = TRUE WHERE id = ${id}`;
+  }
+
+  async addUserTotalSpent(id: string, amount: number): Promise<void> {
+    await this.sql`UPDATE users SET total_spent = GREATEST(total_spent + ${amount}, 0) WHERE id = ${id}`;
   }
 
   async getCategories(): Promise<Category[]> {

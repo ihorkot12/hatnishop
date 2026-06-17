@@ -68,6 +68,8 @@ const ORDER_STATUS_LABELS: Record<string, string> = {
   completed: "виконано",
   cancelled: "скасовано"
 };
+const BONUS_SPEND_LIMIT_RATE = 0.3;
+const PAYMENT_METHODS = new Set(["cash", "mono", "liqpay", "card", "bank"]);
 const loginAttempts = new Map<string, { count: number; firstAttempt: number }>();
 
 // Helper to handle async errors
@@ -91,6 +93,22 @@ const toFiniteNumber = (value: any, fallback = 0) => {
 
 const normalizeString = (value: any, maxLength = 500) =>
   String(value || "").trim().slice(0, maxLength);
+
+const normalizePaymentMethod = (value: any) => {
+  const method = normalizeString(value, 40).toLowerCase();
+  if (method === "monopay" || method === "mono-pay") return "mono";
+  if (method === "liq-pay") return "liqpay";
+  return PAYMENT_METHODS.has(method) ? method : "cash";
+};
+
+const getCashbackRate = (totalSpent: number) => {
+  if (totalSpent >= 15000) return 0.1;
+  if (totalSpent >= 5000) return 0.07;
+  return 0.05;
+};
+
+const calculateBonusSpendLimit = (subtotalAfterPromo: number) =>
+  Math.max(0, Math.floor(subtotalAfterPromo * BONUS_SPEND_LIMIT_RATE));
 
 const getOptionalUser = (req: any) => {
   const token = req.cookies?.token;
@@ -1143,26 +1161,67 @@ app.post("/api/auth/register", asyncHandler(async (req: any, res: any) => {
       await (db as any).updateOrderTrackingNumber(orderId, trackingNumber);
     }
 
+    const orderUserId = order.user_id;
+    const orderFinalTotal = Math.max(0, Math.floor(toFiniteNumber(order.finalTotal)));
+    const orderBonusUsed = Math.max(0, Math.floor(toFiniteNumber(order.bonusUsed)));
+
     // Credit cashback once, after the order is paid or completed.
-    if ((status === 'paid' || status === 'completed') && !order.bonusesCredited && order.user_id) {
-      const user = await db.getUserById(order.user_id);
-      const totalSpent = toFiniteNumber(user?.total_spent);
-      let bonusRate = 0.05;
-      if (totalSpent >= 15000) bonusRate = 0.10;
-      else if (totalSpent >= 5000) bonusRate = 0.07;
-      const earnedBonuses = Math.floor(order.finalTotal * bonusRate);
-      
+    if ((status === 'paid' || status === 'completed') && !order.bonusesCredited && !order.bonusesRestored && orderUserId) {
+      const user = await db.getUserById(orderUserId);
       if (user) {
-        await db.updateUserBonuses(order.user_id, (user.bonuses || 0) + earnedBonuses);
+        const earnedBonuses = Math.floor(orderFinalTotal * getCashbackRate(toFiniteNumber(user.total_spent)));
+        await db.updateUserBonuses(orderUserId, Math.max(0, Math.floor(toFiniteNumber(user.bonuses)) + earnedBonuses));
+        await db.addUserTotalSpent(orderUserId, orderFinalTotal);
         if ((db as any).markOrderBonusesCredited) {
           await (db as any).markOrderBonusesCredited(orderId);
         }
         await notifyUser(
-          order.user_id,
+          orderUserId,
           "Бонуси нараховано",
           `За замовлення ${orderId} нараховано ${earnedBonuses} бонусів.`,
           "bonus_credit"
         );
+      }
+    }
+
+    // Return stock, spent bonuses, and cashback if an order is cancelled.
+    if (status === 'cancelled' && !order.bonusesRestored) {
+      for (const item of order.items || []) {
+        const quantity = Math.max(0, Math.floor(toFiniteNumber(item.quantity)));
+        if (item.id && quantity > 0) {
+          await db.updateProductStock(item.id, -quantity);
+        }
+      }
+
+      if (orderUserId && (orderBonusUsed > 0 || order.bonusesCredited)) {
+        const user = await db.getUserById(orderUserId);
+        if (user) {
+          let nextBonuses = Math.max(0, Math.floor(toFiniteNumber(user.bonuses)));
+          if (orderBonusUsed > 0) {
+            nextBonuses += orderBonusUsed;
+          }
+
+          if (order.bonusesCredited) {
+            const spentBeforeOrder = Math.max(0, toFiniteNumber(user.total_spent) - orderFinalTotal);
+            const creditedBonuses = Math.floor(orderFinalTotal * getCashbackRate(spentBeforeOrder));
+            nextBonuses = Math.max(0, nextBonuses - creditedBonuses);
+            await db.addUserTotalSpent(orderUserId, -orderFinalTotal);
+          }
+
+          await db.updateUserBonuses(orderUserId, nextBonuses);
+          if (orderBonusUsed > 0) {
+            await notifyUser(
+              orderUserId,
+              "Бонуси повернено",
+              `За скасоване замовлення ${orderId} повернено ${orderBonusUsed} бонусів.`,
+              "bonus_refund"
+            );
+          }
+        }
+      }
+
+      if ((db as any).markOrderBonusesRestored) {
+        await (db as any).markOrderBonusesRestored(orderId);
       }
     }
 
@@ -1391,9 +1450,7 @@ app.get("/api/admin/users", authenticate, asyncHandler(async (req: any, res: any
       const warehouse = normalizeString(customer.warehouse, 180);
       const deliveryMethod = normalizeString(customer.deliveryMethod, 60) || "nova-poshta";
       const comment = normalizeString(req.body?.comment, 700);
-      const paymentMethod = ["cash", "card", "bank"].includes(req.body?.paymentMethod)
-        ? req.body.paymentMethod
-        : "cash";
+      const paymentMethod = normalizePaymentMethod(req.body?.paymentMethod);
 
       if (!customerName || !customerPhone || !customerCity) {
         return res.status(400).json({ error: "Заповніть ім'я, телефон і місто доставки" });
@@ -1453,15 +1510,20 @@ app.get("/api/admin/users", authenticate, asyncHandler(async (req: any, res: any
         promoDiscount = Math.min(Math.max(promoDiscount, 0), serverTotal);
       }
 
+      const bonusBase = Math.max(0, serverTotal - promoDiscount);
+      const bonusSpendLimit = calculateBonusSpendLimit(bonusBase);
+      const loyaltyUser = authUser?.id ? await db.getUserById(authUser.id) : null;
       let safeBonusUsed = 0;
       if (authUser?.id) {
         const requestedBonus = Math.max(0, Math.floor(toFiniteNumber(req.body?.bonusUsed)));
         if (requestedBonus > 0) {
-          const user = await db.getUserById(authUser.id);
-          safeBonusUsed = Math.min(requestedBonus, Math.floor(toFiniteNumber(user?.bonuses)), Math.floor(serverTotal * 0.5));
+          safeBonusUsed = Math.min(requestedBonus, Math.floor(toFiniteNumber(loyaltyUser?.bonuses)), bonusSpendLimit);
         }
       }
-      const safeFinalTotal = Math.max(0, serverTotal - promoDiscount - safeBonusUsed);
+      const safeFinalTotal = Math.max(0, bonusBase - safeBonusUsed);
+      const cashbackPending = loyaltyUser
+        ? Math.floor(safeFinalTotal * getCashbackRate(toFiniteNumber(loyaltyUser.total_spent)))
+        : 0;
 
       await db.createOrder({
         id: orderId,
@@ -1502,8 +1564,10 @@ app.get("/api/admin/users", authenticate, asyncHandler(async (req: any, res: any
         orderId,
         total: serverTotal,
         bonusUsed: safeBonusUsed,
+        bonusLimit: bonusSpendLimit,
         discount: promoDiscount,
-        finalTotal: safeFinalTotal
+        finalTotal: safeFinalTotal,
+        cashbackPending
       });
     } catch (err: any) {
       const { isQuota, isFirst } = recordDbError(err);

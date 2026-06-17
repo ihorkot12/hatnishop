@@ -91,6 +91,12 @@ try {
   const userCookie = userRegister.cookie;
   const userId = userRegister.json.user.id;
 
+  const grantBonuses = await request(`/api/admin/users/${userId}/bonuses`, {
+    method: 'PUT',
+    body: JSON.stringify({ bonuses: 1000 }),
+  }, adminCookie);
+  check('admin grant client bonuses', grantBonuses.ok, grantBonuses.json);
+
   const catId = `smoke-cat-${stamp}`;
   const productId = `smoke-product-${stamp}`;
   const category = await request('/api/admin/categories', {
@@ -176,21 +182,83 @@ try {
       },
       items: [{ id: productId, quantity: 1, price: 1 }],
       total: 1,
-      bonusUsed: 0,
+      bonusUsed: 999,
       promoCode: `SMOKE${stamp}`,
       finalTotal: 1,
-      paymentMethod: 'cash',
+      paymentMethod: 'mono',
       comment: 'local smoke',
     }),
   }, userCookie);
   check('client create order', order.ok, order.json);
-  check('server recalculates order price', order.json.total === 699 && order.json.finalTotal === 630, order.json);
+  check('server recalculates order price and bonus cap', (
+    order.json.total === 699 &&
+    order.json.discount === 69 &&
+    order.json.bonusLimit === 189 &&
+    order.json.bonusUsed === 189 &&
+    order.json.finalTotal === 441 &&
+    order.json.cashbackPending === 22
+  ), order.json);
+
+  const afterCreateMe = await request('/api/auth/me', {}, userCookie);
+  check('client bonuses deducted before payment', (
+    afterCreateMe.ok &&
+    afterCreateMe.json.user.bonuses === 811 &&
+    Number(afterCreateMe.json.user.total_spent) === 0
+  ), afterCreateMe.json);
+
+  const adminOrders = await request('/api/admin/orders', {}, adminCookie);
+  const createdOrder = adminOrders.json?.find?.((item) => item.id === orderId);
+  check('admin sees mono payment method', createdOrder?.paymentMethod === 'mono', createdOrder);
 
   const status = await request(`/api/admin/orders/${orderId}/status`, {
     method: 'POST',
     body: JSON.stringify({ status: 'completed' }),
   }, adminCookie);
   check('admin complete order', status.ok, status.json);
+
+  const afterCompleteMe = await request('/api/auth/me', {}, userCookie);
+  check('client cashback credited after completion', (
+    afterCompleteMe.ok &&
+    afterCompleteMe.json.user.bonuses === 833 &&
+    Number(afterCompleteMe.json.user.total_spent) === 441
+  ), afterCompleteMe.json);
+
+  const cancelOrderId = `SMOKE-CANCEL-${stamp}`;
+  const cancelOrder = await request('/api/orders', {
+    method: 'POST',
+    body: JSON.stringify({
+      id: cancelOrderId,
+      userId,
+      customer: {
+        name: user.name,
+        phone: '+380000000000',
+        email: user.email,
+        city: 'Kyiv',
+        deliveryMethod: 'nova-poshta',
+        warehouse: '1',
+      },
+      items: [{ id: productId, quantity: 1, price: 1 }],
+      total: 1,
+      bonusUsed: 100,
+      finalTotal: 1,
+      paymentMethod: 'liqpay',
+      comment: 'local smoke cancel',
+    }),
+  }, userCookie);
+  check('client create cancellable order', cancelOrder.ok && cancelOrder.json.bonusUsed === 100 && cancelOrder.json.finalTotal === 599, cancelOrder.json);
+
+  const cancelStatus = await request(`/api/admin/orders/${cancelOrderId}/status`, {
+    method: 'POST',
+    body: JSON.stringify({ status: 'cancelled' }),
+  }, adminCookie);
+  check('admin cancel order', cancelStatus.ok, cancelStatus.json);
+
+  const afterCancelMe = await request('/api/auth/me', {}, userCookie);
+  check('client bonuses restored after cancellation', (
+    afterCancelMe.ok &&
+    afterCancelMe.json.user.bonuses === 833 &&
+    Number(afterCancelMe.json.user.total_spent) === 441
+  ), afterCancelMe.json);
 
   const review = await request('/api/reviews', {
     method: 'POST',

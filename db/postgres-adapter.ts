@@ -68,6 +68,7 @@ export class PostgresAdapter implements DatabaseAdapter {
           bonus_used REAL DEFAULT 0,
           final_total REAL,
           bonuses_credited INTEGER DEFAULT 0,
+          bonuses_restored INTEGER DEFAULT 0,
           tracking_number TEXT,
           comment TEXT,
           payment_method TEXT,
@@ -77,6 +78,10 @@ export class PostgresAdapter implements DatabaseAdapter {
         );
       `;
       console.log("Orders table ready");
+
+      await sql`
+        ALTER TABLE orders ADD COLUMN IF NOT EXISTS bonuses_restored INTEGER DEFAULT 0;
+      `;
 
       await sql`
         CREATE TABLE IF NOT EXISTS bonus_codes (
@@ -353,8 +358,7 @@ export class PostgresAdapter implements DatabaseAdapter {
       if (order.user_id) {
         await client.sql`
           UPDATE users 
-          SET bonuses = GREATEST(bonuses - ${bonusUsed || 0}, 0), 
-              total_spent = total_spent + ${finalTotal} 
+          SET bonuses = GREATEST(bonuses - ${bonusUsed || 0}, 0)
           WHERE id = ${order.user_id}
         `;
       }
@@ -380,6 +384,7 @@ export class PostgresAdapter implements DatabaseAdapter {
       `;
       result.push({
         id: order.id,
+        user_id: order.user_id,
         total: Number(order.total),
         bonusUsed: Number(order.bonus_used || 0),
         finalTotal: Number(order.final_total || order.total),
@@ -387,6 +392,7 @@ export class PostgresAdapter implements DatabaseAdapter {
         status: order.status,
         createdAt: order.created_at,
         bonusesCredited: !!order.bonuses_credited,
+        bonusesRestored: !!order.bonuses_restored,
         trackingNumber: order.tracking_number,
         comment: order.comment,
         customer: {
@@ -420,6 +426,14 @@ export class PostgresAdapter implements DatabaseAdapter {
 
   async markOrderBonusesCredited(id: string): Promise<void> {
     await sql`UPDATE orders SET bonuses_credited = 1 WHERE id = ${id}`;
+  }
+
+  async markOrderBonusesRestored(id: string): Promise<void> {
+    await sql`UPDATE orders SET bonuses_restored = 1 WHERE id = ${id}`;
+  }
+
+  async addUserTotalSpent(id: string, amount: number): Promise<void> {
+    await sql`UPDATE users SET total_spent = GREATEST(total_spent + ${amount}, 0) WHERE id = ${id}`;
   }
 
   async getCategories(): Promise<Category[]> {

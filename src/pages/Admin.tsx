@@ -29,6 +29,33 @@ const categoryData = [
   { name: 'Декор', value: 200 },
 ];
 
+const PAYMENT_LABELS: Record<string, string> = {
+  mono: 'Mono Pay',
+  liqpay: 'LiqPay',
+  cash: 'Накладений платіж',
+  card: 'Карта',
+  bank: 'Переказ на рахунок'
+};
+
+const DELIVERY_LABELS: Record<string, string> = {
+  'nova-poshta': 'Нова Пошта',
+  'ukr-poshta': 'Укрпошта'
+};
+
+const getPaymentLabel = (method?: string) => PAYMENT_LABELS[method || ''] || 'Накладений платіж';
+const getDeliveryLabel = (method?: string) => DELIVERY_LABELS[method || ''] || 'Нова Пошта';
+const getOrderCustomer = (order: any) => ({
+  name: order?.customer?.name ?? order?.customer_name ?? '',
+  email: order?.customer?.email ?? order?.customer_email ?? '',
+  phone: order?.customer?.phone ?? order?.customer_phone ?? '',
+  city: order?.customer?.city ?? order?.customer_city ?? '',
+});
+const getOrderPaymentMethod = (order: any) => order?.paymentMethod ?? order?.payment_method ?? 'cash';
+const getOrderDeliveryMethod = (order: any) => order?.customer?.deliveryMethod ?? order?.delivery_method;
+const getOrderBonusUsed = (order: any) => Number(order?.bonusUsed ?? order?.bonuses_used ?? order?.bonus_used ?? 0);
+const getOrderFinalTotal = (order: any) => Number(order?.finalTotal ?? order?.total_amount ?? order?.final_total ?? order?.total ?? 0);
+const getOrderCreatedAt = (order: any) => order?.createdAt ?? order?.created_at ?? new Date().toISOString();
+
 export const Admin = () => {
   const { user, loading } = useAuth();
   const navigate = useNavigate();
@@ -191,7 +218,7 @@ export const Admin = () => {
     if (activeTab === 'users') fetchUsers();
     if (activeTab === 'products') fetchProducts();
     if (activeTab === 'orders') fetchOrders();
-    if (activeTab === 'categories' || activeTab === 'import') fetchCategories();
+    if (activeTab === 'products' || activeTab === 'categories' || activeTab === 'import') fetchCategories();
     if (activeTab === 'analytics' || activeTab === 'ai-director') fetchStats();
     if (activeTab === 'ai-director') {
       fetchProducts();
@@ -2239,7 +2266,7 @@ export const Admin = () => {
                   <div className="flex justify-between items-start">
                     <div>
                       <h2 className="text-2xl font-bold mb-2">Замовлення #{editingOrder.id.slice(0, 8)}</h2>
-                      <p className="text-slate-500">{new Date(editingOrder.created_at).toLocaleString('uk-UA')}</p>
+                      <p className="text-slate-500">{new Date(getOrderCreatedAt(editingOrder)).toLocaleString('uk-UA')}</p>
                     </div>
                     <div className={`px-4 py-2 rounded-full text-xs font-bold uppercase ${
                       editingOrder.status === 'completed' ? 'bg-emerald-100 text-emerald-600' :
@@ -2259,19 +2286,19 @@ export const Admin = () => {
                       <div className="bg-slate-50 p-6 rounded-3xl space-y-3">
                         <div className="flex justify-between">
                           <span className="text-slate-500">Ім'я:</span>
-                          <span className="font-bold">{editingOrder.customer_name}</span>
+                          <span className="font-bold">{getOrderCustomer(editingOrder).name}</span>
                         </div>
                         <div className="flex justify-between">
                           <span className="text-slate-500">Email:</span>
-                          <span className="font-bold">{editingOrder.customer_email || '—'}</span>
+                          <span className="font-bold">{getOrderCustomer(editingOrder).email || '—'}</span>
                         </div>
                         <div className="flex justify-between">
                           <span className="text-slate-500">Телефон:</span>
-                          <span className="font-bold">{editingOrder.customer_phone}</span>
+                          <span className="font-bold">{getOrderCustomer(editingOrder).phone}</span>
                         </div>
                         <div className="flex justify-between">
                           <span className="text-slate-500">Місто:</span>
-                          <span className="font-bold">{editingOrder.customer_city}</span>
+                          <span className="font-bold">{getOrderCustomer(editingOrder).city}</span>
                         </div>
                       </div>
                     </div>
@@ -2281,15 +2308,15 @@ export const Admin = () => {
                       <div className="bg-slate-50 p-6 rounded-3xl space-y-3">
                         <div className="flex justify-between">
                           <span className="text-slate-500">Доставка:</span>
-                          <span className="font-bold">{editingOrder.delivery_method === 'nova-poshta' ? 'Нова Пошта' : 'Укрпошта'}</span>
+                          <span className="font-bold">{getDeliveryLabel(getOrderDeliveryMethod(editingOrder))}</span>
                         </div>
                         <div className="flex justify-between">
                           <span className="text-slate-500">Оплата:</span>
-                          <span className="font-bold">{editingOrder.payment_method === 'card' ? 'Карта' : 'Накладений платіж'}</span>
+                          <span className="font-bold">{getPaymentLabel(getOrderPaymentMethod(editingOrder))}</span>
                         </div>
                         <div className="flex justify-between">
                           <span className="text-slate-500">Бонуси:</span>
-                          <span className="font-bold text-emerald-600">-{editingOrder.bonuses_used} грн</span>
+                          <span className="font-bold text-emerald-600">-{getOrderBonusUsed(editingOrder)} грн</span>
                         </div>
                       </div>
                     </div>
@@ -2316,7 +2343,7 @@ export const Admin = () => {
                   <div className="flex justify-between items-center p-8 bg-slate-900 text-white rounded-[2rem]">
                     <div>
                       <div className="text-sm opacity-60">Разом до сплати</div>
-                      <div className="text-3xl font-bold">{editingOrder.total_amount} грн</div>
+                      <div className="text-3xl font-bold">{getOrderFinalTotal(editingOrder)} грн</div>
                     </div>
                     <button 
                       onClick={() => setShowOrderModal(false)}
@@ -2357,7 +2384,10 @@ export const Admin = () => {
                       <div className="space-y-2">
                         <label className="text-xs font-bold text-slate-400 uppercase">Спосіб оплати</label>
                         <select name="paymentMethod" className="w-full bg-slate-50 border-none rounded-xl p-4 focus:ring-2 focus:ring-tiffany">
+                          <option value="mono">Mono Pay</option>
+                          <option value="liqpay">LiqPay</option>
                           <option value="card">Карта</option>
+                          <option value="bank">Переказ на рахунок</option>
                           <option value="cash">Накладений платіж</option>
                         </select>
                       </div>
