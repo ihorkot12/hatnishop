@@ -450,7 +450,10 @@ app.get("/api/admin/db-init", authenticate, asyncHandler(async (req: any, res: a
 
 // --- API Routes ---
 // Health Check
-app.get("/api/health", (req, res) => {
+app.get("/api/health", asyncHandler(async (req, res) => {
+  if (!dbInitialized && !isDbInDegradedMode()) {
+    await ensureDb();
+  }
   res.json({ 
     status: "ok", 
     timestamp: new Date().toISOString(),
@@ -458,7 +461,7 @@ app.get("/api/health", (req, res) => {
     degraded: isDbInDegradedMode(),
     env: process.env.NODE_ENV || "development"
   });
-});
+}));
 
 app.get("/robots.txt", (req, res) => {
   res.type("text/plain").send([
