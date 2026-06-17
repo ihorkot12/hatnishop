@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Link, NavLink } from 'react-router-dom';
+import { Link, NavLink, useNavigate } from 'react-router-dom';
 import { ShoppingBag, Search, Menu, User, LogOut, Heart, X, Bell, BellOff, AlertTriangle } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useCart } from '../store/CartContext';
@@ -9,6 +9,7 @@ import { useNotifications } from '../store/NotificationContext';
 import { TopBar } from './TopBar';
 
 export const Navbar = () => {
+  const navigate = useNavigate();
   const { totalItems } = useCart();
   const { user, logout } = useAuth();
   const { wishlist } = useWishlist();
@@ -376,7 +377,13 @@ export const Navbar = () => {
                 className="w-full bg-slate-50 border-none rounded-[2rem] pl-16 pr-8 py-6 text-xl font-serif focus:ring-2 focus:ring-tiffany transition-all"
                 onKeyDown={(e) => {
                   if (e.key === 'Enter') {
-                    window.location.href = `/catalog?search=${(e.target as HTMLInputElement).value}`;
+                    const value = (e.target as HTMLInputElement).value.trim();
+                    if (value) {
+                      navigate(`/catalog?search=${encodeURIComponent(value)}`);
+                    } else {
+                      navigate('/catalog');
+                    }
+                    setIsSearchOpen(false);
                   }
                 }}
               />

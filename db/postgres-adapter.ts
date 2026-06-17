@@ -351,18 +351,9 @@ export class PostgresAdapter implements DatabaseAdapter {
       }
 
       if (order.user_id) {
-        const { rows } = await client.sql`SELECT total_spent FROM users WHERE id = ${order.user_id}`;
-        const user = rows[0];
-        const totalSpent = (user?.total_spent || 0) + finalTotal;
-        let bonusRate = 0.05;
-        if (totalSpent >= 15000) bonusRate = 0.10;
-        else if (totalSpent >= 5000) bonusRate = 0.07;
-        
-        const earnedBonuses = Math.floor(finalTotal * bonusRate);
-        
         await client.sql`
           UPDATE users 
-          SET bonuses = bonuses - ${bonusUsed || 0} + ${earnedBonuses}, 
+          SET bonuses = GREATEST(bonuses - ${bonusUsed || 0}, 0), 
               total_spent = total_spent + ${finalTotal} 
           WHERE id = ${order.user_id}
         `;

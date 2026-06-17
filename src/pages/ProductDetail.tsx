@@ -139,6 +139,7 @@ export const ProductDetail = () => {
   useEffect(() => {
     if (product) {
       document.title = `${product.name} — Купити в Хатні Штучки | Ціна ${product.price} грн`;
+      document.title = `${product.name} - купити в Хатні Штучки | ${product.price} грн`;
       if (product.aiDescription) {
         setStylingTip(product.aiDescription);
         setLoadingAi(false);
@@ -149,6 +150,39 @@ export const ProductDetail = () => {
       fetchReviews();
     }
   }, [product, user?.role]);
+
+  useEffect(() => {
+    document.getElementById('product-jsonld')?.remove();
+    if (!product) return;
+
+    const script = document.createElement('script');
+    script.id = 'product-jsonld';
+    script.type = 'application/ld+json';
+    script.text = JSON.stringify({
+      '@context': 'https://schema.org',
+      '@type': 'Product',
+      name: product.name,
+      image: [product.image, ...(Array.isArray(product.images) ? product.images : [])].filter(Boolean),
+      description: product.description,
+      brand: product.brand ? { '@type': 'Brand', name: product.brand } : undefined,
+      material: product.material,
+      offers: {
+        '@type': 'Offer',
+        url: `${window.location.origin}/product/${product.id}`,
+        priceCurrency: 'UAH',
+        price: Number(product.price || 0),
+        availability: Number(product.stock || 0) > 0 ? 'https://schema.org/InStock' : 'https://schema.org/OutOfStock'
+      },
+      aggregateRating: product.review_count > 0 ? {
+        '@type': 'AggregateRating',
+        ratingValue: Number(product.rating || 5),
+        reviewCount: Number(product.review_count || 0)
+      } : undefined
+    });
+    document.head.appendChild(script);
+
+    return () => script.remove();
+  }, [product]);
 
   const fetchReviews = async () => {
     try {

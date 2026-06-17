@@ -285,7 +285,7 @@ export class SqliteAdapter implements DatabaseAdapter {
       VALUES (?, ?, ?, ?)
     `);
 
-    const updateBonuses = this.db.prepare("UPDATE users SET bonuses = bonuses - ? + ?, total_spent = total_spent + ? WHERE id = ?");
+    const updateBonuses = this.db.prepare("UPDATE users SET bonuses = MAX(bonuses - ?, 0), total_spent = total_spent + ? WHERE id = ?");
     const updateStock = this.db.prepare("UPDATE products SET stock = stock - ? WHERE id = ?");
 
     const transaction = this.db.transaction(() => {
@@ -313,16 +313,7 @@ export class SqliteAdapter implements DatabaseAdapter {
       }
 
       if (order.user_id) {
-        // Calculate bonuses logic is moved to service layer or handled here simply
-        // Re-implementing simplified bonus logic here as per original server.ts
-        const user = this.db.prepare("SELECT total_spent FROM users WHERE id = ?").get(order.user_id) as any;
-        const totalSpent = (user?.total_spent || 0) + finalTotal;
-        let bonusRate = 0.05;
-        if (totalSpent >= 15000) bonusRate = 0.10;
-        else if (totalSpent >= 5000) bonusRate = 0.07;
-        
-        const earnedBonuses = Math.floor(finalTotal * bonusRate);
-        updateBonuses.run(bonusUsed || 0, earnedBonuses, finalTotal, order.user_id);
+        updateBonuses.run(bonusUsed || 0, finalTotal, order.user_id);
       }
     });
 

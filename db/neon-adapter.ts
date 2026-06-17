@@ -45,9 +45,9 @@ export class NeonAdapter implements DatabaseAdapter {
         bundle_items TEXT DEFAULT '[]',
         cost_price NUMERIC
       );
-      CREATE INDEX IF NOT EXISTS idx_products_category ON products(category);
-      CREATE INDEX IF NOT EXISTS idx_products_popular ON products(isPopular) WHERE isPopular = TRUE;
     `;
+    await this.sql`CREATE INDEX IF NOT EXISTS idx_products_category ON products(category)`;
+    await this.sql`CREATE INDEX IF NOT EXISTS idx_products_popular ON products(isPopular) WHERE isPopular = TRUE`;
 
     await this.sql`
       CREATE TABLE IF NOT EXISTS categories (
@@ -80,9 +80,9 @@ export class NeonAdapter implements DatabaseAdapter {
         status TEXT DEFAULT 'pending',
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
-      CREATE INDEX IF NOT EXISTS idx_orders_user_id ON orders(user_id);
-      CREATE INDEX IF NOT EXISTS idx_orders_created_at ON orders(created_at DESC);
     `;
+    await this.sql`CREATE INDEX IF NOT EXISTS idx_orders_user_id ON orders(user_id)`;
+    await this.sql`CREATE INDEX IF NOT EXISTS idx_orders_created_at ON orders(created_at DESC)`;
 
     // Try to add missing columns if table already exists
     try {
@@ -106,8 +106,8 @@ export class NeonAdapter implements DatabaseAdapter {
         quantity INTEGER NOT NULL,
         price NUMERIC NOT NULL
       );
-      CREATE INDEX IF NOT EXISTS idx_order_items_order_id ON order_items(order_id);
     `;
+    await this.sql`CREATE INDEX IF NOT EXISTS idx_order_items_order_id ON order_items(order_id)`;
 
     await this.sql`
       CREATE TABLE IF NOT EXISTS bonus_codes (
@@ -157,6 +157,17 @@ export class NeonAdapter implements DatabaseAdapter {
       await this.sql`INSERT INTO site_settings (id, free_delivery_min, return_days, cashback_percent, hero_title, hero_subtitle, hero_featured_product_id, hero_badge, bestsellers_badge, bestsellers_title, bestsellers_subtitle) VALUES ('default', 1500, 14, 5, 'Естетичний посуд та декор для дому', 'Інтернет-магазин "Хатні Штучки" — ваш провідник у світ затишку. Купуйте кераміку, текстиль та аксесуари, які перетворюють оселю на місце сили.', 'p1', 'Бестселер сезону', 'Наші бестселери', 'Популярні товари для вашого затишку', 'Обирайте найкращий посуд та декор, який став фаворитом наших покупців. Кожна річ у каталозі "Хатні Штучки" — це поєднання естетики та функціональності.')`;
     }
 
+    await this.sql`
+      UPDATE site_settings SET
+        hero_title = 'Естетичний посуд та декор для дому',
+        hero_subtitle = 'Інтернет-магазин "Хатні Штучки" - добірка кераміки, текстилю та домашніх аксесуарів, які додають оселі тепла.',
+        hero_badge = 'Бестселер сезону',
+        bestsellers_badge = 'Наші бестселери',
+        bestsellers_title = 'Популярні товари для вашого затишку',
+        bestsellers_subtitle = 'Обирайте посуд і декор, який покупці додають у свої домівки найчастіше.'
+      WHERE id = 'default' AND (hero_title LIKE 'Р%' OR hero_subtitle LIKE 'Р%')
+    `;
+
     // Migration for existing table
     try {
       await this.sql`ALTER TABLE site_settings ADD COLUMN IF NOT EXISTS hero_title TEXT DEFAULT 'Естетичний посуд та декор для дому'`;
@@ -181,9 +192,9 @@ export class NeonAdapter implements DatabaseAdapter {
         is_approved BOOLEAN DEFAULT FALSE,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
-      CREATE INDEX IF NOT EXISTS idx_reviews_product_id ON reviews(product_id);
-      CREATE INDEX IF NOT EXISTS idx_reviews_approved ON reviews(is_approved) WHERE is_approved = TRUE;
     `;
+    await this.sql`CREATE INDEX IF NOT EXISTS idx_reviews_product_id ON reviews(product_id)`;
+    await this.sql`CREATE INDEX IF NOT EXISTS idx_reviews_approved ON reviews(is_approved) WHERE is_approved = TRUE`;
 
     // Migration: Add is_approved to reviews if it doesn't exist
     try {
@@ -213,9 +224,9 @@ export class NeonAdapter implements DatabaseAdapter {
         is_read INTEGER DEFAULT 0,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
-      CREATE INDEX IF NOT EXISTS idx_notifications_user_id ON notifications(user_id);
-      CREATE INDEX IF NOT EXISTS idx_notifications_unread ON notifications(user_id) WHERE is_read = 0;
     `;
+    await this.sql`CREATE INDEX IF NOT EXISTS idx_notifications_user_id ON notifications(user_id)`;
+    await this.sql`CREATE INDEX IF NOT EXISTS idx_notifications_unread ON notifications(user_id) WHERE is_read = 0`;
 
     // Seed Categories
     try {
@@ -390,18 +401,9 @@ export class NeonAdapter implements DatabaseAdapter {
     }
 
     if (order.user_id) {
-      const rows = await this.sql`SELECT total_spent FROM users WHERE id = ${order.user_id}`;
-      const user = rows[0];
-      const totalSpent = (Number(user?.total_spent) || 0) + Number(finalTotal);
-      let bonusRate = 0.05;
-      if (totalSpent >= 15000) bonusRate = 0.10;
-      else if (totalSpent >= 5000) bonusRate = 0.07;
-      
-      const earnedBonuses = Math.floor(finalTotal * bonusRate);
-      
       await this.sql`
         UPDATE users 
-        SET bonuses = bonuses - ${bonusUsed || 0} + ${earnedBonuses}, 
+        SET bonuses = GREATEST(bonuses - ${bonusUsed || 0}, 0), 
             total_spent = total_spent + ${finalTotal} 
         WHERE id = ${order.user_id}
       `;

@@ -38,8 +38,8 @@ export const Cart = () => {
     return appliedBonusCode.discount_amount;
   };
 
-  const discount = calculateDiscount();
-  const finalTotal = totalPrice - (useBonuses ? appliedBonuses : 0) - discount;
+  const discount = Math.min(calculateDiscount(), totalPrice);
+  const finalTotal = Math.max(0, totalPrice - (useBonuses ? appliedBonuses : 0) - discount);
 
   const handleApplyBonusCode = async () => {
     if (!bonusCode.trim()) return;
@@ -79,6 +79,7 @@ export const Cart = () => {
       items: cart,
       total: totalPrice,
       bonusUsed: useBonuses ? appliedBonuses : 0,
+      promoCode: appliedBonusCode?.code,
       finalTotal: finalTotal,
       paymentMethod: formData.paymentMethod,
       comment: formData.comment
@@ -88,6 +89,7 @@ export const Cart = () => {
       const res = await fetch('/api/orders', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'same-origin',
         body: JSON.stringify(order)
       });
       if (res.ok) {

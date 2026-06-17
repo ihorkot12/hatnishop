@@ -1,6 +1,6 @@
 import { spawn } from 'node:child_process';
 
-const base = 'http://localhost:3000';
+const base = 'http://127.0.0.1:3000';
 const stamp = Date.now();
 const admin = { email: 'ihorkot12@gmail.com', password: '4756500' };
 const user = { email: `client-${stamp}@hatni.test`, password: 'testpass123', name: 'Test Client' };
@@ -38,7 +38,7 @@ const request = async (path, options = {}, cookie = '') => {
 };
 
 const waitForServer = async () => {
-  for (let i = 0; i < 40; i++) {
+  for (let i = 0; i < 100; i++) {
     try {
       const health = await request('/api/health');
       if (health.ok) return health;
@@ -48,7 +48,7 @@ const waitForServer = async () => {
   throw new Error('Server did not become ready');
 };
 
-const server = spawn(process.platform === 'win32' ? 'cmd.exe' : 'npm', process.platform === 'win32' ? ['/c', 'npm', 'run', 'dev'] : ['run', 'dev'], {
+const server = spawn(process.execPath, ['--import', 'tsx', 'server.ts'], {
   cwd: process.cwd(),
   env: { ...process.env, JWT_SECRET: 'local-test-secret' },
   stdio: ['ignore', 'pipe', 'pipe'],
@@ -69,6 +69,12 @@ const check = (name, condition, detail = {}) => {
 try {
   const health = await waitForServer();
   check('health', health.ok, health.json);
+
+  const robots = await request('/robots.txt');
+  check('robots.txt', robots.ok && robots.text.includes('Sitemap:'), { status: robots.status, text: robots.text.slice(0, 80) });
+
+  const sitemap = await request('/sitemap.xml');
+  check('sitemap.xml', sitemap.ok && sitemap.text.includes('<urlset'), { status: sitemap.status, text: sitemap.text.slice(0, 120) });
 
   const adminLogin = await request('/api/auth/login', {
     method: 'POST',
@@ -168,15 +174,17 @@ try {
         deliveryMethod: 'nova-poshta',
         warehouse: '1',
       },
-      items: [{ id: productId, quantity: 1, price: 699 }],
-      total: 699,
+      items: [{ id: productId, quantity: 1, price: 1 }],
+      total: 1,
       bonusUsed: 0,
-      finalTotal: 699,
+      promoCode: `SMOKE${stamp}`,
+      finalTotal: 1,
       paymentMethod: 'cash',
       comment: 'local smoke',
     }),
-  });
+  }, userCookie);
   check('client create order', order.ok, order.json);
+  check('server recalculates order price', order.json.total === 699 && order.json.finalTotal === 630, order.json);
 
   const status = await request(`/api/admin/orders/${orderId}/status`, {
     method: 'POST',

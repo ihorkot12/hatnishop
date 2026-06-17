@@ -55,10 +55,137 @@ const cleanJSON = (text: string) => text.replace(/```json\n?|```/g, "").trim();
 
 export const app = express();
 const PORT = 3000;
+const IS_PRODUCTION = process.env.NODE_ENV === "production" || !!process.env.VERCEL;
+const SITE_URL = (process.env.SITE_URL || process.env.PUBLIC_SITE_URL || "https://hatni.shop").replace(/\/+$/, "");
+const LOGIN_ATTEMPT_WINDOW_MS = 15 * 60 * 1000;
+const LOGIN_ATTEMPT_LIMIT = 8;
+const ORDER_STATUSES = new Set(["pending", "processing", "paid", "shipped", "completed", "cancelled"]);
+const ORDER_STATUS_LABELS: Record<string, string> = {
+  pending: "очікує обробки",
+  processing: "в обробці",
+  paid: "оплачено",
+  shipped: "відправлено",
+  completed: "виконано",
+  cancelled: "скасовано"
+};
+const loginAttempts = new Map<string, { count: number; firstAttempt: number }>();
 
 // Helper to handle async errors
 const asyncHandler = (fn: any) => (req: any, res: any, next: any) => {
   Promise.resolve(fn(req, res, next)).catch(next);
+};
+
+const xmlEscape = (value: string) =>
+  value.replace(/[<>&'"]/g, (char) => ({
+    "<": "&lt;",
+    ">": "&gt;",
+    "&": "&amp;",
+    "'": "&apos;",
+    '"': "&quot;",
+  }[char] || char));
+
+const toFiniteNumber = (value: any, fallback = 0) => {
+  const number = Number(value);
+  return Number.isFinite(number) ? number : fallback;
+};
+
+const normalizeString = (value: any, maxLength = 500) =>
+  String(value || "").trim().slice(0, maxLength);
+
+const getOptionalUser = (req: any) => {
+  const token = req.cookies?.token;
+  if (!token) return null;
+  try {
+    return jwt.verify(token, jwtSecret) as any;
+  } catch {
+    return null;
+  }
+};
+
+const getClientKey = (req: any, email = "") => {
+  const forwarded = String(req.headers["x-forwarded-for"] || "").split(",")[0].trim();
+  const ip = forwarded || req.ip || req.socket?.remoteAddress || "unknown";
+  return `${ip}:${email.toLowerCase()}`;
+};
+
+const canAttemptLogin = (req: any, email: string) => {
+  const key = getClientKey(req, email);
+  const now = Date.now();
+  const attempt = loginAttempts.get(key);
+  if (!attempt || now - attempt.firstAttempt > LOGIN_ATTEMPT_WINDOW_MS) {
+    loginAttempts.set(key, { count: 0, firstAttempt: now });
+    return true;
+  }
+  return attempt.count < LOGIN_ATTEMPT_LIMIT;
+};
+
+const recordLoginFailure = (req: any, email: string) => {
+  const key = getClientKey(req, email);
+  const now = Date.now();
+  const attempt = loginAttempts.get(key);
+  if (!attempt || now - attempt.firstAttempt > LOGIN_ATTEMPT_WINDOW_MS) {
+    loginAttempts.set(key, { count: 1, firstAttempt: now });
+    return;
+  }
+  loginAttempts.set(key, { count: attempt.count + 1, firstAttempt: attempt.firstAttempt });
+};
+
+const clearLoginFailures = (req: any, email: string) => {
+  loginAttempts.delete(getClientKey(req, email));
+};
+
+const notifyUser = async (userId: string | undefined, title: string, message: string, type: string) => {
+  if (!userId) return;
+  try {
+    await db.createNotification({
+      id: Math.random().toString(36).slice(2, 11),
+      user_id: userId,
+      title,
+      message,
+      type
+    });
+  } catch (error: any) {
+    console.warn("Notification skipped:", error?.message || error);
+  }
+};
+
+const notifyAdmins = async (title: string, message: string, type: string) => {
+  try {
+    const users = await db.getAllUsers();
+    const admins = users.filter((user) => user.role === "admin");
+    await Promise.all(admins.map((admin) => notifyUser(admin.id, title, message, type)));
+  } catch (error: any) {
+    console.warn("Admin notification skipped:", error?.message || error);
+  }
+};
+
+const sendTelegramOrderNotification = async (order: any, items: any[]) => {
+  const token = process.env.TELEGRAM_BOT_TOKEN;
+  const chatId = process.env.TELEGRAM_CHAT_ID;
+  if (!token || !chatId) return;
+
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 3500);
+  try {
+    const text = [
+      `Нове замовлення ${order.id}`,
+      `Клієнт: ${order.customer_name}`,
+      `Телефон: ${order.customer_phone}`,
+      `Сума: ${order.final_total} грн`,
+      `Товарів: ${items.reduce((sum, item) => sum + item.quantity, 0)}`
+    ].join("\n");
+
+    await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ chat_id: chatId, text }),
+      signal: controller.signal
+    });
+  } catch (error: any) {
+    console.warn("Telegram order notification skipped:", error?.message || error);
+  } finally {
+    clearTimeout(timeout);
+  }
 };
 
 // --- Caching Logic ---
@@ -145,6 +272,15 @@ const DEFAULT_SITE_SETTINGS = {
   bestsellers_title: 'Популярні товари для вашого затишку',
   bestsellers_subtitle: 'Обирайте найкращий посуд та декор, який став фаворитом наших покупців. Кожна річ у каталозі "Хатні Штучки" — це поєднання естетики та функціональності.'
 };
+
+Object.assign(DEFAULT_SITE_SETTINGS, {
+  hero_title: 'Естетичний посуд та декор для дому',
+  hero_subtitle: 'Інтернет-магазин "Хатні Штучки" - добірка кераміки, текстилю та домашніх аксесуарів, які додають оселі тепла.',
+  hero_badge: 'Бестселер сезону',
+  bestsellers_badge: 'Наші бестселери',
+  bestsellers_title: 'Популярні товари для вашого затишку',
+  bestsellers_subtitle: 'Обирайте посуд і декор, який покупці додають у свої домівки найчастіше.'
+});
 
 const FALLBACK_CATEGORIES = [
   { id: 'cat-1', name: 'Посуд', slug: 'posud', image: 'https://picsum.photos/seed/dishes/800/600' },
@@ -236,9 +372,60 @@ async function ensureDb() {
   }
 }
 
-app.use(express.json({ limit: '50mb' }));
-app.use(express.urlencoded({ limit: '50mb', extended: true }));
+app.disable("x-powered-by");
+
+app.use((req, res, next) => {
+  const cspDirectives = [
+    "default-src 'self'",
+    "base-uri 'self'",
+    "object-src 'none'",
+    "frame-ancestors 'self'",
+    "script-src 'self' 'unsafe-inline'",
+    "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+    "font-src 'self' https://fonts.gstatic.com data:",
+    "img-src 'self' data: blob: https:",
+    IS_PRODUCTION ? "connect-src 'self' https://*.vercel-insights.com" : "connect-src 'self' http: https: ws:",
+    "form-action 'self'",
+    IS_PRODUCTION ? "upgrade-insecure-requests" : ""
+  ].filter(Boolean);
+
+  res.setHeader("Content-Security-Policy", cspDirectives.join("; "));
+  res.setHeader("X-Content-Type-Options", "nosniff");
+  res.setHeader("Referrer-Policy", "strict-origin-when-cross-origin");
+  res.setHeader("Permissions-Policy", "camera=(), microphone=(), geolocation=(), payment=()");
+  res.setHeader("X-Frame-Options", "SAMEORIGIN");
+  next();
+});
+
+app.use(express.json({ limit: '15mb', strict: true }));
+app.use(express.urlencoded({ limit: '15mb', extended: true, parameterLimit: 200 }));
 app.use(cookieParser());
+
+app.use((req, res, next) => {
+  if (!["POST", "PUT", "PATCH", "DELETE"].includes(req.method)) {
+    return next();
+  }
+
+  const fetchSite = req.get("sec-fetch-site");
+  if (fetchSite === "cross-site") {
+    return res.status(403).json({ error: "Cross-site request blocked" });
+  }
+
+  const origin = req.get("origin");
+  if (origin) {
+    try {
+      const originHost = new URL(origin).host;
+      const requestHost = req.get("host");
+      if (requestHost && originHost !== requestHost) {
+        return res.status(403).json({ error: "Invalid request origin" });
+      }
+    } catch {
+      return res.status(403).json({ error: "Invalid request origin" });
+    }
+  }
+
+  next();
+});
 
 // Auth Middleware
 const authenticate = (req: any, res: any, next: any) => {
@@ -268,9 +455,60 @@ app.get("/api/health", (req, res) => {
     status: "ok", 
     timestamp: new Date().toISOString(),
     dbInitialized,
+    degraded: isDbInDegradedMode(),
     env: process.env.NODE_ENV || "development"
   });
 });
+
+app.get("/robots.txt", (req, res) => {
+  res.type("text/plain").send([
+    "User-agent: *",
+    "Allow: /",
+    "Disallow: /admin",
+    "Disallow: /login",
+    `Sitemap: ${SITE_URL}/sitemap.xml`,
+    ""
+  ].join("\n"));
+});
+
+app.get("/sitemap.xml", asyncHandler(async (req, res) => {
+  let products: any[] = [];
+  try {
+    if (!isDbInDegradedMode()) {
+      products = await db.getProductsSummary();
+    }
+  } catch (error: any) {
+    const { isQuota, isFirst } = recordDbError(error);
+    if (isFirst && !isQuota) {
+      console.warn("Error building sitemap from database:", error.message);
+    }
+  }
+
+  if (!products.length) {
+    products = productsSummaryCache?.data || FALLBACK_PRODUCTS;
+  }
+
+  const now = new Date().toISOString();
+  const staticUrls = ["/", "/catalog", "/about", "/faq"];
+  const productUrls = products
+    .filter((product) => product?.id)
+    .map((product) => `/product/${encodeURIComponent(product.id)}`);
+  const urls = [...staticUrls, ...productUrls];
+
+  const xml = `<?xml version="1.0" encoding="UTF-8"?>\n` +
+    `<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n` +
+    urls.map((url) => [
+      "  <url>",
+      `    <loc>${xmlEscape(`${SITE_URL}${url}`)}</loc>`,
+      `    <lastmod>${now}</lastmod>`,
+      url.startsWith("/product/") ? "    <changefreq>weekly</changefreq>" : "    <changefreq>daily</changefreq>",
+      url === "/" ? "    <priority>1.0</priority>" : "    <priority>0.8</priority>",
+      "  </url>"
+    ].join("\n")).join("\n") +
+    "\n</urlset>\n";
+
+  res.type("application/xml").send(xml);
+}));
 
 // Auth Routes
 app.post("/api/auth/register", asyncHandler(async (req: any, res: any) => {
@@ -301,18 +539,27 @@ app.post("/api/auth/register", asyncHandler(async (req: any, res: any) => {
       if (isDbInDegradedMode()) {
         throw new Error("Database is in degraded mode (quota exceeded)");
       }
-      const { email, password } = req.body;
+      const email = normalizeString(req.body?.email, 254).toLowerCase();
+      const password = normalizeString(req.body?.password, 200);
+      if (!email || !password) {
+        return res.status(400).json({ error: "Email and password are required" });
+      }
+      if (!canAttemptLogin(req, email)) {
+        return res.status(429).json({ error: "Too many login attempts. Try again in 15 minutes." });
+      }
       console.log(`Login attempt for: ${email}`);
       
       const user = await db.getUserByEmail(email);
       
       if (!user) {
         console.log(`User not found: ${email}`);
+        recordLoginFailure(req, email);
         return res.status(401).json({ error: "Користувача не знайдено" });
       }
 
       const isMatch = await bcrypt.compare(password, user.password || "");
       if (isMatch) {
+        clearLoginFailures(req, email);
         console.log(`Login successful for: ${email}`);
         const token = jwt.sign({ id: user.id, email: user.email, name: user.name, role: user.role }, jwtSecret);
         res.cookie("token", token, cookieOptions);
@@ -329,6 +576,7 @@ app.post("/api/auth/register", asyncHandler(async (req: any, res: any) => {
         });
       } else {
         console.log(`Invalid password for: ${email}`);
+        recordLoginFailure(req, email);
         res.status(401).json({ error: "Невірний пароль" });
       }
     } catch (err: any) {
@@ -866,7 +1114,11 @@ app.post("/api/auth/register", asyncHandler(async (req: any, res: any) => {
 
   app.post("/api/admin/orders/:id/status", authenticate, asyncHandler(async (req: any, res: any) => {
     if (req.user.role !== 'admin') return res.status(403).json({ error: "Forbidden" });
-    const { status, trackingNumber } = req.body;
+    const { trackingNumber } = req.body;
+    const status = normalizeString(req.body?.status, 40);
+    if (!ORDER_STATUSES.has(status)) {
+      return res.status(400).json({ error: "Invalid order status" });
+    }
     const orderId = req.params.id;
     
     // Get order details to check if bonuses should be credited
@@ -882,22 +1134,41 @@ app.post("/api/auth/register", asyncHandler(async (req: any, res: any) => {
       await (db as any).updateOrderTrackingNumber(orderId, trackingNumber);
     }
 
-    // Credit bonuses if status is paid or completed and not already credited
+    // Credit cashback once, after the order is paid or completed.
     if ((status === 'paid' || status === 'completed') && !order.bonusesCredited && order.user_id) {
-      const bonusRate = 0.05; // 5% cashback
+      const user = await db.getUserById(order.user_id);
+      const totalSpent = toFiniteNumber(user?.total_spent);
+      let bonusRate = 0.05;
+      if (totalSpent >= 15000) bonusRate = 0.10;
+      else if (totalSpent >= 5000) bonusRate = 0.07;
       const earnedBonuses = Math.floor(order.finalTotal * bonusRate);
       
-      const user = await db.getUserById(order.user_id);
       if (user) {
         await db.updateUserBonuses(order.user_id, (user.bonuses || 0) + earnedBonuses);
-        // We need a way to mark bonuses as credited in the DB
-        // I'll add a method to the adapter or use a raw query if possible
-        // For now, let's assume we need to add markOrderBonusesCredited to the interface
         if ((db as any).markOrderBonusesCredited) {
           await (db as any).markOrderBonusesCredited(orderId);
         }
+        await notifyUser(
+          order.user_id,
+          "Бонуси нараховано",
+          `За замовлення ${orderId} нараховано ${earnedBonuses} бонусів.`,
+          "bonus_credit"
+        );
       }
     }
+
+    const label = ORDER_STATUS_LABELS[status] || status;
+    await notifyUser(
+      order.user_id,
+      "Статус замовлення оновлено",
+      `Замовлення ${orderId}: ${label}${trackingNumber ? `. ТТН: ${trackingNumber}` : ""}.`,
+      "order_status"
+    );
+    await notifyAdmins(
+      "Статус замовлення оновлено",
+      `${req.user.email || "Адмін"} змінив ${orderId}: ${label}.`,
+      "order_status"
+    );
 
     res.json({ success: true });
   }));
@@ -1101,31 +1372,130 @@ app.get("/api/admin/users", authenticate, asyncHandler(async (req: any, res: any
       if (isDbInDegradedMode()) {
         throw new Error("Database is in degraded mode (quota exceeded)");
       }
-      const { id, customer, items, total, paymentMethod, bonusUsed, finalTotal, userId, comment } = req.body;
-      
-      // Map items to OrderItem interface
-      const orderItems = items.map((item: any) => ({
-        product_id: item.id,
-        quantity: item.quantity,
-        price: item.price
-      }));
+      const { customer = {}, items = [] } = req.body || {};
+      const orderId = normalizeString(req.body?.id, 64) || `ORD-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+      const authUser = getOptionalUser(req);
+      const customerName = normalizeString(customer.name, 120);
+      const customerPhone = normalizeString(customer.phone, 40);
+      const customerEmail = normalizeString(customer.email, 160);
+      const customerCity = normalizeString(customer.city, 120);
+      const warehouse = normalizeString(customer.warehouse, 180);
+      const deliveryMethod = normalizeString(customer.deliveryMethod, 60) || "nova-poshta";
+      const comment = normalizeString(req.body?.comment, 700);
+      const paymentMethod = ["cash", "card", "bank"].includes(req.body?.paymentMethod)
+        ? req.body.paymentMethod
+        : "cash";
+
+      if (!customerName || !customerPhone || !customerCity) {
+        return res.status(400).json({ error: "Заповніть ім'я, телефон і місто доставки" });
+      }
+      if (customerEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(customerEmail)) {
+        return res.status(400).json({ error: "Некоректний email" });
+      }
+      if (!Array.isArray(items) || items.length === 0) {
+        return res.status(400).json({ error: "Кошик порожній" });
+      }
+
+      const orderItems: any[] = [];
+      let serverTotal = 0;
+      for (const rawItem of items) {
+        const productId = normalizeString(rawItem?.id, 120);
+        const quantity = Math.floor(toFiniteNumber(rawItem?.quantity, 0));
+        if (!productId || quantity < 1) {
+          return res.status(400).json({ error: "Некоректний товар у кошику" });
+        }
+
+        const product = await db.getProductById(productId);
+        if (!product) {
+          return res.status(404).json({ error: `Товар ${productId} не знайдено` });
+        }
+        if (Number(product.stock || 0) < quantity) {
+          return res.status(409).json({ error: `Недостатньо товару "${product.name}" на складі` });
+        }
+
+        const price = toFiniteNumber(product.price);
+        serverTotal += price * quantity;
+        orderItems.push({
+          order_id: orderId,
+          product_id: productId,
+          quantity,
+          price
+        });
+      }
+
+      const promoCode = normalizeString(req.body?.promoCode, 80).toUpperCase();
+      let promoDiscount = 0;
+      if (promoCode) {
+        const bonusCodes = await db.getBonusCodes();
+        const promo = bonusCodes.find((code: any) =>
+          String(code.code || "").toUpperCase() === promoCode &&
+          code.is_active &&
+          code.type === "promo"
+        );
+        if (!promo) {
+          return res.status(400).json({ error: "Промокод неактивний або не існує" });
+        }
+        if (serverTotal < toFiniteNumber(promo.min_order_amount)) {
+          return res.status(400).json({ error: "Сума замовлення менша за мінімум промокоду" });
+        }
+        promoDiscount = promo.discount_type === "percent"
+          ? Math.floor(serverTotal * (toFiniteNumber(promo.discount_amount) / 100))
+          : toFiniteNumber(promo.discount_amount);
+        promoDiscount = Math.min(Math.max(promoDiscount, 0), serverTotal);
+      }
+
+      let safeBonusUsed = 0;
+      if (authUser?.id) {
+        const requestedBonus = Math.max(0, Math.floor(toFiniteNumber(req.body?.bonusUsed)));
+        if (requestedBonus > 0) {
+          const user = await db.getUserById(authUser.id);
+          safeBonusUsed = Math.min(requestedBonus, Math.floor(toFiniteNumber(user?.bonuses)), Math.floor(serverTotal * 0.5));
+        }
+      }
+      const safeFinalTotal = Math.max(0, serverTotal - promoDiscount - safeBonusUsed);
 
       await db.createOrder({
-        id,
-        user_id: userId,
-        customer_name: customer.name,
-        customer_phone: customer.phone,
-        customer_email: customer.email,
-        customer_city: customer.city,
-        customer_address: customer.city + (customer.warehouse ? ", " + customer.warehouse : ""),
-        delivery_method: customer.deliveryMethod,
-        warehouse: customer.warehouse,
-        total: total,
+        id: orderId,
+        user_id: authUser?.id,
+        customer_name: customerName,
+        customer_phone: customerPhone,
+        customer_email: customerEmail,
+        customer_city: customerCity,
+        customer_address: customerCity + (warehouse ? ", " + warehouse : ""),
+        delivery_method: deliveryMethod,
+        warehouse,
+        total: serverTotal,
         payment_method: paymentMethod,
-        comment: comment
-      }, orderItems, bonusUsed, finalTotal);
+        comment: comment || (promoCode ? `Промокод: ${promoCode}` : undefined)
+      }, orderItems, safeBonusUsed, safeFinalTotal);
 
-      res.json({ success: true, orderId: id });
+      const orderSummary = {
+        id: orderId,
+        customer_name: customerName,
+        customer_phone: customerPhone,
+        final_total: safeFinalTotal
+      };
+      await notifyAdmins(
+        "Нове замовлення",
+        `Замовлення ${orderId} на ${safeFinalTotal} грн очікує обробки.`,
+        "order_created"
+      );
+      await notifyUser(
+        authUser?.id,
+        "Замовлення прийнято",
+        `Ми отримали замовлення ${orderId} на ${safeFinalTotal} грн.`,
+        "order_created"
+      );
+      await sendTelegramOrderNotification(orderSummary, orderItems);
+
+      res.json({
+        success: true,
+        orderId,
+        total: serverTotal,
+        bonusUsed: safeBonusUsed,
+        discount: promoDiscount,
+        finalTotal: safeFinalTotal
+      });
     } catch (err: any) {
       const { isQuota, isFirst } = recordDbError(err);
       if (isFirst && !isQuota) {
@@ -1303,18 +1673,16 @@ async function startViteAndListen() {
                         (err.code && (err.code === "402" || err.code === "57014"));
 
     if (isQuotaError) {
-      return res.status(402).json({
+      return res.status(503).json({
         error: "Database Quota Exceeded",
         message: "Ваш проект перевищив квоту передачі даних бази даних Neon. Будь ласка, зачекайте або оновіть план.",
-        sourceError: sourceError,
-        stack: stack
+        ...(!IS_PRODUCTION ? { sourceError, stack } : {})
       });
     }
 
     res.status(status).json({
-      error: message,
-      sourceError: sourceError,
-      stack: stack
+      error: IS_PRODUCTION && status >= 500 ? "Internal Server Error" : message,
+      ...(!IS_PRODUCTION ? { sourceError, stack } : {})
     });
   });
 }

@@ -27,30 +27,31 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
   const fetchNotifications = async () => {
     if (!user) return;
     try {
-      const res = await fetch('/api/notifications');
+      const res = await fetch('/api/notifications', { credentials: 'same-origin' });
+      if (res.status === 401) {
+        setNotifications([]);
+        return;
+      }
       if (res.ok) {
         const contentType = res.headers.get("content-type");
         if (contentType && contentType.indexOf("application/json") !== -1) {
           const data = await res.json();
           setNotifications(data);
-        } else {
-          console.warn('Failed to fetch notifications: Expected JSON but got', contentType);
         }
       }
     } catch (err) {
-      // Use console.warn instead of error to avoid cluttering the console during polling
-      console.warn('Failed to fetch notifications:', err);
+      // Polling is best-effort; keep the UI quiet during transient network changes.
     }
   };
 
   const markAsRead = async (id: string) => {
     try {
-      const res = await fetch(`/api/notifications/${id}/read`, { method: 'POST' });
+      const res = await fetch(`/api/notifications/${id}/read`, { method: 'POST', credentials: 'same-origin' });
       if (res.ok) {
         setNotifications(prev => prev.map(n => n.id === id ? { ...n, is_read: 1 } : n));
       }
     } catch (err) {
-      console.error('Failed to mark notification as read:', err);
+      // Read state will retry on the next refresh.
     }
   };
 

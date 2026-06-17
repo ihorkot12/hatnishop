@@ -332,10 +332,9 @@ export const Catalog = () => {
             initial={{ opacity: 0, y: 50, scale: 0.9 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, scale: 0.9 }}
-            className="fixed bottom-8 left-8 right-8 md:left-auto md:right-8 md:w-96 z-[100]"
+            className="pointer-events-none fixed bottom-4 left-4 right-4 z-40 md:left-auto md:right-6 md:w-96"
           >
-            <div className="bg-slate-900 text-white p-8 rounded-[2.5rem] shadow-2xl border border-white/10 relative overflow-hidden">
-              <div className="absolute top-0 right-0 w-32 h-32 bg-tiffany/20 rounded-full -translate-y-1/2 translate-x-1/2 blur-3xl" />
+            <div className="pointer-events-auto rounded-lg border border-white/10 bg-slate-950 p-5 text-white shadow-2xl shadow-slate-950/20">
               <button 
                 onClick={() => setShowPromo(false)}
                 className="absolute top-4 right-4 text-white/40 hover:text-white transition-colors"
