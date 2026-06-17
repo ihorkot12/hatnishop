@@ -47,6 +47,25 @@
   @apply translate-y-0;
 }
 
+.product-buy-button {
+  min-height: 56px;
+}
+
+.product-icon-action {
+  min-height: 56px;
+}
+
+@media (min-width: 640px) {
+  .product-buy-button {
+    min-height: 64px;
+  }
+
+  .product-icon-action {
+    width: 64px;
+    min-height: 64px;
+  }
+}
+
 .tiffany-gradient {
   background: linear-gradient(135deg, #81D8D0 0%, #A0E6DF 100%);
 }

@@ -71,6 +71,7 @@ export const ProductDetail = () => {
   }, [id]);
 
   const isWishlisted = product ? isInWishlist(product.id) : false;
+  const isBundleProduct = product?.isBundle === true || product?.isBundle === 1 || product?.isBundle === '1';
 
   useEffect(() => {
     if (user && product) {
@@ -252,23 +253,23 @@ export const ProductDetail = () => {
   );
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+    <div className="max-w-7xl mx-auto px-4 pb-24 pt-6 sm:px-6 sm:py-8 lg:px-8 lg:py-10">
       {/* Breadcrumbs */}
-      <nav className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-slate-400 mb-12">
-        <Link to="/" className="hover:text-tiffany transition-colors">Головна</Link>
+      <nav className="mb-6 flex min-w-0 items-center gap-2 overflow-hidden text-[10px] font-bold uppercase tracking-widest text-slate-400 sm:text-xs">
+        <Link to="/" className="shrink-0 transition-colors hover:text-tiffany">Головна</Link>
         <span>/</span>
-        <Link to={`/catalog?category=${product.category}`} className="hover:text-tiffany transition-colors">{product.category}</Link>
-        <span>/</span>
-        <span className="text-slate-900">{product.name}</span>
+        <Link to={`/catalog?category=${product.category}`} className="min-w-0 max-w-[12rem] truncate transition-colors hover:text-tiffany sm:max-w-none">{product.category}</Link>
+        <span className="hidden sm:inline">/</span>
+        <span className="hidden min-w-0 truncate text-slate-900 sm:inline">{product.name}</span>
       </nav>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 mb-24">
+      <div className="mb-16 grid grid-cols-1 gap-8 lg:mb-24 lg:grid-cols-2 lg:gap-16">
         {/* Images */}
-        <div className="space-y-4">
+        <div className="order-2 space-y-4 lg:order-1">
           <motion.div 
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
-            className="aspect-square rounded-[2.5rem] overflow-hidden shadow-lg border border-slate-100 bg-white"
+            className="aspect-[4/3] overflow-hidden rounded-[1.75rem] border border-slate-100 bg-white shadow-lg sm:aspect-square sm:rounded-[2.5rem]"
           >
             <img 
               src={selectedImage || product.image} 
@@ -277,10 +278,10 @@ export const ProductDetail = () => {
               referrerPolicy="no-referrer"
             />
           </motion.div>
-          <div className="grid grid-cols-4 gap-4">
+          <div className="grid grid-cols-4 gap-3 sm:gap-4">
             <div 
               onClick={() => setSelectedImage(product.image)}
-              className={`aspect-square rounded-2xl overflow-hidden border cursor-pointer transition-all duration-300 ${selectedImage === product.image ? 'border-tiffany ring-2 ring-tiffany/20' : 'border-slate-200 hover:border-tiffany'}`}
+              className={`aspect-square cursor-pointer overflow-hidden rounded-xl border transition-all duration-300 sm:rounded-2xl ${selectedImage === product.image ? 'border-tiffany ring-2 ring-tiffany/20' : 'border-slate-200 hover:border-tiffany'}`}
             >
               <img src={product.image} alt="" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
             </div>
@@ -288,7 +289,7 @@ export const ProductDetail = () => {
               <div 
                 key={i} 
                 onClick={() => setSelectedImage(img)}
-                className={`aspect-square rounded-2xl overflow-hidden border cursor-pointer transition-all duration-300 ${selectedImage === img ? 'border-tiffany ring-2 ring-tiffany/20' : 'border-slate-200 hover:border-tiffany'}`}
+                className={`aspect-square cursor-pointer overflow-hidden rounded-xl border transition-all duration-300 sm:rounded-2xl ${selectedImage === img ? 'border-tiffany ring-2 ring-tiffany/20' : 'border-slate-200 hover:border-tiffany'}`}
               >
                 <img src={img} alt="" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
               </div>
@@ -297,10 +298,10 @@ export const ProductDetail = () => {
         </div>
 
         {/* Info */}
-        <div className="flex flex-col">
-          <div className="flex items-center justify-between mb-6">
-            <div className="flex items-center gap-4">
-              <span className="bg-tiffany/10 text-tiffany px-4 py-1.5 rounded-full text-[10px] font-bold uppercase tracking-widest">
+        <div className="order-1 flex flex-col lg:order-2">
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+            <div className="flex min-w-0 flex-wrap items-center gap-3">
+              <span className="max-w-[12rem] truncate rounded-full bg-tiffany/10 px-4 py-1.5 text-[10px] font-bold uppercase tracking-widest text-tiffany sm:max-w-none">
                 {product.category}
               </span>
               <div className="flex items-center gap-1 text-gold">
@@ -317,34 +318,61 @@ export const ProductDetail = () => {
             )}
           </div>
 
-          <h1 className="text-4xl md:text-5xl font-serif font-bold text-slate-900 mb-6 leading-tight">
+          <h1 className="mb-4 text-3xl font-serif font-bold leading-tight text-slate-900 sm:text-4xl md:text-5xl">
             {product.name}
           </h1>
           
-          <div className="flex items-baseline gap-4 mb-8">
-            <div className="text-4xl font-bold text-slate-900">
+          <div className="mb-5 flex flex-wrap items-baseline gap-4">
+            <div className="text-3xl font-bold text-slate-900 sm:text-4xl">
               {product.price} <span className="text-lg font-normal text-slate-500">грн</span>
             </div>
-            {product.bonusPoints > 0 && (
+            {Number(product.bonusPoints || 0) > 0 && (
               <div className="text-emerald-600 text-sm font-bold bg-emerald-50 px-3 py-1 rounded-lg">
                 +{product.bonusPoints} бонусів
               </div>
             )}
           </div>
 
-          <div className="flex items-center gap-2 mb-10 p-4 bg-slate-50 rounded-2xl border border-slate-100">
-            <div className={`w-2.5 h-2.5 rounded-full ${product.stock > 5 ? 'bg-emerald-500' : 'bg-red-500 animate-pulse'}`} />
-            <span className={`text-sm font-bold uppercase tracking-widest ${product.stock > 5 ? 'text-emerald-600' : 'text-red-600'}`}>
+          <div className="mb-5 flex items-center gap-2 rounded-2xl border border-slate-100 bg-slate-50 px-4 py-3">
+            <div className={`h-2.5 w-2.5 shrink-0 rounded-full ${product.stock > 5 ? 'bg-emerald-500' : 'bg-red-500 animate-pulse'}`} />
+            <span className={`text-xs font-bold uppercase leading-5 tracking-widest sm:text-sm ${product.stock > 5 ? 'text-emerald-600' : 'text-red-600'}`}>
               {product.stock > 5 ? 'В наявності та готовий до відправки' : `Залишилось лише ${product.stock} шт — поспішайте!`}
             </span>
           </div>
 
-          <div className="prose prose-slate mb-12">
-            <p className="text-slate-600 text-lg leading-relaxed">
+          <div className="mb-8 flex flex-col gap-3 sm:flex-row sm:gap-4">
+            <button
+              onClick={() => addToCart(product)}
+              className="product-buy-button flex flex-1 items-center justify-center gap-3 rounded-2xl bg-slate-900 px-5 text-base font-bold text-white shadow-xl shadow-slate-900/15 transition-all hover:bg-tiffany active:scale-95 sm:text-lg"
+            >
+              <ShoppingCart size={22} /> Додати в кошик
+            </button>
+            <div className="grid grid-cols-2 gap-3 sm:flex sm:gap-4">
+              <button
+                onClick={() => product && toggleWishlist(product)}
+                aria-label={isWishlisted ? 'Прибрати з обраного' : 'Додати в обране'}
+                className={`product-icon-action flex items-center justify-center rounded-2xl border transition-all active:scale-90 ${isWishlisted ? 'border-pink-200 bg-pink-50 text-pink-500' : 'border-slate-200 text-slate-400 hover:border-pink-200 hover:bg-pink-50/30 hover:text-pink-500'}`}
+              >
+                <Heart size={24} fill={isWishlisted ? "currentColor" : "none"} />
+              </button>
+              <button
+                onClick={toggleSubscription}
+                disabled={subscribing}
+                aria-label={isSubscribed ? 'Скасувати сповіщення про знижку' : 'Сповістити про знижку'}
+                className={`product-icon-action flex items-center justify-center rounded-2xl border transition-all active:scale-90 disabled:cursor-wait ${isSubscribed ? 'border-tiffany/20 bg-tiffany/10 text-tiffany' : 'border-slate-200 text-slate-400 hover:border-tiffany hover:bg-tiffany/5 hover:text-tiffany'}`}
+                title={isSubscribed ? "Скасувати сповіщення" : "Сповістити про знижку"}
+              >
+                <Bell size={24} fill={isSubscribed ? "currentColor" : "none"} />
+              </button>
+            </div>
+          </div>
+
+          <div className="prose prose-slate mb-8">
+            <p className="text-base leading-7 text-slate-600 sm:text-lg sm:leading-relaxed">
               {product.description}
             </p>
 
-            {product.isBundle && bundleProducts.length > 0 && (
+            {isBundleProduct && bundleProducts.length > 0 && (
               <div className="mt-8 p-6 bg-slate-50 rounded-3xl border border-slate-100">
                 <h3 className="text-sm font-bold uppercase tracking-widest text-slate-900 mb-4">До цього набору входить:</h3>
                 <div className="space-y-3">
@@ -403,47 +431,22 @@ export const ProductDetail = () => {
             )}
           </div>
 
-          <div className="grid grid-cols-2 gap-6 mb-12">
+          <div className="mb-8 grid grid-cols-2 gap-4 sm:gap-6">
             {product.material && (
-              <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm">
+              <div className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm sm:rounded-3xl sm:p-6">
                 <div className="text-[10px] uppercase text-slate-400 font-bold mb-2 tracking-widest">Матеріал</div>
                 <div className="text-lg font-bold text-slate-800">{product.material}</div>
               </div>
             )}
             {product.brand && (
-              <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm">
+              <div className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm sm:rounded-3xl sm:p-6">
                 <div className="text-[10px] uppercase text-slate-400 font-bold mb-2 tracking-widest">Бренд</div>
                 <div className="text-lg font-bold text-slate-800">{product.brand}</div>
               </div>
             )}
           </div>
 
-          <div className="flex flex-col sm:flex-row gap-4 mb-12">
-            <button 
-              onClick={() => addToCart(product)}
-              className="flex-1 bg-slate-900 text-white h-20 min-h-20 py-5 rounded-[1.5rem] font-bold text-xl flex items-center justify-center gap-4 hover:bg-tiffany transition-all shadow-2xl shadow-slate-900/20 active:scale-95"
-            >
-              <ShoppingCart size={28} /> Додати в кошик
-            </button>
-            <div className="flex gap-4">
-              <button 
-                onClick={() => product && toggleWishlist(product)}
-                className={`w-20 h-20 border rounded-[1.5rem] flex items-center justify-center transition-all active:scale-90 ${isWishlisted ? 'bg-pink-50 text-pink-500 border-pink-200' : 'border-slate-200 text-slate-400 hover:text-pink-500 hover:border-pink-200 hover:bg-pink-50/30'}`}
-              >
-                <Heart size={28} fill={isWishlisted ? "currentColor" : "none"} />
-              </button>
-              <button 
-                onClick={toggleSubscription}
-                disabled={subscribing}
-                className={`w-20 h-20 border rounded-[1.5rem] flex items-center justify-center transition-all active:scale-90 ${isSubscribed ? 'bg-tiffany/10 text-tiffany border-tiffany/20' : 'border-slate-200 text-slate-400 hover:text-tiffany hover:border-tiffany hover:bg-tiffany/5'}`}
-                title={isSubscribed ? "Скасувати сповіщення" : "Сповістити про знижку"}
-              >
-                <Bell size={28} fill={isSubscribed ? "currentColor" : "none"} />
-              </button>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 border-t border-slate-100 pt-12">
+          <div className="grid grid-cols-1 gap-4 border-t border-slate-100 pt-8 sm:grid-cols-3 sm:gap-6 sm:pt-10">
             <div className="flex flex-col items-center text-center gap-3">
               <div className="w-12 h-12 bg-slate-50 rounded-2xl flex items-center justify-center text-slate-900">
                 <Truck size={24} />

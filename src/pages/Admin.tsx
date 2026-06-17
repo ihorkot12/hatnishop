@@ -186,6 +186,8 @@ export const Admin = () => {
   }, [user, loading, navigate]);
 
   useEffect(() => {
+    if (loading || user?.role !== 'admin') return;
+
     if (activeTab === 'users') fetchUsers();
     if (activeTab === 'products') fetchProducts();
     if (activeTab === 'orders') fetchOrders();
@@ -200,7 +202,7 @@ export const Admin = () => {
     if (activeTab === 'bonus-codes') fetchBonusCodes();
     if (activeTab === 'reviews') fetchReviews();
     if (activeTab === 'settings') fetchSiteSettings();
-  }, [activeTab]);
+  }, [activeTab, loading, user?.role]);
 
   const fetchSiteSettings = async () => {
     setIsSettingsLoading(true);
