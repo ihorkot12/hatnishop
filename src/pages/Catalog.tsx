@@ -16,6 +16,7 @@ export const Catalog = () => {
   const [minPrice, setMinPrice] = useState(0);
   const [maxPrice, setMaxPrice] = useState(5000);
   const [popularOnly, setPopularOnly] = useState(false);
+  const [bundleOnly, setBundleOnly] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
   const [searchQuery, setSearchQuery] = useState(searchUrlQuery || '');
   const [sortBy, setSortBy] = useState<'default' | 'price-asc' | 'price-desc' | 'popular'>('default');
@@ -74,6 +75,10 @@ export const Catalog = () => {
       if (categoryFilter && !allowedCategories.includes(p.category)) return false;
       if (p.price < minPrice || p.price > maxPrice) return false;
       if (popularOnly && !p.isPopular) return false;
+      if (bundleOnly) {
+        const isBundle = (p as any).isBundle === true || (p as any).isBundle === 1 || (p as any).isBundle === '1';
+        if (!isBundle) return false;
+      }
       if (searchQuery && !p.name.toLowerCase().includes(searchQuery.toLowerCase())) return false;
       return true;
     });
@@ -83,7 +88,7 @@ export const Catalog = () => {
     if (sortBy === 'popular') result.sort((a, b) => (b.isPopular ? 1 : 0) - (a.isPopular ? 1 : 0));
 
     return result;
-  }, [categoryFilter, minPrice, maxPrice, popularOnly, searchQuery, sortBy, products, categories]);
+  }, [categoryFilter, minPrice, maxPrice, popularOnly, bundleOnly, searchQuery, sortBy, products, categories]);
 
   return (
     <div className="bg-[#F9F7F5] min-h-screen">
@@ -92,7 +97,7 @@ export const Catalog = () => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex flex-col md:flex-row md:items-end justify-between gap-8">
             <div className="max-w-2xl">
-              <div className="text-tiffany font-bold text-[10px] uppercase tracking-[0.3em] mb-4">Колекція 2024</div>
+              <div className="text-tiffany font-bold text-[10px] uppercase tracking-[0.3em] mb-4">Колекція 2026</div>
               <h1 className="text-5xl md:text-7xl font-serif font-bold text-slate-900 mb-6 leading-tight">
                 {categoryFilter ? categories.find(c => c.slug === categoryFilter)?.name : 'Каталог товарів для дому'}
               </h1>
@@ -178,7 +183,7 @@ export const Catalog = () => {
                   <h2 className="text-2xl font-bold text-slate-900 mb-2">Нічого не знайдено</h2>
                   <p className="text-slate-500 mb-8">Спробуйте змінити параметри фільтрації або пошуковий запит.</p>
                   <button 
-                    onClick={() => {setSearchParams({}); setMinPrice(0); setMaxPrice(5000); setPopularOnly(false); setSearchQuery('');}}
+                    onClick={() => {setSearchParams({}); setMinPrice(0); setMaxPrice(5000); setPopularOnly(false); setBundleOnly(false); setSearchQuery('');}}
                     className="bg-slate-900 text-white px-8 py-4 rounded-2xl font-bold hover:bg-tiffany transition-all"
                   >
                     Скинути все
@@ -303,6 +308,18 @@ export const Catalog = () => {
                       {popularOnly && <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>}
                     </div>
                     <span className="font-bold text-slate-700 group-hover:text-slate-900">Тільки популярні товари</span>
+                  </label>
+                  <label className="mt-4 flex items-center gap-3 cursor-pointer group">
+                    <input
+                      type="checkbox"
+                      className="hidden"
+                      checked={bundleOnly}
+                      onChange={(e) => setBundleOnly(e.target.checked)}
+                    />
+                    <div className={`w-6 h-6 rounded-md flex items-center justify-center border-2 transition-all ${bundleOnly ? 'bg-tiffany border-tiffany' : 'border-slate-300 group-hover:border-tiffany'}`}>
+                      {bundleOnly && <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>}
+                    </div>
+                    <span className="font-bold text-slate-700 group-hover:text-slate-900">Тільки готові набори</span>
                   </label>
                 </div>
               </div>

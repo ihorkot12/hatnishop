@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { Eye, Heart, ShoppingCart, Star } from 'lucide-react';
+import { Eye, Gift, Heart, ShoppingCart, Star } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { Product } from '../types';
 import { useCart } from '../store/CartContext';
@@ -20,6 +20,8 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, onQuickView }
   const stock = Number(product.stock || 0);
   const isLowStock = stock > 0 && stock < 5;
   const isAvailable = stock > 0;
+  const isBundleValue = (product as any).isBundle;
+  const isBundle = isBundleValue === true || isBundleValue === 1 || isBundleValue === '1';
 
   return (
     <motion.article
@@ -38,6 +40,11 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, onQuickView }
         />
 
         <div className="absolute left-4 top-4 flex flex-col gap-2">
+          {isBundle && (
+            <span className="inline-flex items-center gap-1.5 rounded-md bg-tiffany px-3 py-1 text-[10px] font-bold uppercase text-white shadow-sm">
+              <Gift size={12} /> Набір
+            </span>
+          )}
           {product.isPopular && (
             <span className="rounded-md bg-slate-950 px-3 py-1 text-[10px] font-bold uppercase text-white">
               Вибір покупців
@@ -105,6 +112,8 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, onQuickView }
             <div className="text-xl font-bold text-slate-950">{formatPrice(product.price)}</div>
             {product.bonusPoints ? (
               <div className="mt-1 text-[11px] font-bold text-emerald-600">+{product.bonusPoints} бонусів</div>
+            ) : isBundle ? (
+              <div className="mt-1 text-[11px] font-bold text-tiffany">Готовий набір</div>
             ) : (
               <div className="mt-1 text-[11px] text-slate-400">Доставка по Україні</div>
             )}

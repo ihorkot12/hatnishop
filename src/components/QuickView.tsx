@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, ShoppingCart, Star, ShieldCheck, Truck, RotateCcw, Bell, Heart, ArrowRight } from 'lucide-react';
+import { X, ShoppingCart, Star, ShieldCheck, Truck, Bell, Heart, ArrowRight, Gift } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { Product } from '../types';
 import { useCart } from '../store/CartContext';
@@ -66,6 +66,8 @@ export const QuickView: React.FC<QuickViewProps> = ({ product, onClose }) => {
   if (!product) return null;
 
   const isWishlisted = isInWishlist(product.id);
+  const isBundleValue = (product as any).isBundle;
+  const isBundle = isBundleValue === true || isBundleValue === 1 || isBundleValue === '1';
 
   return (
     <AnimatePresence>
@@ -116,6 +118,11 @@ export const QuickView: React.FC<QuickViewProps> = ({ product, onClose }) => {
           <div className="md:w-1/2 p-12 flex flex-col">
             <div className="flex items-center gap-4 mb-4">
               <span className="text-tiffany font-bold text-[10px] uppercase tracking-widest">{product.category}</span>
+              {isBundle && (
+                <span className="inline-flex items-center gap-1.5 rounded-full bg-tiffany/10 px-3 py-1 text-[10px] font-bold uppercase text-tiffany">
+                  <Gift size={12} /> Набір
+                </span>
+              )}
               <div className="flex items-center gap-1 text-gold">
                 <Star size={14} fill="currentColor" />
                 <span className="text-slate-900 font-bold text-sm">{product.rating || '5.0'}</span>
@@ -165,7 +172,7 @@ export const QuickView: React.FC<QuickViewProps> = ({ product, onClose }) => {
                 }}
                 className="flex-1 bg-slate-900 text-white h-14 rounded-2xl font-bold flex items-center justify-center gap-3 hover:bg-tiffany transition-all shadow-xl shadow-slate-900/10"
               >
-                <ShoppingCart size={20} /> Додати в кошик
+                <ShoppingCart size={20} /> {isBundle ? 'Додати набір' : 'Додати в кошик'}
               </button>
               <button 
                 onClick={() => toggleWishlist(product)}

@@ -1743,7 +1743,20 @@ export const Admin = () => {
                         <tr key={product.id} className="hover:bg-slate-50/50 transition-colors">
                           <td className="px-8 py-6 flex items-center gap-4">
                             <img src={product.image} className="w-12 h-12 rounded-lg object-cover" alt="" referrerPolicy="no-referrer" />
-                            <div className="font-bold text-slate-900">{product.name}</div>
+                            <div>
+                              <div className="font-bold text-slate-900">{product.name}</div>
+                              <div className="mt-2 flex flex-wrap gap-2">
+                                {(product.isBundle === true || product.isBundle === 1 || product.isBundle === '1') && (
+                                  <span className="rounded-full bg-tiffany/10 px-2.5 py-1 text-[10px] font-bold uppercase text-tiffany">Набір</span>
+                                )}
+                                {Number(product.stock || 0) > 0 && Number(product.stock || 0) < 5 && (
+                                  <span className="rounded-full bg-red-50 px-2.5 py-1 text-[10px] font-bold uppercase text-red-500">Мало: {product.stock}</span>
+                                )}
+                                {product.isPopular && (
+                                  <span className="rounded-full bg-slate-100 px-2.5 py-1 text-[10px] font-bold uppercase text-slate-500">Популярний</span>
+                                )}
+                              </div>
+                            </div>
                           </td>
                           <td className="px-8 py-6 text-slate-500">{product.category}</td>
                           <td className="px-8 py-6 font-bold text-slate-900">{product.price} грн</td>
