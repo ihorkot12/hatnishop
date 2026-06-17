@@ -1,3 +1,4 @@
+import { Suspense, lazy } from 'react';
 import { BrowserRouter as Router, Routes, Route, Link } from 'react-router-dom';
 import { CartProvider } from './store/CartContext';
 import { AuthProvider } from './store/AuthContext';
@@ -9,11 +10,12 @@ import { Catalog } from './pages/Catalog';
 import { ProductDetail } from './pages/ProductDetail';
 import { Cart } from './pages/Cart';
 import { Wishlist } from './pages/Wishlist';
-import { Admin } from './pages/Admin';
 import { Login } from './pages/Login';
 import { AboutUs } from './pages/AboutUs';
 import { FAQ } from './pages/FAQ';
 import { SpecialOffers } from './components/SpecialOffers';
+
+const Admin = lazy(() => import('./pages/Admin').then(module => ({ default: module.Admin })));
 
 export default function App() {
   return (
@@ -31,7 +33,11 @@ export default function App() {
                 <Route path="/product/:id" element={<ProductDetail />} />
                 <Route path="/cart" element={<Cart />} />
                 <Route path="/wishlist" element={<Wishlist />} />
-                <Route path="/admin" element={<Admin />} />
+                <Route path="/admin" element={
+                  <Suspense fallback={<div className="min-h-[60vh] flex items-center justify-center text-slate-400 font-bold">Завантаження...</div>}>
+                    <Admin />
+                  </Suspense>
+                } />
                 <Route path="/login" element={<Login />} />
                 <Route path="/about" element={<AboutUs />} />
                 <Route path="/faq" element={<FAQ />} />

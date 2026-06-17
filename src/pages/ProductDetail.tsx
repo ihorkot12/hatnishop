@@ -75,7 +75,7 @@ export const ProductDetail = () => {
   useEffect(() => {
     if (user && product) {
       // Check if user can review (has completed order)
-      fetch('/api/orders')
+      fetch('/api/user/orders')
         .then(res => res.json())
         .then(orders => {
           const hasCompletedOrder = orders.some((o: any) => o.status === 'completed' || o.status === 'shipped');
@@ -116,7 +116,7 @@ export const ProductDetail = () => {
   };
 
   const fetchStylingTip = async () => {
-    if (!product) return;
+    if (!product || user?.role !== 'admin') return;
     setLoadingAi(true);
     try {
       const tip = await generateStylingTip(product.name, product.category);
@@ -143,11 +143,12 @@ export const ProductDetail = () => {
         setStylingTip(product.aiDescription);
         setLoadingAi(false);
       } else {
-        fetchStylingTip();
+        setStylingTip(null);
+        setLoadingAi(false);
       }
       fetchReviews();
     }
-  }, [product]);
+  }, [product, user?.role]);
 
   const fetchReviews = async () => {
     try {
@@ -335,7 +336,7 @@ export const ProductDetail = () => {
                       <div className="h-4 bg-tiffany/10 rounded"></div>
                     </div>
                   </div>
-                ) : stylingTip && (
+                ) : stylingTip ? (
                   <motion.div 
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
@@ -356,6 +357,13 @@ export const ProductDetail = () => {
                     </div>
                     <p className="text-lg leading-relaxed">"{stylingTip}"</p>
                   </motion.div>
+                ) : (
+                  <button
+                    onClick={fetchStylingTip}
+                    className="mt-8 inline-flex min-h-12 items-center gap-3 rounded-2xl border border-tiffany/20 bg-tiffany/5 px-5 py-3 text-sm font-bold text-tiffany hover:bg-tiffany/10 transition-colors"
+                  >
+                    <Sparkles size={16} /> Згенерувати AI-пораду
+                  </button>
                 )}
               </AnimatePresence>
             )}
@@ -379,7 +387,7 @@ export const ProductDetail = () => {
           <div className="flex flex-col sm:flex-row gap-4 mb-12">
             <button 
               onClick={() => addToCart(product)}
-              className="flex-1 bg-slate-900 text-white h-20 rounded-[1.5rem] font-bold text-xl flex items-center justify-center gap-4 hover:bg-tiffany transition-all shadow-2xl shadow-slate-900/20 active:scale-95"
+              className="flex-1 bg-slate-900 text-white h-20 min-h-20 py-5 rounded-[1.5rem] font-bold text-xl flex items-center justify-center gap-4 hover:bg-tiffany transition-all shadow-2xl shadow-slate-900/20 active:scale-95"
             >
               <ShoppingCart size={28} /> Додати в кошик
             </button>

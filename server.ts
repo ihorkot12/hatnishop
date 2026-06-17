@@ -4,6 +4,7 @@ import { fileURLToPath } from "url";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import cookieParser from "cookie-parser";
+import { GoogleGenAI, Type } from "@google/genai";
 import { db } from "./db/index.js";
 
 import fs from "fs";
@@ -13,7 +14,42 @@ const __dirname = path.dirname(__filename);
 
 const CACHE_FILE = path.join(__dirname, "db_cache.json");
 
-const JWT_SECRET = process.env.JWT_SECRET || "fallback-secret";
+const JWT_SECRET = process.env.JWT_SECRET;
+if (!JWT_SECRET && (process.env.NODE_ENV === "production" || process.env.VERCEL)) {
+  throw new Error("JWT_SECRET is required in production");
+}
+const jwtSecret = JWT_SECRET || "dev-secret-change-me";
+
+const cookieOptions = {
+  httpOnly: true,
+  secure: process.env.NODE_ENV === "production" || !!process.env.VERCEL,
+  sameSite: "lax" as const,
+  maxAge: 30 * 24 * 60 * 60 * 1000
+};
+
+const clearCookieOptions = {
+  httpOnly: true,
+  secure: process.env.NODE_ENV === "production" || !!process.env.VERCEL,
+  sameSite: "lax" as const
+};
+
+const requireAdmin = (req: any, res: any) => {
+  if (req.user?.role !== "admin") {
+    res.status(403).json({ error: "Forbidden" });
+    return false;
+  }
+  return true;
+};
+
+const getAI = () => {
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey) {
+    throw new Error("GEMINI_API_KEY is not configured");
+  }
+  return new GoogleGenAI({ apiKey });
+};
+
+const cleanJSON = (text: string) => text.replace(/```json\n?|```/g, "").trim();
 
 export const app = express();
 const PORT = 3000;
@@ -207,7 +243,7 @@ const authenticate = (req: any, res: any, next: any) => {
   const token = req.cookies.token;
   if (!token) return res.status(401).json({ error: "Unauthorized" });
   try {
-    const decoded = jwt.verify(token, JWT_SECRET);
+    const decoded = jwt.verify(token, jwtSecret);
     req.user = decoded;
     next();
   } catch (err) {
@@ -244,8 +280,8 @@ app.post("/api/auth/register", asyncHandler(async (req: any, res: any) => {
       const hashedPassword = await bcrypt.hash(password, 10);
       const id = Math.random().toString(36).substr(2, 9);
       await db.createUser({ id, email, password: hashedPassword, name });
-      const token = jwt.sign({ id, email, name, role: 'user' }, JWT_SECRET);
-      res.cookie("token", token, { httpOnly: true, secure: true, sameSite: 'none' });
+      const token = jwt.sign({ id, email, name, role: 'user' }, jwtSecret);
+      res.cookie("token", token, cookieOptions);
       res.json({ user: { id, email, name, bonuses: 0, total_spent: 0, role: 'user', avatar: null } });
     } catch (err: any) {
       const { isQuota, isFirst } = recordDbError(err);
@@ -276,13 +312,8 @@ app.post("/api/auth/register", asyncHandler(async (req: any, res: any) => {
       const isMatch = await bcrypt.compare(password, user.password || "");
       if (isMatch) {
         console.log(`Login successful for: ${email}`);
-        const token = jwt.sign({ id: user.id, email: user.email, name: user.name, role: user.role }, JWT_SECRET);
-        res.cookie("token", token, { 
-          httpOnly: true, 
-          secure: true, 
-          sameSite: 'none',
-          maxAge: 30 * 24 * 60 * 60 * 1000 // 30 days
-        });
+        const token = jwt.sign({ id: user.id, email: user.email, name: user.name, role: user.role }, jwtSecret);
+        res.cookie("token", token, cookieOptions);
         res.json({ 
           user: { 
             id: user.id, 
@@ -315,7 +346,7 @@ app.post("/api/auth/register", asyncHandler(async (req: any, res: any) => {
     
     let decoded: any;
     try {
-      decoded = jwt.verify(token, JWT_SECRET) as any;
+      decoded = jwt.verify(token, jwtSecret) as any;
     } catch (jwtErr) {
       return res.json({ user: null });
     }
@@ -352,7 +383,7 @@ app.post("/api/auth/register", asyncHandler(async (req: any, res: any) => {
   }));
 
   app.post("/api/auth/logout", asyncHandler(async (req: any, res: any) => {
-    res.clearCookie("token");
+    res.clearCookie("token", clearCookieOptions);
     res.json({ success: true });
   }));
 
@@ -418,9 +449,101 @@ app.post("/api/auth/register", asyncHandler(async (req: any, res: any) => {
   }));
 
   app.post("/api/products/:id/ai-description", authenticate, asyncHandler(async (req: any, res: any) => {
+    if (!requireAdmin(req, res)) return;
     const { aiDescription } = req.body;
     await db.updateProductAiDescription(req.params.id, aiDescription);
     res.json({ success: true });
+  }));
+
+  app.post("/api/admin/ai/description", authenticate, asyncHandler(async (req: any, res: any) => {
+    if (!requireAdmin(req, res)) return;
+    const { name, category } = req.body;
+    const response = await getAI().models.generateContent({
+      model: "gemini-3-flash-preview",
+      contents: [{
+        role: "user",
+        parts: [{ text: `Write a short warm Ukrainian product description for "${name}" in category "${category || "home"}". Use 2-3 sentences, no quotes, no intro.` }]
+      }]
+    });
+    res.json({ text: response.text || "" });
+  }));
+
+  app.post("/api/admin/ai/styling-tip", authenticate, asyncHandler(async (req: any, res: any) => {
+    if (!requireAdmin(req, res)) return;
+    const { name, category } = req.body;
+    const response = await getAI().models.generateContent({
+      model: "gemini-3-flash-preview",
+      contents: [{
+        role: "user",
+        parts: [{ text: `Write a concise Ukrainian styling tip for using "${name}" from category "${category || "home"}" in a cozy home interior. Max 2 sentences.` }]
+      }]
+    });
+    res.json({ text: response.text || "" });
+  }));
+
+  app.post("/api/admin/ai/product-image", authenticate, asyncHandler(async (req: any, res: any) => {
+    if (!requireAdmin(req, res)) return;
+    const { name, category, base64Image } = req.body;
+    const prompt = `Professional ecommerce product photo for "${name}" in category "${category || "home"}". Cozy premium minimal home aesthetic, soft natural light, neutral background, realistic, no text in image.`;
+    const parts: any[] = [{ text: prompt }];
+
+    if (base64Image) {
+      const match = String(base64Image).match(/^data:(image\/\w+);base64,(.+)$/);
+      if (match) {
+        parts.push({ inlineData: { mimeType: match[1], data: match[2] } });
+      }
+    }
+
+    const response = await getAI().models.generateContent({
+      model: "gemini-2.5-flash-image",
+      contents: { parts },
+      config: { imageConfig: { aspectRatio: "1:1" } }
+    });
+
+    const imagePart = response.candidates?.[0]?.content?.parts?.find((part: any) => part.inlineData);
+    if (!imagePart?.inlineData?.data) {
+      return res.status(502).json({ error: "AI image generation returned no image" });
+    }
+    res.json({ image: `data:image/png;base64,${imagePart.inlineData.data}` });
+  }));
+
+  app.post("/api/admin/ai/bundle-items", authenticate, asyncHandler(async (req: any, res: any) => {
+    if (!requireAdmin(req, res)) return;
+    const { productName, productCategory, allProducts } = req.body;
+    const products = Array.isArray(allProducts) ? allProducts.slice(0, 80) : [];
+    const productsList = products.map((p: any) => `- ${p.name} (ID: ${p.id}, category: ${p.category})`).join("\n");
+    const response = await getAI().models.generateContent({
+      model: "gemini-3-flash-preview",
+      contents: [{
+        role: "user",
+        parts: [{ text: `Pick 2-4 complementary products for "${productName}" (${productCategory}). Return only JSON array of product IDs from this list:\n${productsList}` }]
+      }],
+      config: {
+        responseMimeType: "application/json",
+        responseSchema: { type: Type.ARRAY, items: { type: Type.STRING } }
+      }
+    });
+
+    try {
+      const items = JSON.parse(cleanJSON(response.text || "[]"));
+      res.json({ items: Array.isArray(items) ? items : [] });
+    } catch {
+      res.json({ items: [] });
+    }
+  }));
+
+  app.post("/api/admin/ai/director-report", authenticate, asyncHandler(async (req: any, res: any) => {
+    if (!requireAdmin(req, res)) return;
+    const { products = [], orders = [], stats = {}, siteSettings = {}, reviews = [] } = req.body;
+    const response = await getAI().models.generateContent({
+      model: "gemini-3-flash-preview",
+      contents: `Analyze this Hatni Shtuchky ecommerce data and write a specific Ukrainian markdown director report with quick wins, UX/CRO advice, product/pricing advice, and next actions.\n\nPRODUCTS:\n${JSON.stringify(products.slice(0, 50), null, 2)}\n\nORDERS:\n${JSON.stringify(orders.slice(0, 30), null, 2)}\n\nREVIEWS:\n${JSON.stringify(reviews.slice(0, 20), null, 2)}\n\nSTATS:\n${JSON.stringify(stats, null, 2)}\n\nSITE SETTINGS:\n${JSON.stringify(siteSettings, null, 2)}`,
+      config: {
+        systemInstruction: "You are a senior ecommerce, UX, CRO and merchandising advisor. Be practical, concrete, and write in Ukrainian.",
+        temperature: 0.7
+      }
+    });
+    res.json({ report: response.text || "" });
   }));
 
   // Price Subscriptions
@@ -514,6 +637,7 @@ app.post("/api/auth/register", asyncHandler(async (req: any, res: any) => {
 
   // Admin: Update Price (triggers notifications)
   app.post("/api/admin/products/:id/price", authenticate, asyncHandler(async (req: any, res: any) => {
+    if (!requireAdmin(req, res)) return;
     try {
       if (isDbInDegradedMode()) {
         throw new Error("Database is in degraded mode (quota exceeded)");
@@ -1112,7 +1236,7 @@ app.get("/api/admin/users", authenticate, asyncHandler(async (req: any, res: any
   }));
 
   // Catch-all for API routes to prevent HTML responses
-  app.all("/api/*", (req, res) => {
+  app.all(/^\/api\/.*/, (req, res) => {
     res.status(404).json({ error: `API route not found: ${req.method} ${req.url}` });
   });
 
@@ -1137,7 +1261,7 @@ async function startViteAndListen() {
     app.use(vite.middlewares);
   } else if (process.env.VERCEL || process.env.NODE_ENV === "production") {
     app.use(express.static(path.join(__dirname, "dist")));
-    app.get("*", (req, res) => {
+    app.get(/.*/, (req, res) => {
       res.sendFile(path.join(__dirname, "dist", "index.html"));
     });
   }

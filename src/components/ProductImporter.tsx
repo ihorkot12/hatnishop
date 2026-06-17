@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import * as XLSX from 'xlsx';
+import ExcelJS from 'exceljs';
 import { generateDescription as aiGenerateDescription, generateProductImage as aiGenerateProductImage } from '../services/aiService';
 import { fileToBase64 } from '../utils/imageUtils';
 import { Upload, FileText, Check, X, Sparkles, Image as ImageIcon, Loader2, Save, AlertTriangle } from 'lucide-react';
@@ -41,86 +41,93 @@ export const ProductImporter = ({ onComplete, categories }: { onComplete: () => 
       .catch(err => console.error(err));
   }, []);
 
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const parseCsv = (text: string) => {
+    return text
+      .split(/\r?\n/)
+      .filter(Boolean)
+      .map(line => line.split(',').map(cell => cell.trim().replace(/^"|"$/g, '')));
+  };
+
+  const buildDrafts = (data: any[][]) => {
+    const draftsMap = new Map<string, DraftProduct>();
+
+    data.forEach((row, index) => {
+      if (index === 0) return;
+
+      const sku = row[0]?.toString().trim();
+      const name = row[1]?.toString().trim();
+      const categoryName = row[2]?.toString().trim();
+      const stock = parseFloat(row[3]) || 0;
+      const price = parseFloat(row[4]) || 0;
+      const description = row[5]?.toString().trim() || '';
+
+      if (!name || (!price && !stock)) return;
+
+      let itemCategory = '';
+      if (categoryName) {
+        const lowerCategoryName = categoryName.toLowerCase();
+        let matchedCat = categories.find(c => c.name.toLowerCase() === lowerCategoryName);
+
+        if (!matchedCat) {
+          matchedCat = categories.find(c =>
+            lowerCategoryName.includes(c.name.toLowerCase()) ||
+            c.name.toLowerCase().includes(lowerCategoryName)
+          );
+        }
+
+        if (matchedCat) itemCategory = matchedCat.slug;
+      }
+
+      const key = name.toLowerCase();
+      if (draftsMap.has(key)) {
+        const existing = draftsMap.get(key)!;
+        existing.stock += stock;
+      } else {
+        const isDuplicate = existingProducts.some(p => p.name.toLowerCase() === key);
+        const newDraft: DraftProduct = {
+          id: `draft-${Date.now()}-${index}`,
+          name: sku ? `${sku} - ${name}` : name,
+          price,
+          stock,
+          category: itemCategory,
+          description,
+          image: '',
+          status: 'pending',
+          isDuplicate
+        };
+        draftsMap.set(key, newDraft);
+      }
+    });
+
+    setDrafts(Array.from(draftsMap.values()));
+    setCurrentPage(1);
+  };
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
     setIsParsing(true);
-    const reader = new FileReader();
-    reader.onload = (evt) => {
-      setTimeout(() => {
-        try {
-          const bstr = evt.target?.result;
-          const wb = XLSX.read(bstr, { type: 'binary' });
-          const wsname = wb.SheetNames[0];
-          const ws = wb.Sheets[wsname];
-          const data = XLSX.utils.sheet_to_json(ws, { header: 1 }) as any[][];
-
-          const draftsMap = new Map<string, DraftProduct>();
-          
-          data.forEach((row, index) => {
-            // Skip header row
-            if (index === 0) return;
-
-            const sku = row[0]?.toString().trim();
-            const name = row[1]?.toString().trim();
-            const categoryName = row[2]?.toString().trim();
-            const stock = parseFloat(row[3]) || 0;
-            const price = parseFloat(row[4]) || 0;
-            const description = row[5]?.toString().trim() || '';
-
-            if (!name || (!price && !stock)) return;
-
-            // Try to match category - more robust matching
-            let itemCategory = '';
-            if (categoryName) {
-              const lowerCategoryName = categoryName.toLowerCase();
-              // Try exact match first
-              let matchedCat = categories.find(c => c.name.toLowerCase() === lowerCategoryName);
-              
-              // If no exact match, try partial match
-              if (!matchedCat) {
-                matchedCat = categories.find(c => 
-                  lowerCategoryName.includes(c.name.toLowerCase()) || 
-                  c.name.toLowerCase().includes(lowerCategoryName)
-                );
-              }
-              
-              if (matchedCat) itemCategory = matchedCat.slug;
-            }
-
-            const key = name.toLowerCase();
-            if (draftsMap.has(key)) {
-              const existing = draftsMap.get(key)!;
-              existing.stock += stock;
-            } else {
-              const isDuplicate = existingProducts.some(p => p.name.toLowerCase() === key);
-              const newDraft: DraftProduct = {
-                id: `draft-${Date.now()}-${index}`,
-                name: sku ? `${sku} - ${name}` : name,
-                price,
-                stock,
-                category: itemCategory,
-                description: description,
-                image: '',
-                status: 'pending',
-                isDuplicate
-              };
-              draftsMap.set(key, newDraft);
-            }
-          });
-
-          setDrafts(Array.from(draftsMap.values()));
-          setCurrentPage(1);
-        } catch (err) {
-          console.error('Parsing error:', err);
-          alert('Помилка при читанні файлу');
-        } finally {
-          setIsParsing(false);
-        }
-      }, 10);
-    };
-    reader.readAsBinaryString(file);
+    try {
+      if (file.name.toLowerCase().endsWith('.csv')) {
+        buildDrafts(parseCsv(await file.text()));
+      } else {
+        const workbook = new ExcelJS.Workbook();
+        await workbook.xlsx.load(await file.arrayBuffer());
+        const worksheet = workbook.worksheets[0];
+        const rows: any[][] = [];
+        worksheet.eachRow(row => {
+          const values = Array.isArray(row.values) ? row.values.slice(1) : [];
+          rows.push(values);
+        });
+        buildDrafts(rows);
+      }
+    } catch (err) {
+      console.error('Parsing error:', err);
+      alert('Помилка при читанні файлу');
+    } finally {
+      setIsParsing(false);
+    }
   };
 
   const generateDescription = async (id: string) => {

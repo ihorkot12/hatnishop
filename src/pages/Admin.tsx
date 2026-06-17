@@ -8,7 +8,7 @@ import { Package, ShoppingCart, TrendingUp, Plus, Edit2, Trash2, CheckCircle, Cl
 import { ProductImporter } from '../components/ProductImporter';
 import { MOCK_PRODUCTS } from '../constants';
 import { Order, User } from '../types';
-import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, Cell } from 'recharts';
+import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, BarChart, Bar, Cell } from 'recharts';
 import { useAuth } from '../store/AuthContext';
 import { useNavigate } from 'react-router-dom';
 
@@ -42,6 +42,7 @@ export const Admin = () => {
   const [isReviewsLoading, setIsReviewsLoading] = useState(false);
   const [stats, setStats] = useState<any>(null);
   const [isStatsLoading, setIsStatsLoading] = useState(false);
+  const [chartWidth, setChartWidth] = useState(320);
   const [isUserLoading, setIsUserLoading] = useState(false);
   const [isBonusCodesLoading, setIsBonusCodesLoading] = useState(false);
   const [isSettingsLoading, setIsSettingsLoading] = useState(false);
@@ -98,6 +99,21 @@ export const Admin = () => {
   const [dbStatus, setDbStatus] = useState<any>(null);
   const [isDbStatusLoading, setIsDbStatusLoading] = useState(false);
   const [isResettingDb, setIsResettingDb] = useState(false);
+
+  useEffect(() => {
+    document.title = 'Адмін-панель — Хатні Штучки';
+  }, []);
+
+  useEffect(() => {
+    const updateChartWidth = () => {
+      const availableWidth = window.innerWidth - 64;
+      setChartWidth(Math.max(280, Math.min(900, availableWidth)));
+    };
+
+    updateChartWidth();
+    window.addEventListener('resize', updateChartWidth);
+    return () => window.removeEventListener('resize', updateChartWidth);
+  }, []);
 
   useEffect(() => {
     if (activeTab === 'settings') {
@@ -955,9 +971,8 @@ export const Admin = () => {
                 <>
                   <div className="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-sm">
                     <h3 className="text-xl font-bold mb-8">Динаміка продажів</h3>
-                    <div className="h-[300px] w-full">
-                      <ResponsiveContainer width="100%" height="100%">
-                        <AreaChart data={stats?.salesByDay || []}>
+                    <div className="w-full min-w-0 overflow-x-auto">
+                      <AreaChart width={chartWidth} height={300} data={stats?.salesByDay || []}>
                           <defs>
                             <linearGradient id="colorSales" x1="0" y1="0" x2="0" y2="1">
                               <stop offset="5%" stopColor="#81D8D0" stopOpacity={0.3}/>
@@ -972,16 +987,14 @@ export const Admin = () => {
                           />
                           <Area type="monotone" dataKey="sales" stroke="#81D8D0" strokeWidth={3} fillOpacity={1} fill="url(#colorSales)" />
                         </AreaChart>
-                      </ResponsiveContainer>
                     </div>
                   </div>
 
                   <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
                     <div className="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-sm">
                       <h3 className="text-xl font-bold mb-8">Продажі за категоріями</h3>
-                      <div className="h-[250px]">
-                        <ResponsiveContainer width="100%" height="100%">
-                          <BarChart data={stats?.salesByCategory || []}>
+                      <div className="w-full min-w-0 overflow-x-auto">
+                          <BarChart width={Math.min(chartWidth, 520)} height={250} data={stats?.salesByCategory || []}>
                             <XAxis dataKey="name" axisLine={false} tickLine={false} />
                             <Tooltip />
                             <Bar dataKey="value" radius={[10, 10, 0, 0]}>
@@ -990,7 +1003,6 @@ export const Admin = () => {
                               ))}
                             </Bar>
                           </BarChart>
-                        </ResponsiveContainer>
                       </div>
                     </div>
                     <div className="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-sm">

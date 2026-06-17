@@ -58,12 +58,12 @@ export const Navbar = () => {
       <TopBar />
       <nav className="bg-white/80 backdrop-blur-2xl border-b border-slate-200/50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex justify-between items-center h-24">
-          <div className="flex items-center gap-12">
+        <div className="flex justify-between items-center h-24 gap-3 min-w-0">
+          <div className="flex items-center gap-12 min-w-0">
             <Link 
               to="/" 
               onClick={scrollToTop}
-              className="text-3xl font-serif font-bold tracking-tight text-slate-900 hover:no-underline group"
+              className="text-xl sm:text-3xl font-serif font-bold tracking-tight text-slate-900 hover:no-underline group shrink-0"
             >
               ХАТНІ <span className="text-[#68b8b0] italic transition-colors group-hover:text-tiffany">ШТУЧКИ</span>
             </Link>
@@ -117,7 +117,7 @@ export const Navbar = () => {
             </div>
           </div>
 
-          <div className="flex items-center gap-6">
+          <div className="flex items-center gap-2 sm:gap-6 shrink-0">
             <button 
               onClick={() => setIsSearchOpen(!isSearchOpen)}
               className="p-2 text-slate-400 hover:text-slate-900 transition-all duration-300"
@@ -134,7 +134,7 @@ export const Navbar = () => {
               )}
             </Link>
 
-            <div className="relative">
+            <div className="relative hidden sm:block">
               <button 
                 onClick={() => setShowNotifMenu(!showNotifMenu)}
                 className="p-2 text-slate-400 hover:text-slate-900 transition-all duration-300 relative"
@@ -203,7 +203,7 @@ export const Navbar = () => {
               </AnimatePresence>
             </Link>
             
-            <div className="relative">
+            <div className="relative hidden md:block">
               {user ? (
                 <div className="flex items-center gap-3">
                   <button 
@@ -226,9 +226,11 @@ export const Navbar = () => {
                         <div className="text-[10px] uppercase text-slate-400 font-bold">Ваші бонуси</div>
                         <div className="text-tiffany font-bold">{user.bonuses} грн</div>
                       </div>
-                      <Link to="/admin" className="flex items-center gap-3 px-4 py-3 text-sm text-slate-600 hover:bg-slate-50 rounded-xl transition-all">
-                        <User size={16} /> Адмін-панель
-                      </Link>
+                      {user.role === 'admin' && (
+                        <Link to="/admin" className="flex items-center gap-3 px-4 py-3 text-sm text-slate-600 hover:bg-slate-50 rounded-xl transition-all">
+                          <User size={16} /> Адмін-панель
+                        </Link>
+                      )}
                       <button 
                         onClick={() => { logout(); setShowUserMenu(false); }}
                         className="w-full flex items-center gap-3 px-4 py-3 text-sm text-red-500 hover:bg-red-50 rounded-xl transition-all"
@@ -331,11 +333,20 @@ export const Navbar = () => {
                     <div className="w-12 h-12 bg-tiffany/10 rounded-full flex items-center justify-center text-tiffany">
                       <User size={24} />
                     </div>
-                    <div>
+                    <div className="min-w-0 flex-1">
                       <div className="font-bold text-slate-900">{user.name}</div>
+                      {user.role === 'admin' && (
+                        <Link
+                          to="/admin"
+                          className="mt-3 flex min-h-11 items-center justify-center gap-2 rounded-xl bg-slate-900 px-4 py-3 text-sm text-white font-bold"
+                          onClick={() => setIsMobileMenuOpen(false)}
+                        >
+                          <User size={14} /> Адмін-панель
+                        </Link>
+                      )}
                       <button 
                         onClick={() => { logout(); setIsMobileMenuOpen(false); }}
-                        className="text-xs text-red-500 font-bold"
+                        className="mt-2 block text-xs text-red-500 font-bold"
                       >
                         Вийти
                       </button>

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Trash2, Plus, Minus, ArrowRight, CreditCard, Truck, CheckCircle2, Star, ShieldCheck, RotateCcw } from 'lucide-react';
 import { useCart } from '../store/CartContext';
@@ -25,6 +25,10 @@ export const Cart = () => {
   const [bonusCode, setBonusCode] = useState('');
   const [appliedBonusCode, setAppliedBonusCode] = useState<any>(null);
   const [bonusCodeError, setBonusCodeError] = useState('');
+
+  useEffect(() => {
+    document.title = 'Кошик та оформлення замовлення — Хатні Штучки';
+  }, []);
 
   const calculateDiscount = () => {
     if (!appliedBonusCode) return 0;

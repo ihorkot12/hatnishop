@@ -14,6 +14,10 @@ export const Login = () => {
   const { login, register } = useAuth();
   const navigate = useNavigate();
 
+  useEffect(() => {
+    document.title = isRegister ? 'Реєстрація — Хатні Штучки' : 'Вхід — Хатні Штучки';
+  }, [isRegister]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
