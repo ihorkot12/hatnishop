@@ -24,7 +24,8 @@ function normalize(value) {
 }
 
 function isBundle(product) {
-  return product?.isBundle === true || product?.isBundle === 1 || product?.isBundle === '1';
+  const rawValue = product?.isBundle ?? product?.isbundle ?? product?.is_bundle;
+  return rawValue === true || rawValue === 1 || rawValue === '1' || rawValue === 'true';
 }
 
 function headersWithJson(options = {}, cookieHeader = '') {

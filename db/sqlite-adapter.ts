@@ -223,7 +223,7 @@ export class SqliteAdapter implements DatabaseAdapter {
 
   async getProductsSummary(): Promise<Partial<Product>[]> {
     return this.db.prepare(`
-      SELECT id, name, category, price, image, material, brand, isPopular, isBundle, stock, rating, review_count, bonus_points 
+      SELECT id, name, category, price, image, images, description, material, brand, isPopular, isBundle, stock, rating, review_count, bonus_points, bundle_items 
       FROM products 
       ORDER BY name ASC
     `).all() as Partial<Product>[];
