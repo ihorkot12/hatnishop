@@ -9,7 +9,7 @@ export const CategoryGrid = () => {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    fetch('/api/categories', { cache: 'no-store' })
+    fetch('/api/categories/catalog')
       .then((res) => (res.ok ? res.json() : []))
       .then((data) => {
         setCategories(Array.isArray(data) ? data.filter((category: Category) => !category.parent_id) : []);

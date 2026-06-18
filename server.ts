@@ -721,19 +721,29 @@ const normalizeProductForApi = (product: any) => {
 const productImageUrl = (id: string, slot: string | number = "main") =>
   `/api/product-images/${encodeURIComponent(id)}/${encodeURIComponent(String(slot))}`;
 
+const categoryImageUrl = (id: string) => `/api/category-images/${encodeURIComponent(id)}/main`;
+
 const buildPublicProduct = (product: any, options: { includeGallery?: boolean } = {}) => {
   const normalized = normalizeProductForApi(product);
   const hasProductId = typeof normalized.id === "string" && normalized.id.length > 0;
   const gallery = mergeImageList(normalized.images).filter((image) => image !== normalized.image);
+  const shouldProxyMainImage = hasProductId && (!normalized.image || String(normalized.image).startsWith("data:image/"));
 
   return {
     ...normalized,
-    image: hasProductId ? productImageUrl(normalized.id, "main") : normalized.image,
+    image: shouldProxyMainImage ? productImageUrl(normalized.id, "main") : normalized.image,
     images: options.includeGallery && hasProductId
-      ? gallery.map((_, index) => productImageUrl(normalized.id, index)).slice(0, 8)
+      ? gallery.map((image, index) => String(image).startsWith("data:image/") ? productImageUrl(normalized.id, index) : image).slice(0, 8)
       : []
   };
 };
+
+const buildPublicCategory = (category: any) => ({
+  ...category,
+  image: typeof category?.id === "string" && category.id.length > 0 && String(category?.image || "").startsWith("data:image/")
+    ? categoryImageUrl(category.id)
+    : category?.image
+});
 
 const mergeImageList = (...lists: any[]) => {
   const merged: string[] = [];
@@ -1500,6 +1510,66 @@ app.post("/api/auth/register", asyncHandler(async (req: any, res: any) => {
       const { isFirst } = recordDbError(error);
       if (isFirst) console.warn("Error fetching product image:", error.message);
       res.status(404).send("Image not found");
+    }
+  }));
+
+  app.get("/api/category-images/:id/main", asyncHandler(async (req: any, res: any) => {
+    setImageCache(res);
+    try {
+      const now = Date.now();
+      let categories = categoriesCache && (now - categoriesCache.timestamp < CACHE_TTL)
+        ? categoriesCache.data
+        : null;
+      if (!categories) {
+        categories = await db.getCategories();
+        categoriesCache = { data: categories, timestamp: now };
+        savePersistentCache();
+      }
+      const category = categories.find((item: any) => item.id === req.params.id);
+      if (!category?.image) return res.status(404).send("Image not found");
+
+      const rawImage = String(category.image || "");
+      const dataImage = extractDataUrlImage(rawImage);
+      if (dataImage) {
+        res.type(dataImage.mimeType);
+        return res.send(dataImage.buffer);
+      }
+
+      if (/^https?:\/\//i.test(rawImage)) {
+        return res.redirect(302, rawImage);
+      }
+
+      res.status(404).send("Image not found");
+    } catch (error: any) {
+      const { isFirst } = recordDbError(error);
+      if (isFirst) console.warn("Error fetching category image:", error.message);
+      res.status(404).send("Image not found");
+    }
+  }));
+
+  app.get("/api/categories/catalog", asyncHandler(async (req: any, res: any) => {
+    setPublicApiCache(res, 300);
+    const now = Date.now();
+    if (categoriesCache && (now - categoriesCache.timestamp < CACHE_TTL)) {
+      return res.json(categoriesCache.data.map(buildPublicCategory));
+    }
+    try {
+      if (isDbInDegradedMode()) {
+        throw new Error("Database is in degraded mode (quota exceeded)");
+      }
+
+      const categories = await db.getCategories();
+      categoriesCache = { data: categories, timestamp: now };
+      savePersistentCache();
+      res.json(categories.map(buildPublicCategory));
+    } catch (error: any) {
+      const { isQuota, isFirst } = recordDbError(error);
+      const errMsg = error?.message || (typeof error === 'string' ? error : JSON.stringify(error));
+      if (isFirst && !isQuota) {
+        console.warn("Error fetching public categories, using cache or fallback:", errMsg);
+      }
+      if (categoriesCache) return res.json(categoriesCache.data.map(buildPublicCategory));
+      res.json(FALLBACK_CATEGORIES.map(buildPublicCategory));
     }
   }));
 

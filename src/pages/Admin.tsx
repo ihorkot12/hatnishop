@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { generateAndSaveProductGallery, generateAndSaveProductImage, generateDescription, generateProductGallery, generateProductImage, generateStylingTip, saveWebImageForProduct, searchProductWebImages, suggestBundleItems } from '../services/aiService';
 import { generateDirectorReport } from '../services/aiDirectorService';
-import { fileToBase64 } from '../utils/imageUtils';
+import { compressDataUrl, fileToBase64 } from '../utils/imageUtils';
 import Markdown from 'react-markdown';
 import { Package, ShoppingCart, TrendingUp, Plus, Edit2, Trash2, CheckCircle, Clock, Star, Truck, Users, Shield, UserPlus, Filter, Settings, MessageSquare, Tag, Upload, Loader2, Sparkles, Share2, Database, RefreshCw, AlertTriangle, Camera, Globe2, Images } from 'lucide-react';
 import { ProductImporter } from '../components/ProductImporter';
@@ -727,6 +727,12 @@ export const Admin = () => {
     });
   };
 
+  const optimizeMainImage = (image: string) =>
+    compressDataUrl(image, { maxWidth: 1050, maxHeight: 1050, quality: 0.74, targetBytes: 560 * 1024 });
+
+  const optimizeGalleryImage = (image: string) =>
+    compressDataUrl(image, { maxWidth: 850, maxHeight: 850, quality: 0.7, targetBytes: 300 * 1024 });
+
   const handleFindWebImage = async () => {
     const { name, category } = getProductFormBasics();
     if (!name) {
@@ -794,7 +800,7 @@ export const Admin = () => {
     try {
       const image = await generateProductImage(name, category, mainImage);
       if (image) {
-        setMainImage(image);
+        setMainImage(await optimizeMainImage(image));
       }
     } catch (err) {
       console.error(err);
@@ -809,15 +815,19 @@ export const Admin = () => {
     try {
       if (editingProduct?.id) {
         const result = await generateAndSaveProductGallery(editingProduct.id, 3);
-        if (result.product?.image) setMainImage(result.product.image);
-        if (Array.isArray(result.product?.images)) setGalleryImages(result.product.images);
-        else appendGalleryImages(result.images || []);
+        if (result.product?.image) setMainImage(await optimizeMainImage(result.product.image));
+        if (Array.isArray(result.product?.images)) {
+          setGalleryImages(await Promise.all(result.product.images.map(optimizeGalleryImage)));
+        } else {
+          appendGalleryImages(await Promise.all((result.images || []).map(optimizeGalleryImage)));
+        }
         fetchProducts();
       } else {
         const images = await generateProductGallery(name, category, mainImage, 3);
         if (images.length > 0) {
-          if (!mainImage) setMainImage(images[0]);
-          appendGalleryImages(images);
+          const optimizedImages = await Promise.all(images.map(optimizeGalleryImage));
+          if (!mainImage) setMainImage(await optimizeMainImage(images[0]));
+          appendGalleryImages(optimizedImages);
         }
       }
     } catch (err) {
@@ -924,10 +934,15 @@ export const Admin = () => {
   const handleProductSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
+    const optimizedMainImage = await optimizeMainImage(mainImage);
+    const optimizedGalleryImages = await Promise.all(galleryImages.map(optimizeGalleryImage));
+    setMainImage(optimizedMainImage);
+    setGalleryImages(optimizedGalleryImages);
+
     const productData = {
       ...Object.fromEntries(formData.entries()),
-      image: mainImage,
-      images: galleryImages,
+      image: optimizedMainImage,
+      images: optimizedGalleryImages,
       isPopular: formData.get('isPopular') === 'on',
       isBundle: isBundle,
       bundle_items: bundleItems,
