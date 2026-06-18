@@ -58,9 +58,9 @@ const bundleItems = await request('/api/admin/ai/bundle-items', {
   productName: 'Coffee set',
   productCategory: 'tableware',
   allProducts: [
-    { id: 'p1', name: 'Cup', category: 'tableware' },
-    { id: 'p2', name: 'Spoon', category: 'kitchen' },
-    { id: 'p3', name: 'Napkin', category: 'textile' },
+    { id: 'p1', name: 'Cup', category: 'tableware', price: 120, stock: 5 },
+    { id: 'p2', name: 'Spoon', category: 'kitchen', price: 80, stock: 5 },
+    { id: 'p3', name: 'Napkin', category: 'textile', price: 60, stock: 5 },
   ],
 });
 
