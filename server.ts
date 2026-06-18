@@ -998,10 +998,6 @@ app.post("/api/auth/register", asyncHandler(async (req: any, res: any) => {
   // API Routes
   app.get("/api/products/catalog", asyncHandler(async (req: any, res: any) => {
     setNoStore(res);
-    const now = Date.now();
-    if (productsSummaryCache && (now - productsSummaryCache.timestamp < CACHE_TTL)) {
-      return res.json(productsSummaryCache.data);
-    }
     try {
       if (isDbInDegradedMode()) {
         throw new Error("Database is in degraded mode (quota exceeded)");
@@ -1013,7 +1009,7 @@ app.post("/api/auth/register", asyncHandler(async (req: any, res: any) => {
         images: p.images ? (typeof p.images === 'string' ? JSON.parse(p.images) : p.images) : [],
         bundle_items: p.bundle_items ? (typeof p.bundle_items === 'string' ? JSON.parse(p.bundle_items) : p.bundle_items) : []
       }));
-      productsSummaryCache = { data: formattedProducts, timestamp: now };
+      productsSummaryCache = { data: formattedProducts, timestamp: Date.now() };
       savePersistentCache();
       res.json(formattedProducts);
     } catch (error: any) {
@@ -1041,10 +1037,6 @@ app.post("/api/auth/register", asyncHandler(async (req: any, res: any) => {
 
   app.get("/api/products", asyncHandler(async (req: any, res: any) => {
     setNoStore(res);
-    const now = Date.now();
-    if (productsCache && (now - productsCache.timestamp < CACHE_TTL)) {
-      return res.json(productsCache.data);
-    }
     try {
       const products = await db.getProducts();
       const formattedProducts = products.map(p => ({
@@ -1052,7 +1044,7 @@ app.post("/api/auth/register", asyncHandler(async (req: any, res: any) => {
         images: p.images ? (typeof p.images === 'string' ? JSON.parse(p.images) : p.images) : [],
         bundle_items: p.bundle_items ? (typeof p.bundle_items === 'string' ? JSON.parse(p.bundle_items) : p.bundle_items) : []
       }));
-      productsCache = { data: formattedProducts, timestamp: now };
+      productsCache = { data: formattedProducts, timestamp: Date.now() };
       savePersistentCache();
       res.json(formattedProducts);
     } catch (error: any) {

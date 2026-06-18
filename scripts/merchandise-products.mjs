@@ -230,12 +230,103 @@ function imageSvg(product) {
 </svg>`;
 }
 
+const PHOTO_POOLS = {
+  mug: [
+    '1514228742587-6b1558fcca3d',
+    '1517705008128-361805f42e86',
+    '1533777857419-377a70617714',
+  ],
+  glass: [
+    '1517705008128-361805f42e86',
+    '1514228742587-6b1558fcca3d',
+    '1605000797499-95a51c5269ae',
+  ],
+  pitcher: [
+    '1517705008128-361805f42e86',
+    '1514228742587-6b1558fcca3d',
+    '1605000797499-95a51c5269ae',
+  ],
+  plate: [
+    '1517705008128-361805f42e86',
+    '1514228742587-6b1558fcca3d',
+    '1605000797499-95a51c5269ae',
+  ],
+  utensil: [
+    '1556910103-1c02745aae4d',
+    '1556911220-bff31c812dba',
+    '1605000797499-95a51c5269ae',
+  ],
+  container: [
+    '1556910103-1c02745aae4d',
+    '1605000797499-95a51c5269ae',
+    '1584622650111-993a426fbf0a',
+  ],
+  basket: [
+    '1513519245088-0e12902e5a38',
+    '1584622650111-993a426fbf0a',
+    '1556910103-1c02745aae4d',
+  ],
+  textile: [
+    '1513519245088-0e12902e5a38',
+    '1584622650111-993a426fbf0a',
+    '1517705008128-361805f42e86',
+  ],
+  bottle: [
+    '1592089416462-2b0cb7da8379',
+    '1556910103-1c02745aae4d',
+    '1517705008128-361805f42e86',
+  ],
+  bakeware: [
+    '1556910103-1c02745aae4d',
+    '1605000797499-95a51c5269ae',
+    '1517705008128-361805f42e86',
+  ],
+  tableware: [
+    '1517705008128-361805f42e86',
+    '1514228742587-6b1558fcca3d',
+    '1605000797499-95a51c5269ae',
+  ],
+  kitchen: [
+    '1556910103-1c02745aae4d',
+    '1556911220-bff31c812dba',
+    '1605000797499-95a51c5269ae',
+  ],
+  organization: [
+    '1513519245088-0e12902e5a38',
+    '1556910103-1c02745aae4d',
+    '1584622650111-993a426fbf0a',
+  ],
+  bottles: [
+    '1592089416462-2b0cb7da8379',
+    '1556910103-1c02745aae4d',
+    '1517705008128-361805f42e86',
+  ],
+  decor: [
+    '1513519245088-0e12902e5a38',
+    '1584622650111-993a426fbf0a',
+    '1517705008128-361805f42e86',
+  ],
+};
+
+function hashString(value) {
+  return String(value || '').split('').reduce((hash, char) => {
+    return ((hash << 5) - hash + char.charCodeAt(0)) | 0;
+  }, 0);
+}
+
+function photoUrl(photoId) {
+  return `https://images.unsplash.com/photo-${photoId}?auto=format&fit=crop&w=900&q=85`;
+}
+
+function productPhotoUrl(product) {
+  const kind = productKind(product);
+  const pool = PHOTO_POOLS[kind] || PHOTO_POOLS[product.category] || PHOTO_POOLS.tableware;
+  const index = Math.abs(hashString(`${product.id}-${product.name}`)) % pool.length;
+  return photoUrl(pool[index]);
+}
+
 function writeImage(product) {
-  fs.mkdirSync(GENERATED_IMAGE_DIR, { recursive: true });
-  const fileName = `${product.id}.svg`;
-  const filePath = path.join(GENERATED_IMAGE_DIR, fileName);
-  fs.writeFileSync(filePath, imageSvg(product), 'utf8');
-  return `${GENERATED_IMAGE_URL_PREFIX}/${fileName}`;
+  return productPhotoUrl(product);
 }
 
 function buildExistingNameCounts(products, proposals) {

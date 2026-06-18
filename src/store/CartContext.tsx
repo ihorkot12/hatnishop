@@ -33,6 +33,39 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const userBonuses = user?.bonuses || 0;
 
   useEffect(() => {
+    if (cart.length === 0) return;
+
+    let cancelled = false;
+    fetch('/api/products/catalog', { cache: 'no-store' })
+      .then(res => res.ok ? res.json() : [])
+      .then((products: Product[]) => {
+        if (cancelled || !Array.isArray(products)) return;
+        const availableProducts = new Map(products.map(product => [product.id, product]));
+
+        setCart(prev => {
+          const next = prev
+            .map(item => {
+              const liveProduct = availableProducts.get(item.id);
+              if (!liveProduct || Number(liveProduct.stock || 0) < 1) return null;
+
+              return {
+                ...liveProduct,
+                quantity: Math.min(item.quantity, Number(liveProduct.stock || item.quantity)),
+              };
+            })
+            .filter(Boolean) as CartItem[];
+
+          return JSON.stringify(next) === JSON.stringify(prev) ? prev : next;
+        });
+      })
+      .catch(() => {});
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
     localStorage.setItem('cart', JSON.stringify(cart));
   }, [cart]);
 
