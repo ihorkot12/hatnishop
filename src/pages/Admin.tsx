@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { generateAndSaveProductGallery, generateAndSaveProductImage, generateDescription, generateProductGallery, generateProductImage, generateStylingTip, saveWebImageForProduct, searchProductWebImages, suggestBundleItems } from '../services/aiService';
 import { generateDirectorReport } from '../services/aiDirectorService';
@@ -81,6 +81,7 @@ const getOrderDeliveryMethod = (order: any) => order?.customer?.deliveryMethod ?
 const getOrderBonusUsed = (order: any) => Number(order?.bonusUsed ?? order?.bonuses_used ?? order?.bonus_used ?? 0);
 const getOrderFinalTotal = (order: any) => Number(order?.finalTotal ?? order?.total_amount ?? order?.final_total ?? order?.total ?? 0);
 const getOrderCreatedAt = (order: any) => order?.createdAt ?? order?.created_at ?? new Date().toISOString();
+type ProductImageFilter = 'needs-ai' | 'generated' | 'missing' | 'all';
 
 export const Admin = () => {
   const { user, loading } = useAuth();
@@ -146,6 +147,7 @@ export const Admin = () => {
   const [isGeneratingGallery, setIsGeneratingGallery] = useState(false);
   const [isSearchingWebImage, setIsSearchingWebImage] = useState(false);
   const [bulkImageJob, setBulkImageJob] = useState<{ type: 'ai' | 'web'; done: number; total: number } | null>(null);
+  const [productImageFilter, setProductImageFilter] = useState<ProductImageFilter>('needs-ai');
   const [isGeneratingAdvice, setIsGeneratingAdvice] = useState(false);
   const [isGeneratingBundle, setIsGeneratingBundle] = useState(false);
   const [bundleItems, setBundleItems] = useState<string[]>([]);
@@ -155,6 +157,32 @@ export const Admin = () => {
   const [dbStatus, setDbStatus] = useState<any>(null);
   const [isDbStatusLoading, setIsDbStatusLoading] = useState(false);
   const [isResettingDb, setIsResettingDb] = useState(false);
+
+  const productImageCounts = useMemo(() => {
+    return products.reduce(
+      (acc, product) => {
+        const isGenerated = product.imageIsGenerated === true;
+        const isMissing = product.imageIsPlaceholder === true || product.hasImage === false;
+        acc.all += 1;
+        if (!isGenerated) acc.needsAi += 1;
+        if (isGenerated) acc.generated += 1;
+        if (isMissing) acc.missing += 1;
+        return acc;
+      },
+      { all: 0, needsAi: 0, generated: 0, missing: 0 }
+    );
+  }, [products]);
+
+  const visibleProducts = useMemo(() => {
+    if (productImageFilter === 'all') return products;
+    if (productImageFilter === 'generated') {
+      return products.filter(product => product.imageIsGenerated === true);
+    }
+    if (productImageFilter === 'missing') {
+      return products.filter(product => product.imageIsPlaceholder === true || product.hasImage === false);
+    }
+    return products.filter(product => product.imageIsGenerated !== true);
+  }, [products, productImageFilter]);
 
   useEffect(() => {
     document.title = 'Адмін-панель — Хатні Штучки';
@@ -853,10 +881,14 @@ export const Admin = () => {
   };
 
   const runBulkImageJob = async (type: 'ai' | 'web') => {
-    if (products.length === 0) return;
+    const targetProducts = visibleProducts;
+    if (targetProducts.length === 0) {
+      alert('У цьому фільтрі немає товарів для обробки.');
+      return;
+    }
 
     if (type === 'web') {
-      const probe = await searchProductWebImages(products[0].name, products[0].category, 1);
+      const probe = await searchProductWebImages(targetProducts[0].name, targetProducts[0].category, 1);
       if (!probe.configured) {
         window.open(probe.openSearchUrl, '_blank', 'noopener,noreferrer');
         alert('Для автоматичного масового підбору реальних фото треба додати GOOGLE_SEARCH_API_KEY та GOOGLE_SEARCH_ENGINE_ID у Vercel. Без них відкриваю ручний пошук.');
@@ -865,26 +897,34 @@ export const Admin = () => {
     }
 
     const label = type === 'ai' ? 'AI-фото' : 'реальні фото з пошуку';
-    if (!window.confirm(`Запустити масове оновлення: ${label} для ${products.length} товарів? Це може тривати кілька хвилин.`)) return;
+    if (!window.confirm(`Запустити масове оновлення: ${label} для ${targetProducts.length} товарів у поточному фільтрі? Це може тривати кілька хвилин.`)) return;
 
-    setBulkImageJob({ type, done: 0, total: products.length });
+    setBulkImageJob({ type, done: 0, total: targetProducts.length });
     let success = 0;
     let failed = 0;
 
-    for (const product of products) {
+    for (const product of targetProducts) {
       try {
         const result = type === 'ai'
           ? await generateAndSaveProductImage(product.id)
           : await saveWebImageForProduct(product.id);
         if (result.product) {
-          setProducts(prev => prev.map(item => item.id === product.id ? { ...item, ...result.product } : item));
+          setProducts(prev => prev.map(item => item.id === product.id ? {
+            ...item,
+            hasImage: true,
+            imageIsGenerated: type === 'ai',
+            imageIsPlaceholder: false,
+            needsAiImage: type !== 'ai',
+            imageStatus: type === 'ai' ? 'generated' : 'external',
+            image: `/api/product-images/${encodeURIComponent(product.id)}/main?refresh=${Date.now()}`
+          } : item));
         }
         success += 1;
       } catch (err) {
         console.error(`Bulk ${type} image failed for ${product.id}:`, err);
         failed += 1;
       } finally {
-        setBulkImageJob({ type, done: success + failed, total: products.length });
+        setBulkImageJob({ type, done: success + failed, total: targetProducts.length });
       }
     }
 
@@ -1745,6 +1785,32 @@ export const Admin = () => {
                 )}
                 {activeTab === 'products' && (
                   <div className="flex flex-wrap items-center justify-end gap-3">
+                    <div className="flex flex-wrap items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 p-1">
+                      <span className="px-2 text-[10px] font-bold uppercase tracking-widest text-slate-400">
+                        <Filter size={12} className="inline-block mr-1" />
+                        Фото
+                      </span>
+                      {([
+                        { value: 'needs-ai', label: 'Потрібні AI', count: productImageCounts.needsAi },
+                        { value: 'generated', label: 'Уже з AI', count: productImageCounts.generated },
+                        { value: 'missing', label: 'Без фото', count: productImageCounts.missing },
+                        { value: 'all', label: 'Всі', count: productImageCounts.all }
+                      ] as const).map(filter => (
+                        <button
+                          key={filter.value}
+                          type="button"
+                          onClick={() => setProductImageFilter(filter.value)}
+                          disabled={!!bulkImageJob}
+                          className={`rounded-lg px-3 py-2 text-xs font-bold transition-all disabled:opacity-50 ${
+                            productImageFilter === filter.value
+                              ? 'bg-slate-900 text-white shadow-sm'
+                              : 'bg-white text-slate-500 hover:text-slate-900'
+                          }`}
+                        >
+                          {filter.label} <span className="ml-1 text-current opacity-60">{filter.count}</span>
+                        </button>
+                      ))}
+                    </div>
                     {bulkImageJob && (
                       <div className="rounded-xl bg-slate-50 px-4 py-3 text-xs font-bold text-slate-500">
                         Фото: {bulkImageJob.done}/{bulkImageJob.total}
@@ -1764,7 +1830,7 @@ export const Admin = () => {
                       className="bg-indigo-600 text-white px-4 py-3 rounded-xl font-bold flex items-center gap-2 hover:bg-slate-900 transition-all disabled:opacity-50"
                     >
                       {bulkImageJob?.type === 'ai' ? <Loader2 size={18} className="animate-spin" /> : <Camera size={18} />}
-                      AI-фото всім
+                      AI-фото видимим
                     </button>
                     <button 
                       onClick={() => { setEditingProduct(null); setShowProductModal(true); }}
@@ -1962,7 +2028,13 @@ export const Admin = () => {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-50">
-                      {products.map(product => (
+                      {visibleProducts.length === 0 ? (
+                        <tr>
+                          <td colSpan={4} className="px-8 py-12 text-center text-sm font-bold text-slate-400">
+                            У цьому фільтрі товарів немає
+                          </td>
+                        </tr>
+                      ) : visibleProducts.map(product => (
                         <tr key={product.id} className="hover:bg-slate-50/50 transition-colors">
                           <td className="px-8 py-6 flex items-center gap-4">
                             <img src={product.image} className="w-12 h-12 rounded-lg object-cover" alt="" referrerPolicy="no-referrer" />
@@ -1977,6 +2049,13 @@ export const Admin = () => {
                                 )}
                                 {product.isPopular && (
                                   <span className="rounded-full bg-slate-100 px-2.5 py-1 text-[10px] font-bold uppercase text-slate-500">Популярний</span>
+                                )}
+                                {product.imageIsGenerated ? (
+                                  <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-[10px] font-bold uppercase text-emerald-600">AI фото</span>
+                                ) : product.imageIsPlaceholder || product.hasImage === false ? (
+                                  <span className="rounded-full bg-amber-50 px-2.5 py-1 text-[10px] font-bold uppercase text-amber-600">Без фото</span>
+                                ) : (
+                                  <span className="rounded-full bg-indigo-50 px-2.5 py-1 text-[10px] font-bold uppercase text-indigo-600">Потрібне AI</span>
                                 )}
                               </div>
                             </div>

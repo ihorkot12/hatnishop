@@ -267,7 +267,10 @@ export class PostgresAdapter implements DatabaseAdapter {
 
   async getProductsSummary(): Promise<Partial<Product>[]> {
     const { rows } = await sql`
-      SELECT id, name, category, price, description, material, brand, "isPopular", "isBundle", stock, rating, review_count, bonus_points, bundle_items
+      SELECT id, name, category, price, description, material, brand, "isPopular", "isBundle", stock, rating, review_count, bonus_points, bundle_items,
+        CASE WHEN image IS NOT NULL AND image <> '' THEN true ELSE false END AS has_image,
+        CASE WHEN image LIKE 'data:image/jpeg%' OR image LIKE 'data:image/png%' OR image LIKE 'data:image/webp%' THEN true ELSE false END AS image_is_generated,
+        CASE WHEN image IS NULL OR image = '' OR image ILIKE '%placeholder%' OR image ILIKE '%placehold.co%' OR image ILIKE '%picsum.photos%' OR image LIKE 'data:image/svg%' THEN true ELSE false END AS image_is_placeholder
       FROM products 
       ORDER BY name ASC
     `;

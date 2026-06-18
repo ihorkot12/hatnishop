@@ -740,11 +740,26 @@ const buildPublicProduct = (product: any, options: { includeGallery?: boolean } 
 
 const buildAdminProductSummary = (product: any) => {
   const normalized = normalizeProductForApi(product);
+  const rawImage = String(normalized.image || "");
+  const hasImage = toBooleanFlag(firstDefined(normalized, ["hasImage", "has_image"])) || rawImage.length > 0;
+  const imageIsGenerated = toBooleanFlag(firstDefined(normalized, ["imageIsGenerated", "image_is_generated"]))
+    || rawImage.startsWith("data:image/jpeg")
+    || rawImage.startsWith("data:image/png")
+    || rawImage.startsWith("data:image/webp");
+  const imageIsPlaceholder = toBooleanFlag(firstDefined(normalized, ["imageIsPlaceholder", "image_is_placeholder"]))
+    || !hasImage
+    || rawImage.startsWith("data:image/svg")
+    || /placeholder|placehold\.co|picsum\.photos/i.test(rawImage);
   const preview = buildPublicProduct(normalized);
   return {
     ...normalized,
     image: preview.image,
-    images: []
+    images: [],
+    hasImage,
+    imageIsGenerated,
+    imageIsPlaceholder,
+    needsAiImage: !imageIsGenerated,
+    imageStatus: imageIsGenerated ? "generated" : imageIsPlaceholder ? "missing" : "external"
   };
 };
 

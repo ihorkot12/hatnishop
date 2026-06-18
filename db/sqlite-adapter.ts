@@ -223,7 +223,10 @@ export class SqliteAdapter implements DatabaseAdapter {
 
   async getProductsSummary(): Promise<Partial<Product>[]> {
     return this.db.prepare(`
-      SELECT id, name, category, price, description, material, brand, isPopular, isBundle, stock, rating, review_count, bonus_points, bundle_items
+      SELECT id, name, category, price, description, material, brand, isPopular, isBundle, stock, rating, review_count, bonus_points, bundle_items,
+        CASE WHEN image IS NOT NULL AND image != '' THEN 1 ELSE 0 END AS has_image,
+        CASE WHEN image LIKE 'data:image/jpeg%' OR image LIKE 'data:image/png%' OR image LIKE 'data:image/webp%' THEN 1 ELSE 0 END AS image_is_generated,
+        CASE WHEN image IS NULL OR image = '' OR lower(image) LIKE '%placeholder%' OR lower(image) LIKE '%placehold.co%' OR lower(image) LIKE '%picsum.photos%' OR image LIKE 'data:image/svg%' THEN 1 ELSE 0 END AS image_is_placeholder
       FROM products 
       ORDER BY name ASC
     `).all() as Partial<Product>[];
