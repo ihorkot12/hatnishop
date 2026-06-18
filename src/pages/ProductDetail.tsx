@@ -36,8 +36,8 @@ export const ProductDetail = () => {
     const fetchProduct = async () => {
       try {
         const [prodRes, allRes] = await Promise.all([
-          fetch(`/api/products/${id}`),
-          fetch('/api/products/catalog')
+          fetch(`/api/products/${id}`, { cache: 'no-store' }),
+          fetch('/api/products/catalog', { cache: 'no-store' })
         ]);
         
         const found = prodRes.ok ? await prodRes.json() : null;

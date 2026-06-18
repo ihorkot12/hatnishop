@@ -443,7 +443,7 @@ export const Admin = () => {
   const fetchCategories = async () => {
     setIsCategoryLoading(true);
     try {
-      const res = await fetch('/api/categories');
+      const res = await fetch('/api/categories', { cache: 'no-store' });
       if (!res.ok) throw new Error('Failed to fetch categories');
       const data = await res.json();
       if (Array.isArray(data)) {
@@ -609,7 +609,7 @@ export const Admin = () => {
   const fetchProducts = async () => {
     setIsProductLoading(true);
     try {
-      const res = await fetch('/api/products');
+      const res = await fetch('/api/products', { cache: 'no-store' });
       if (!res.ok) throw new Error('Failed to fetch products');
       const data = await res.json();
       if (Array.isArray(data)) {

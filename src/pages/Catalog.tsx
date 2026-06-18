@@ -42,8 +42,8 @@ export const Catalog = () => {
       setIsLoading(true);
       try {
         const [prodRes, catRes] = await Promise.all([
-          fetch('/api/products/catalog'),
-          fetch('/api/categories')
+          fetch('/api/products/catalog', { cache: 'no-store' }),
+          fetch('/api/categories', { cache: 'no-store' })
         ]);
         
         const prodData = prodRes.ok ? await prodRes.json() : [];

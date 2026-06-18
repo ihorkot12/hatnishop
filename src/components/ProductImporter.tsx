@@ -35,7 +35,7 @@ export const ProductImporter = ({ onComplete, categories }: { onComplete: () => 
   const [filterCategory, setFilterCategory] = useState<string>('all');
 
   useEffect(() => {
-    fetch('/api/products')
+    fetch('/api/products', { cache: 'no-store' })
       .then(res => res.json())
       .then(data => setExistingProducts(data))
       .catch(err => console.error(err));

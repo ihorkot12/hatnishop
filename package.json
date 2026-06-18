@@ -8,6 +8,7 @@
     "build": "vite build",
     "preview": "vite preview",
     "clean": "rm -rf dist",
+    "import:stock": "node scripts/import-stock.mjs",
     "lint": "tsc --noEmit"
   },
   "dependencies": {

@@ -22,7 +22,7 @@ export const SpecialOffers = () => {
       })
       .catch((error) => console.error(error));
 
-    fetch('/api/products/catalog')
+    fetch('/api/products/catalog', { cache: 'no-store' })
       .then((res) => (res.ok ? res.json() : []))
       .then((data) => {
         if (Array.isArray(data)) {

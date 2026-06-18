@@ -77,6 +77,12 @@ const asyncHandler = (fn: any) => (req: any, res: any, next: any) => {
   Promise.resolve(fn(req, res, next)).catch(next);
 };
 
+const setNoStore = (res: any) => {
+  res.set("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate");
+  res.set("Pragma", "no-cache");
+  res.set("Expires", "0");
+};
+
 const xmlEscape = (value: string) =>
   value.replace(/[<>&'"]/g, (char) => ({
     "<": "&lt;",
@@ -991,6 +997,7 @@ app.post("/api/auth/register", asyncHandler(async (req: any, res: any) => {
 
   // API Routes
   app.get("/api/products/catalog", asyncHandler(async (req: any, res: any) => {
+    setNoStore(res);
     const now = Date.now();
     if (productsSummaryCache && (now - productsSummaryCache.timestamp < CACHE_TTL)) {
       return res.json(productsSummaryCache.data);
@@ -1033,6 +1040,7 @@ app.post("/api/auth/register", asyncHandler(async (req: any, res: any) => {
   }));
 
   app.get("/api/products", asyncHandler(async (req: any, res: any) => {
+    setNoStore(res);
     const now = Date.now();
     if (productsCache && (now - productsCache.timestamp < CACHE_TTL)) {
       return res.json(productsCache.data);
@@ -1059,6 +1067,7 @@ app.post("/api/auth/register", asyncHandler(async (req: any, res: any) => {
   }));
 
   app.get("/api/products/:id", asyncHandler(async (req: any, res: any) => {
+    setNoStore(res);
     try {
       if (isDbInDegradedMode()) {
         throw new Error("Database is in degraded mode (quota exceeded)");
@@ -1283,6 +1292,7 @@ app.post("/api/auth/register", asyncHandler(async (req: any, res: any) => {
   }));
 
   app.get("/api/categories", asyncHandler(async (req: any, res: any) => {
+    setNoStore(res);
     const now = Date.now();
     if (categoriesCache && (now - categoriesCache.timestamp < CACHE_TTL)) {
       return res.json(categoriesCache.data);

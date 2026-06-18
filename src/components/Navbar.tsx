@@ -22,7 +22,7 @@ export const Navbar = () => {
   const [showCatalogMenu, setShowCatalogMenu] = useState(false);
 
   React.useEffect(() => {
-    fetch('/api/categories')
+    fetch('/api/categories', { cache: 'no-store' })
       .then(res => res.ok ? res.json() : [])
       .then(data => {
         if (Array.isArray(data)) {

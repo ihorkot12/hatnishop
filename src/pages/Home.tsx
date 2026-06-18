@@ -42,7 +42,7 @@ export const Home = () => {
     document.title = 'Хатні Штучки - естетичний посуд, декор і текстиль для дому';
 
     Promise.all([
-      fetch('/api/products/catalog').then((res) => (res.ok ? res.json() : [])),
+      fetch('/api/products/catalog', { cache: 'no-store' }).then((res) => (res.ok ? res.json() : [])),
       fetch('/api/site-settings').then((res) => (res.ok ? res.json() : null)),
     ])
       .then(([productsData, settingsData]) => {
