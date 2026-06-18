@@ -6,6 +6,20 @@ import { useAuth } from '../store/AuthContext';
 import { Link } from 'react-router-dom';
 import { calculateBonusSpendLimit, formatCashbackRate, getCashbackRate, getLoyaltyProgress } from '../utils/loyalty';
 
+type NovaPoshtaCity = {
+  ref: string;
+  name: string;
+  area?: string;
+  settlementType?: string;
+};
+
+type NovaPoshtaWarehouse = {
+  ref: string;
+  name: string;
+  number?: string;
+  type?: string;
+};
+
 export const Cart = () => {
   const { cart, updateQuantity, removeFromCart, totalPrice, clearCart, userBonuses, appliedBonuses, applyBonuses } = useCart();
   const { user } = useAuth();
@@ -29,10 +43,70 @@ export const Cart = () => {
   const [bonusCode, setBonusCode] = useState('');
   const [appliedBonusCode, setAppliedBonusCode] = useState<any>(null);
   const [bonusCodeError, setBonusCodeError] = useState('');
+  const [novaPoshtaCityRef, setNovaPoshtaCityRef] = useState('');
+  const [novaPoshtaWarehouseRef, setNovaPoshtaWarehouseRef] = useState('');
+  const [citySuggestions, setCitySuggestions] = useState<NovaPoshtaCity[]>([]);
+  const [warehouseSuggestions, setWarehouseSuggestions] = useState<NovaPoshtaWarehouse[]>([]);
+  const [isLoadingCities, setIsLoadingCities] = useState(false);
+  const [isLoadingWarehouses, setIsLoadingWarehouses] = useState(false);
 
   useEffect(() => {
     document.title = 'Кошик та оформлення замовлення — Хатні Штучки';
   }, []);
+
+  useEffect(() => {
+    if (formData.deliveryMethod !== 'nova-poshta' || formData.city.trim().length < 2 || novaPoshtaCityRef) {
+      setCitySuggestions([]);
+      return;
+    }
+
+    const controller = new AbortController();
+    const timeout = window.setTimeout(async () => {
+      setIsLoadingCities(true);
+      try {
+        const res = await fetch(`/api/delivery/nova-poshta/cities?q=${encodeURIComponent(formData.city.trim())}`, {
+          signal: controller.signal,
+        });
+        setCitySuggestions(res.ok ? await res.json() : []);
+      } catch {
+        if (!controller.signal.aborted) setCitySuggestions([]);
+      } finally {
+        if (!controller.signal.aborted) setIsLoadingCities(false);
+      }
+    }, 350);
+
+    return () => {
+      window.clearTimeout(timeout);
+      controller.abort();
+    };
+  }, [formData.city, formData.deliveryMethod, novaPoshtaCityRef]);
+
+  useEffect(() => {
+    if (formData.deliveryMethod !== 'nova-poshta' || !novaPoshtaCityRef || novaPoshtaWarehouseRef) {
+      setWarehouseSuggestions([]);
+      return;
+    }
+
+    const controller = new AbortController();
+    const timeout = window.setTimeout(async () => {
+      setIsLoadingWarehouses(true);
+      try {
+        const res = await fetch(`/api/delivery/nova-poshta/warehouses?cityRef=${encodeURIComponent(novaPoshtaCityRef)}&q=${encodeURIComponent(formData.warehouse.trim())}`, {
+          signal: controller.signal,
+        });
+        setWarehouseSuggestions(res.ok ? await res.json() : []);
+      } catch {
+        if (!controller.signal.aborted) setWarehouseSuggestions([]);
+      } finally {
+        if (!controller.signal.aborted) setIsLoadingWarehouses(false);
+      }
+    }, 250);
+
+    return () => {
+      window.clearTimeout(timeout);
+      controller.abort();
+    };
+  }, [formData.deliveryMethod, formData.warehouse, novaPoshtaCityRef, novaPoshtaWarehouseRef]);
 
   const calculateDiscount = () => {
     if (!appliedBonusCode) return 0;
@@ -352,7 +426,13 @@ export const Cart = () => {
                           <button
                             key={method.id}
                             type="button"
-                            onClick={() => setFormData({...formData, deliveryMethod: method.id as any})}
+                            onClick={() => {
+                              setFormData({...formData, deliveryMethod: method.id as any, city: '', warehouse: ''});
+                              setNovaPoshtaCityRef('');
+                              setNovaPoshtaWarehouseRef('');
+                              setCitySuggestions([]);
+                              setWarehouseSuggestions([]);
+                            }}
                             className={`flex items-center gap-3 p-4 rounded-2xl border-2 transition-all ${formData.deliveryMethod === method.id ? 'border-tiffany bg-tiffany/5 text-tiffany' : 'border-slate-100 text-slate-500 hover:border-slate-200'}`}
                           >
                             {method.icon}
@@ -361,7 +441,7 @@ export const Cart = () => {
                         ))}
                       </div>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <div className="space-y-2">
+                        <div className="relative space-y-2">
                           <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400 ml-1">Місто</label>
                           <input 
                             required={!isQuickOrder}
@@ -369,10 +449,42 @@ export const Cart = () => {
                             placeholder="Київ"
                             className="w-full bg-slate-50 border-none rounded-2xl p-4 focus:ring-2 focus:ring-tiffany transition-all"
                             value={formData.city}
-                            onChange={e => setFormData({...formData, city: e.target.value})}
+                            autoComplete="off"
+                            onChange={e => {
+                              setFormData({...formData, city: e.target.value, warehouse: ''});
+                              setNovaPoshtaCityRef('');
+                              setNovaPoshtaWarehouseRef('');
+                              setWarehouseSuggestions([]);
+                            }}
                           />
+                          {formData.deliveryMethod === 'nova-poshta' && (
+                            <div className="text-[11px] text-slate-400">
+                              {isLoadingCities ? 'Шукаємо міста Нової пошти...' : novaPoshtaCityRef ? 'Місто вибрано з довідника Нової пошти' : 'Почніть вводити назву і виберіть місто зі списку'}
+                            </div>
+                          )}
+                          {citySuggestions.length > 0 && (
+                            <div className="absolute z-30 mt-2 max-h-64 w-full overflow-auto rounded-2xl border border-slate-100 bg-white p-2 shadow-2xl shadow-slate-900/10">
+                              {citySuggestions.map(city => (
+                                <button
+                                  key={city.ref}
+                                  type="button"
+                                  onClick={() => {
+                                    setFormData({...formData, city: city.name, warehouse: ''});
+                                    setNovaPoshtaCityRef(city.ref);
+                                    setNovaPoshtaWarehouseRef('');
+                                    setCitySuggestions([]);
+                                    setWarehouseSuggestions([]);
+                                  }}
+                                  className="w-full rounded-xl px-4 py-3 text-left transition-colors hover:bg-tiffany/5"
+                                >
+                                  <div className="text-sm font-bold text-slate-900">{city.name}</div>
+                                  <div className="text-[11px] text-slate-400">{[city.settlementType, city.area].filter(Boolean).join(', ')}</div>
+                                </button>
+                              ))}
+                            </div>
+                          )}
                         </div>
-                        <div className="space-y-2">
+                        <div className="relative space-y-2">
                           <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400 ml-1">Відділення / Поштомат</label>
                           <input 
                             required={!isQuickOrder}
@@ -380,8 +492,36 @@ export const Cart = () => {
                             placeholder="№1 або вул. Лесі Українки, 1"
                             className="w-full bg-slate-50 border-none rounded-2xl p-4 focus:ring-2 focus:ring-tiffany transition-all"
                             value={formData.warehouse}
-                            onChange={e => setFormData({...formData, warehouse: e.target.value})}
+                            autoComplete="off"
+                            disabled={formData.deliveryMethod === 'nova-poshta' && !novaPoshtaCityRef}
+                            onChange={e => {
+                              setFormData({...formData, warehouse: e.target.value});
+                              setNovaPoshtaWarehouseRef('');
+                            }}
                           />
+                          {formData.deliveryMethod === 'nova-poshta' && (
+                            <div className="text-[11px] text-slate-400">
+                              {isLoadingWarehouses ? 'Оновлюємо відділення...' : novaPoshtaCityRef ? 'Виберіть відділення або поштомат зі списку' : 'Спочатку виберіть місто'}
+                            </div>
+                          )}
+                          {warehouseSuggestions.length > 0 && (
+                            <div className="absolute z-30 mt-2 max-h-72 w-full overflow-auto rounded-2xl border border-slate-100 bg-white p-2 shadow-2xl shadow-slate-900/10">
+                              {warehouseSuggestions.map(warehouse => (
+                                <button
+                                  key={warehouse.ref}
+                                  type="button"
+                                  onClick={() => {
+                                    setFormData({...formData, warehouse: warehouse.name});
+                                    setNovaPoshtaWarehouseRef(warehouse.ref);
+                                    setWarehouseSuggestions([]);
+                                  }}
+                                  className="w-full rounded-xl px-4 py-3 text-left text-sm font-semibold text-slate-700 transition-colors hover:bg-tiffany/5 hover:text-slate-950"
+                                >
+                                  {warehouse.name}
+                                </button>
+                              ))}
+                            </div>
+                          )}
                         </div>
                       </div>
                     </div>

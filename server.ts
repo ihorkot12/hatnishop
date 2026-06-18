@@ -94,6 +94,47 @@ const toFiniteNumber = (value: any, fallback = 0) => {
 const normalizeString = (value: any, maxLength = 500) =>
   String(value || "").trim().slice(0, maxLength);
 
+const novaPoshtaRequest = async (modelName: string, calledMethod: string, methodProperties: Record<string, any> = {}) => {
+  const response = await fetch("https://api.novaposhta.ua/v2.0/json/", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      apiKey: process.env.NOVA_POSHTA_API_KEY || "",
+      modelName,
+      calledMethod,
+      methodProperties,
+    }),
+  });
+
+  if (!response.ok) {
+    throw new Error(`Nova Poshta API HTTP ${response.status}`);
+  }
+
+  const data = await response.json();
+  if (!data.success) {
+    const message = Array.isArray(data.errors) && data.errors.length
+      ? data.errors.join(", ")
+      : "Nova Poshta API request failed";
+    throw new Error(message);
+  }
+
+  return data.data || [];
+};
+
+const mapNovaPoshtaCity = (city: any) => ({
+  ref: city.Ref,
+  name: city.Description,
+  area: city.AreaDescription || city.Area || "",
+  settlementType: city.SettlementTypeDescription || "",
+});
+
+const mapNovaPoshtaWarehouse = (warehouse: any) => ({
+  ref: warehouse.Ref,
+  name: warehouse.Description,
+  number: warehouse.Number,
+  type: warehouse.TypeOfWarehouse || "",
+});
+
 const normalizePaymentMethod = (value: any) => {
   const method = normalizeString(value, 40).toLowerCase();
   if (method === "monopay" || method === "mono-pay") return "mono";
@@ -1263,6 +1304,47 @@ app.post("/api/auth/register", asyncHandler(async (req: any, res: any) => {
       }
       if (categoriesCache) return res.json(categoriesCache.data);
       res.json(FALLBACK_CATEGORIES);
+    }
+  }));
+
+  app.get("/api/delivery/nova-poshta/cities", asyncHandler(async (req: any, res: any) => {
+    const query = normalizeString(req.query?.q, 80);
+    if (query.length < 2) {
+      return res.json([]);
+    }
+
+    try {
+      const cities = await novaPoshtaRequest("Address", "getCities", {
+        FindByString: query,
+        Limit: "20",
+        Page: "1",
+      });
+      res.json(cities.slice(0, 20).map(mapNovaPoshtaCity));
+    } catch (error: any) {
+      console.warn("Nova Poshta city lookup failed:", error?.message || error);
+      res.status(503).json({ error: "Не вдалося отримати міста Нової пошти" });
+    }
+  }));
+
+  app.get("/api/delivery/nova-poshta/warehouses", asyncHandler(async (req: any, res: any) => {
+    const cityRef = normalizeString(req.query?.cityRef, 80);
+    const query = normalizeString(req.query?.q, 80);
+    if (!cityRef) {
+      return res.json([]);
+    }
+
+    try {
+      const warehouses = await novaPoshtaRequest("Address", "getWarehouses", {
+        CityRef: cityRef,
+        FindByString: query,
+        Limit: "50",
+        Page: "1",
+        Language: "UA",
+      });
+      res.json(warehouses.slice(0, 50).map(mapNovaPoshtaWarehouse));
+    } catch (error: any) {
+      console.warn("Nova Poshta warehouse lookup failed:", error?.message || error);
+      res.status(503).json({ error: "Не вдалося отримати відділення Нової пошти" });
     }
   }));
 
