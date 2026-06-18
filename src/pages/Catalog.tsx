@@ -22,6 +22,7 @@ export const Catalog = () => {
   const [sortBy, setSortBy] = useState<'default' | 'price-asc' | 'price-desc' | 'popular'>('default');
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [showPromo, setShowPromo] = useState(false);
+  const isBundleRoute = categoryFilter === 'bundles' || searchParams.get('bundles') === '1';
 
   useEffect(() => {
     const hasSeenPromo = localStorage.getItem('hasSeenCatalogPromo');
@@ -32,10 +33,12 @@ export const Catalog = () => {
   }, []);
 
   useEffect(() => {
-    document.title = categoryFilter 
+    document.title = isBundleRoute
+      ? 'Готові набори — Хатні Штучки'
+      : categoryFilter 
       ? `${categories.find(c => c.slug === categoryFilter)?.name || 'Каталог'} — Хатні Штучки` 
       : "Каталог товарів для дому та затишку — Хатні Штучки";
-  }, [categoryFilter, categories]);
+  }, [categoryFilter, categories, isBundleRoute]);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -63,7 +66,7 @@ export const Catalog = () => {
   }, []);
 
   const filteredProducts = useMemo(() => {
-    const selectedCategory = categories.find(c => c.slug === categoryFilter);
+    const selectedCategory = isBundleRoute ? null : categories.find(c => c.slug === categoryFilter);
     const childCategorySlugs = selectedCategory 
       ? categories.filter(c => c.parent_id === selectedCategory.id).map(c => c.slug)
       : [];
@@ -72,13 +75,11 @@ export const Catalog = () => {
       : [];
 
     let result = products.filter(p => {
-      if (categoryFilter && !allowedCategories.includes(p.category)) return false;
+      if (categoryFilter && !isBundleRoute && !allowedCategories.includes(p.category)) return false;
       if (p.price < minPrice || p.price > maxPrice) return false;
       if (popularOnly && !p.isPopular) return false;
-      if (bundleOnly) {
-        const isBundle = (p as any).isBundle === true || (p as any).isBundle === 1 || (p as any).isBundle === '1';
-        if (!isBundle) return false;
-      }
+      const isBundle = (p as any).isBundle === true || (p as any).isBundle === 1 || (p as any).isBundle === '1';
+      if ((bundleOnly || isBundleRoute) && !isBundle) return false;
       if (searchQuery && !p.name.toLowerCase().includes(searchQuery.toLowerCase())) return false;
       return true;
     });
@@ -88,7 +89,7 @@ export const Catalog = () => {
     if (sortBy === 'popular') result.sort((a, b) => (b.isPopular ? 1 : 0) - (a.isPopular ? 1 : 0));
 
     return result;
-  }, [categoryFilter, minPrice, maxPrice, popularOnly, bundleOnly, searchQuery, sortBy, products, categories]);
+  }, [categoryFilter, isBundleRoute, minPrice, maxPrice, popularOnly, bundleOnly, searchQuery, sortBy, products, categories]);
 
   return (
     <div className="bg-[#F9F7F5] min-h-screen">
@@ -99,10 +100,12 @@ export const Catalog = () => {
             <div className="max-w-2xl">
               <div className="text-tiffany font-bold text-[10px] uppercase tracking-[0.3em] mb-4">Колекція 2026</div>
               <h1 className="text-5xl md:text-7xl font-serif font-bold text-slate-900 mb-6 leading-tight">
-                {categoryFilter ? categories.find(c => c.slug === categoryFilter)?.name : 'Каталог товарів для дому'}
+                {isBundleRoute ? 'Готові набори' : categoryFilter ? categories.find(c => c.slug === categoryFilter)?.name : 'Каталог товарів для дому'}
               </h1>
               <p className="text-slate-500 text-lg leading-relaxed">
-                Найкращий вибір естетичного посуду, декору та текстилю в Україні. Обирайте предмети, що створюють настрій та затишок у вашій оселі.
+                {isBundleRoute
+                  ? 'Зібрані комплекти з реальних товарів каталогу: для кави, сервірування, зберігання та кухні.'
+                  : 'Найкращий вибір естетичного посуду, декору та текстилю в Україні. Обирайте предмети, що створюють настрій та затишок у вашій оселі.'}
               </p>
             </div>
             <div className="flex items-center gap-4">

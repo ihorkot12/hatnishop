@@ -10,6 +10,7 @@
     "clean": "rm -rf dist",
     "import:stock": "node scripts/import-stock.mjs",
     "merchandise:products": "node scripts/merchandise-products.mjs",
+    "bundles:generate": "node scripts/generate-bundles.mjs",
     "lint": "tsc --noEmit"
   },
   "dependencies": {

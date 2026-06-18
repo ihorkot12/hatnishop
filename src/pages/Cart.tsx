@@ -55,8 +55,19 @@ export const Cart = () => {
   }, []);
 
   useEffect(() => {
+    if (formData.deliveryMethod === 'nova-poshta') return;
+    setNovaPoshtaCityRef('');
+    setNovaPoshtaWarehouseRef('');
+    setCitySuggestions([]);
+    setWarehouseSuggestions([]);
+    setIsLoadingCities(false);
+    setIsLoadingWarehouses(false);
+  }, [formData.deliveryMethod]);
+
+  useEffect(() => {
     if (formData.deliveryMethod !== 'nova-poshta' || formData.city.trim().length < 2 || novaPoshtaCityRef) {
       setCitySuggestions([]);
+      setIsLoadingCities(false);
       return;
     }
 
@@ -67,7 +78,7 @@ export const Cart = () => {
         const res = await fetch(`/api/delivery/nova-poshta/cities?q=${encodeURIComponent(formData.city.trim())}`, {
           signal: controller.signal,
         });
-        setCitySuggestions(res.ok ? await res.json() : []);
+        if (!controller.signal.aborted) setCitySuggestions(res.ok ? await res.json() : []);
       } catch {
         if (!controller.signal.aborted) setCitySuggestions([]);
       } finally {
@@ -84,6 +95,7 @@ export const Cart = () => {
   useEffect(() => {
     if (formData.deliveryMethod !== 'nova-poshta' || !novaPoshtaCityRef || novaPoshtaWarehouseRef) {
       setWarehouseSuggestions([]);
+      setIsLoadingWarehouses(false);
       return;
     }
 
@@ -94,7 +106,7 @@ export const Cart = () => {
         const res = await fetch(`/api/delivery/nova-poshta/warehouses?cityRef=${encodeURIComponent(novaPoshtaCityRef)}&q=${encodeURIComponent(formData.warehouse.trim())}`, {
           signal: controller.signal,
         });
-        setWarehouseSuggestions(res.ok ? await res.json() : []);
+        if (!controller.signal.aborted) setWarehouseSuggestions(res.ok ? await res.json() : []);
       } catch {
         if (!controller.signal.aborted) setWarehouseSuggestions([]);
       } finally {
@@ -457,12 +469,12 @@ export const Cart = () => {
                               setWarehouseSuggestions([]);
                             }}
                           />
-                          {formData.deliveryMethod === 'nova-poshta' && (
-                            <div className="text-[11px] text-slate-400">
-                              {isLoadingCities ? 'Шукаємо міста Нової пошти...' : novaPoshtaCityRef ? 'Місто вибрано з довідника Нової пошти' : 'Почніть вводити назву і виберіть місто зі списку'}
-                            </div>
-                          )}
-                          {citySuggestions.length > 0 && (
+                          <div className="text-[11px] text-slate-400">
+                            {formData.deliveryMethod === 'nova-poshta'
+                              ? isLoadingCities ? 'Шукаємо міста Нової пошти...' : novaPoshtaCityRef ? 'Місто вибрано з довідника Нової пошти' : 'Почніть вводити назву і виберіть місто зі списку'
+                              : 'Вкажіть місто доставки для Укрпошти вручну'}
+                          </div>
+                          {formData.deliveryMethod === 'nova-poshta' && citySuggestions.length > 0 && (
                             <div className="absolute z-30 mt-2 max-h-64 w-full overflow-auto rounded-2xl border border-slate-100 bg-white p-2 shadow-2xl shadow-slate-900/10">
                               {citySuggestions.map(city => (
                                 <button
@@ -485,11 +497,13 @@ export const Cart = () => {
                           )}
                         </div>
                         <div className="relative space-y-2">
-                          <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400 ml-1">Відділення / Поштомат</label>
+                          <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400 ml-1">
+                            {formData.deliveryMethod === 'nova-poshta' ? 'Відділення / Поштомат' : 'Індекс / відділення Укрпошти'}
+                          </label>
                           <input 
                             required={!isQuickOrder}
                             type="text" 
-                            placeholder="№1 або вул. Лесі Українки, 1"
+                            placeholder={formData.deliveryMethod === 'nova-poshta' ? '№1 або вул. Лесі Українки, 1' : 'Наприклад: 01001 або відділення на Хрещатику'}
                             className="w-full bg-slate-50 border-none rounded-2xl p-4 focus:ring-2 focus:ring-tiffany transition-all"
                             value={formData.warehouse}
                             autoComplete="off"
@@ -499,12 +513,12 @@ export const Cart = () => {
                               setNovaPoshtaWarehouseRef('');
                             }}
                           />
-                          {formData.deliveryMethod === 'nova-poshta' && (
-                            <div className="text-[11px] text-slate-400">
-                              {isLoadingWarehouses ? 'Оновлюємо відділення...' : novaPoshtaCityRef ? 'Виберіть відділення або поштомат зі списку' : 'Спочатку виберіть місто'}
-                            </div>
-                          )}
-                          {warehouseSuggestions.length > 0 && (
+                          <div className="text-[11px] text-slate-400">
+                            {formData.deliveryMethod === 'nova-poshta'
+                              ? isLoadingWarehouses ? 'Оновлюємо відділення...' : novaPoshtaCityRef ? 'Виберіть відділення або поштомат зі списку Нової пошти' : 'Спочатку виберіть місто Нової пошти'
+                              : 'Для Укрпошти введіть індекс, номер або адресу відділення вручну'}
+                          </div>
+                          {formData.deliveryMethod === 'nova-poshta' && warehouseSuggestions.length > 0 && (
                             <div className="absolute z-30 mt-2 max-h-72 w-full overflow-auto rounded-2xl border border-slate-100 bg-white p-2 shadow-2xl shadow-slate-900/10">
                               {warehouseSuggestions.map(warehouse => (
                                 <button
