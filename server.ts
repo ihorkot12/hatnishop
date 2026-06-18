@@ -1865,13 +1865,23 @@ async function startViteAndListen() {
     
     const stack = err.stack || "No stack trace available";
     
-    // Handle Neon specific quota errors
+    const isAiRequest = String(req.path || "").startsWith("/api/admin/ai/");
+
+    // Handle provider quota errors separately from Neon database quota errors
     const isQuotaError = message.toLowerCase().includes("quota") || 
                         sourceError.toString().toLowerCase().includes("quota") ||
                         message.includes("402") || 
                         (err.code && (err.code === "402" || err.code === "57014"));
 
     if (isQuotaError) {
+      if (isAiRequest) {
+        return res.status(503).json({
+          error: "AI Quota Exceeded",
+          message: "Ліміт AI-генерації вичерпано або тимчасово недоступний. Оновіть кредити/ключ AI і повторіть спробу.",
+          ...(!IS_PRODUCTION ? { sourceError, stack } : {})
+        });
+      }
+
       return res.status(503).json({
         error: "Database Quota Exceeded",
         message: "Ваш проект перевищив квоту передачі даних бази даних Neon. Будь ласка, зачекайте або оновіть план.",
