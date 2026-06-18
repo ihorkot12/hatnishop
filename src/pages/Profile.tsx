@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '../store/AuthContext';
 import { Package, Truck, CheckCircle2, Clock, XCircle, Star, LogOut, User as UserIcon, Settings, ChevronRight, CreditCard, ShoppingBag, Copy, Check } from 'lucide-react';
 import { Link, Navigate } from 'react-router-dom';
+import { formatCashbackRate, getLoyaltyProgress } from '../utils/loyalty';
 
 interface Order {
   id: string;
@@ -23,7 +24,7 @@ interface Order {
 }
 
 export const Profile = () => {
-  const { user, logout } = useAuth();
+  const { user, loading, logout } = useAuth();
   const [orders, setOrders] = useState<Order[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [copiedId, setCopiedId] = useState<string | null>(null);
@@ -54,7 +55,18 @@ export const Profile = () => {
     }
   };
 
-  if (!user) return <Navigate to="/login" />;
+  if (loading) {
+    return (
+      <div className="flex min-h-[60vh] items-center justify-center">
+        <div className="h-12 w-12 animate-spin rounded-full border-2 border-slate-200 border-t-tiffany" />
+      </div>
+    );
+  }
+
+  if (!user) return <Navigate to="/login" replace />;
+
+  const loyaltyProgress = getLoyaltyProgress(user.total_spent);
+  const cashbackLabel = formatCashbackRate(loyaltyProgress.current.cashbackRate);
 
   const getStatusIcon = (status: string) => {
     switch (status) {
@@ -123,11 +135,32 @@ export const Profile = () => {
           </div>
 
           <div className="bg-slate-900 text-white p-10 rounded-[3rem] shadow-2xl shadow-slate-900/20">
-            <h3 className="text-xl font-bold mb-4">Система кешбеку</h3>
+            <div className="mb-5 flex items-center justify-between gap-4">
+              <div>
+                <div className="text-[10px] font-bold uppercase tracking-[0.25em] text-white/35">Ваш рівень</div>
+                <h3 className="mt-1 text-2xl font-bold">{loyaltyProgress.current.name}</h3>
+              </div>
+              <div className="rounded-2xl bg-white/10 px-4 py-3 text-right">
+                <div className="text-2xl font-bold text-tiffany">{cashbackLabel}</div>
+                <div className="text-[10px] font-bold uppercase tracking-widest text-white/35">кешбек</div>
+              </div>
+            </div>
             <p className="text-white/60 text-sm mb-6 leading-relaxed">
-              Отримуйте кешбек 5%, 7% або 10% залежно від історії покупок.
-              Використовуйте бонуси для оплати до 30% вартості нових покупок!
+              Ви вже купили на {Math.floor(user.total_spent || 0).toLocaleString('uk-UA')} грн. Бонуси можна списувати на оплату до 30% вартості нових покупок.
             </p>
+            <div className="mb-8 rounded-2xl bg-white/5 p-4">
+              <div className="mb-2 flex items-center justify-between text-[10px] font-bold uppercase tracking-widest">
+                <span className="text-white/35">Прогрес</span>
+                {loyaltyProgress.next ? (
+                  <span className="text-tiffany">ще {Math.ceil(loyaltyProgress.remaining).toLocaleString('uk-UA')} грн до {loyaltyProgress.next.name}</span>
+                ) : (
+                  <span className="text-tiffany">максимальний рівень</span>
+                )}
+              </div>
+              <div className="h-2 overflow-hidden rounded-full bg-white/10">
+                <div className="h-full rounded-full bg-tiffany" style={{ width: `${loyaltyProgress.progress}%` }} />
+              </div>
+            </div>
             <div className="space-y-4">
               <div className="flex items-center gap-3 text-sm font-bold">
                 <div className="w-8 h-8 bg-tiffany/20 text-tiffany rounded-full flex items-center justify-center">1</div>

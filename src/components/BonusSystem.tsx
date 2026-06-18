@@ -1,12 +1,7 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import { Gift, ShieldCheck, Star } from 'lucide-react';
-
-const tiers = [
-  { id: 'bronze', name: 'Bronze', rate: '5%', min: 'від першої покупки', tone: 'text-amber-700 bg-amber-50 border-amber-100' },
-  { id: 'silver', name: 'Silver', rate: '7%', min: 'від 5 000 грн', tone: 'text-slate-600 bg-slate-50 border-slate-200' },
-  { id: 'gold', name: 'Gold', rate: '10%', min: 'від 15 000 грн', tone: 'text-gold bg-gold/10 border-gold/20' },
-];
+import { formatCashbackRate, loyaltyTiers } from '../utils/loyalty';
 
 export const BonusSystem = () => {
   return (
@@ -26,7 +21,7 @@ export const BonusSystem = () => {
         </div>
 
         <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-          {tiers.map((tier, index) => (
+          {loyaltyTiers.map((tier, index) => (
             <motion.article
               key={tier.id}
               initial={{ opacity: 0, y: 14 }}
@@ -39,8 +34,10 @@ export const BonusSystem = () => {
                 <Star size={24} fill="currentColor" />
               </div>
               <div className="text-[11px] font-bold uppercase text-slate-400">{tier.name}</div>
-              <div className="mt-2 text-5xl font-bold text-slate-950">{tier.rate}</div>
-              <div className="mt-2 text-sm text-slate-500">кешбек, {tier.min}</div>
+              <div className="mt-2 text-5xl font-bold text-slate-950">{formatCashbackRate(tier.cashbackRate)}</div>
+              <div className="mt-2 text-sm text-slate-500">
+                кешбек, {tier.minSpent === 0 ? 'від першої покупки' : `від ${tier.minSpent.toLocaleString('uk-UA')} грн`}
+              </div>
               <div className="mt-8 h-1.5 overflow-hidden rounded-full bg-slate-100">
                 <div className="h-full rounded-full bg-tiffany" style={{ width: `${55 + index * 20}%` }} />
               </div>

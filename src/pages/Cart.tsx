@@ -4,14 +4,7 @@ import { Trash2, Plus, Minus, ArrowRight, CreditCard, Truck, CheckCircle2, Star,
 import { useCart } from '../store/CartContext';
 import { useAuth } from '../store/AuthContext';
 import { Link } from 'react-router-dom';
-
-const BONUS_SPEND_LIMIT_RATE = 0.3;
-
-const getCashbackRate = (totalSpent = 0) => {
-  if (totalSpent >= 15000) return 0.1;
-  if (totalSpent >= 5000) return 0.07;
-  return 0.05;
-};
+import { calculateBonusSpendLimit, formatCashbackRate, getCashbackRate, getLoyaltyProgress } from '../utils/loyalty';
 
 export const Cart = () => {
   const { cart, updateQuantity, removeFromCart, totalPrice, clearCart, userBonuses, appliedBonuses, applyBonuses } = useCart();
@@ -51,14 +44,15 @@ export const Cart = () => {
 
   const discount = Math.min(Math.max(calculateDiscount(), 0), totalPrice);
   const bonusBase = Math.max(0, totalPrice - discount);
-  const bonusSpendLimit = Math.floor(bonusBase * BONUS_SPEND_LIMIT_RATE);
+  const bonusSpendLimit = calculateBonusSpendLimit(bonusBase);
   const availableBonuses = Math.max(0, Math.floor(userBonuses || 0));
   const usableBonusAmount = user ? Math.min(availableBonuses, bonusSpendLimit) : 0;
   const appliedBonusAmount = useBonuses ? Math.min(appliedBonuses, usableBonusAmount) : 0;
   const finalTotal = Math.max(0, bonusBase - appliedBonusAmount);
   const cashbackRate = getCashbackRate(user?.total_spent || 0);
-  const cashbackPercent = Math.round(cashbackRate * 100);
+  const cashbackPercent = formatCashbackRate(cashbackRate);
   const estimatedBonuses = user ? Math.floor(finalTotal * cashbackRate) : Math.floor(finalTotal * 0.05);
+  const loyaltyProgress = getLoyaltyProgress(user?.total_spent || 0);
 
   const handleApplyBonusCode = async () => {
     if (!bonusCode.trim()) return;
@@ -437,7 +431,7 @@ export const Cart = () => {
                       </div>
                       <div>
                         <h3 className="font-bold text-slate-900 text-sm">Ваші бонуси</h3>
-                        <p className="text-xs text-slate-500">{availableBonuses} доступно · {cashbackPercent}% кешбек</p>
+                        <p className="text-xs text-slate-500">{availableBonuses} доступно · {cashbackPercent} кешбек · {loyaltyProgress.current.name}</p>
                       </div>
                     </div>
                     <button 
@@ -468,6 +462,19 @@ export const Cart = () => {
                   <p className="mt-3 text-[11px] leading-relaxed text-slate-400">
                     Списання працює після промокоду: 1 бонус = 1 грн, максимум 30% суми.
                   </p>
+                  <div className="mt-4 rounded-2xl bg-slate-50 p-4">
+                    <div className="mb-2 flex items-center justify-between text-[10px] font-bold uppercase tracking-widest">
+                      <span className="text-slate-400">Рівень {loyaltyProgress.current.name}</span>
+                      {loyaltyProgress.next ? (
+                        <span className="text-tiffany">ще {Math.ceil(loyaltyProgress.remaining).toLocaleString('uk-UA')} грн до {loyaltyProgress.next.name}</span>
+                      ) : (
+                        <span className="text-tiffany">максимальний рівень</span>
+                      )}
+                    </div>
+                    <div className="h-2 overflow-hidden rounded-full bg-white">
+                      <div className="h-full rounded-full bg-tiffany" style={{ width: `${loyaltyProgress.progress}%` }} />
+                    </div>
+                  </div>
                   {useBonuses && (
                     <div className="mt-3 text-[10px] text-gold font-bold uppercase tracking-widest">
                       Знижка: -{appliedBonusAmount} грн
@@ -536,7 +543,7 @@ export const Cart = () => {
                 </div>
                 <div className="bg-white/5 p-4 rounded-2xl text-center">
                   <div className="text-tiffany font-bold text-sm">+{estimatedBonuses} бонусів</div>
-                  <div className="text-[10px] text-white/30 uppercase tracking-widest font-bold">Після оплати · {cashbackPercent}% кешбек</div>
+                  <div className="text-[10px] text-white/30 uppercase tracking-widest font-bold">Після оплати · {cashbackPercent} кешбек</div>
                 </div>
               </div>
               {checkoutError && (

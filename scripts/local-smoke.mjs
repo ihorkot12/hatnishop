@@ -272,7 +272,10 @@ try {
   process.exitCode = 1;
 } finally {
   if (process.platform === 'win32') {
-    spawn('taskkill', ['/pid', String(server.pid), '/T', '/F'], { stdio: 'ignore' });
+    try {
+      const killer = spawn('taskkill', ['/pid', String(server.pid), '/T', '/F'], { stdio: 'ignore' });
+      killer.on('error', () => {});
+    } catch {}
   } else {
     server.kill('SIGTERM');
   }

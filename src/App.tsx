@@ -11,6 +11,7 @@ import { ProductDetail } from './pages/ProductDetail';
 import { Cart } from './pages/Cart';
 import { Wishlist } from './pages/Wishlist';
 import { Login } from './pages/Login';
+import { Profile } from './pages/Profile';
 import { AboutUs } from './pages/AboutUs';
 import { FAQ } from './pages/FAQ';
 import { SpecialOffers } from './components/SpecialOffers';
@@ -33,6 +34,7 @@ export default function App() {
                     <Route path="/product/:id" element={<ProductDetail />} />
                     <Route path="/cart" element={<Cart />} />
                     <Route path="/wishlist" element={<Wishlist />} />
+                    <Route path="/profile" element={<Profile />} />
                     <Route
                       path="/admin"
                       element={
