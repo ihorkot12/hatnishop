@@ -49,9 +49,26 @@ export const Cart = () => {
   const [warehouseSuggestions, setWarehouseSuggestions] = useState<NovaPoshtaWarehouse[]>([]);
   const [isLoadingCities, setIsLoadingCities] = useState(false);
   const [isLoadingWarehouses, setIsLoadingWarehouses] = useState(false);
+  const [freeDeliveryMin, setFreeDeliveryMin] = useState(1500);
 
   useEffect(() => {
     document.title = 'Кошик та оформлення замовлення — Хатні Штучки';
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch('/api/site-settings', { cache: 'no-store' })
+      .then(res => res.ok ? res.json() : null)
+      .then(settings => {
+        if (cancelled || !settings) return;
+        const threshold = Number(settings.free_delivery_min);
+        if (Number.isFinite(threshold) && threshold >= 0) setFreeDeliveryMin(threshold);
+      })
+      .catch(() => {});
+
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   useEffect(() => {
@@ -135,6 +152,8 @@ export const Cart = () => {
   const usableBonusAmount = user ? Math.min(availableBonuses, bonusSpendLimit) : 0;
   const appliedBonusAmount = useBonuses ? Math.min(appliedBonuses, usableBonusAmount) : 0;
   const finalTotal = Math.max(0, bonusBase - appliedBonusAmount);
+  const isDeliveryFree = freeDeliveryMin <= 0 || totalPrice >= freeDeliveryMin;
+  const deliveryRemaining = Math.max(0, freeDeliveryMin - totalPrice);
   const cashbackRate = getCashbackRate(user?.total_spent || 0);
   const cashbackPercent = formatCashbackRate(cashbackRate);
   const estimatedBonuses = user ? Math.floor(finalTotal * cashbackRate) : Math.floor(finalTotal * 0.05);
@@ -183,6 +202,8 @@ export const Cart = () => {
       bonusUsed: appliedBonusAmount,
       promoCode: appliedBonusCode?.code,
       finalTotal: finalTotal,
+      deliverySummary: isDeliveryFree ? 'free' : 'carrier-tariff',
+      isQuickOrder,
       paymentMethod: formData.paymentMethod,
       comment: formData.comment
     };
@@ -688,8 +709,15 @@ export const Cart = () => {
                 )}
                 <div className="flex justify-between text-white/60 text-sm">
                   <span>Доставка</span>
-                  <span className="text-tiffany">Безкоштовно</span>
+                  <span className={isDeliveryFree ? 'text-tiffany' : 'text-white/80'}>
+                    {isDeliveryFree ? 'Безкоштовно' : 'За тарифами перевізника'}
+                  </span>
                 </div>
+                {!isDeliveryFree && (
+                  <div className="rounded-2xl bg-white/5 p-3 text-[11px] leading-relaxed text-white/45">
+                    Додайте ще {deliveryRemaining.toLocaleString('uk-UA')} грн, щоб отримати безкоштовну доставку від {freeDeliveryMin.toLocaleString('uk-UA')} грн.
+                  </div>
+                )}
                 <div className="h-px bg-white/10 my-4" />
                 <div className="flex justify-between text-2xl font-bold">
                   <span>Разом</span>

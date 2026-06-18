@@ -1566,12 +1566,20 @@ app.get("/api/admin/users", authenticate, asyncHandler(async (req: any, res: any
       const customerEmail = normalizeString(customer.email, 160);
       const customerCity = normalizeString(customer.city, 120);
       const warehouse = normalizeString(customer.warehouse, 180);
-      const deliveryMethod = normalizeString(customer.deliveryMethod, 60) || "nova-poshta";
+      const rawDeliveryMethod = normalizeString(customer.deliveryMethod, 60);
+      const isQuickOrder = req.body?.isQuickOrder === true;
+      const deliveryMethod = isQuickOrder
+        ? "quick-order"
+        : (["nova-poshta", "ukr-poshta"].includes(rawDeliveryMethod) ? rawDeliveryMethod : "nova-poshta");
       const comment = normalizeString(req.body?.comment, 700);
       const paymentMethod = normalizePaymentMethod(req.body?.paymentMethod);
 
-      if (!customerName || !customerPhone || !customerCity) {
-        return res.status(400).json({ error: "Заповніть ім'я, телефон і місто доставки" });
+      if (!customerName || !customerPhone || (!isQuickOrder && !customerCity)) {
+        return res.status(400).json({
+          error: isQuickOrder
+            ? "Заповніть ім'я і телефон"
+            : "Заповніть ім'я, телефон і місто доставки"
+        });
       }
       if (customerEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(customerEmail)) {
         return res.status(400).json({ error: "Некоректний email" });
@@ -1649,8 +1657,8 @@ app.get("/api/admin/users", authenticate, asyncHandler(async (req: any, res: any
         customer_name: customerName,
         customer_phone: customerPhone,
         customer_email: customerEmail,
-        customer_city: customerCity,
-        customer_address: customerCity + (warehouse ? ", " + warehouse : ""),
+        customer_city: customerCity || "Швидке замовлення",
+        customer_address: customerCity ? customerCity + (warehouse ? ", " + warehouse : "") : "Уточнити з клієнтом",
         delivery_method: deliveryMethod,
         warehouse,
         total: serverTotal,

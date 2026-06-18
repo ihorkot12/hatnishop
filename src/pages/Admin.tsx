@@ -41,11 +41,18 @@ const PAYMENT_LABELS: Record<string, string> = {
 
 const DELIVERY_LABELS: Record<string, string> = {
   'nova-poshta': 'Нова Пошта',
-  'ukr-poshta': 'Укрпошта'
+  'ukr-poshta': 'Укрпошта',
+  'quick-order': 'Швидке замовлення'
 };
 
 const getPaymentLabel = (method?: string) => PAYMENT_LABELS[method || ''] || 'Накладений платіж';
 const getDeliveryLabel = (method?: string) => DELIVERY_LABELS[method || ''] || 'Нова Пошта';
+const getDeliveryShortLabel = (method?: string) => {
+  if (method === 'nova-poshta') return 'НП';
+  if (method === 'ukr-poshta') return 'УП';
+  if (method === 'quick-order') return 'Швидке';
+  return getDeliveryLabel(method);
+};
 const getOrderCustomer = (order: any) => ({
   name: order?.customer?.name ?? order?.customer_name ?? '',
   email: order?.customer?.email ?? order?.customer_email ?? '',
@@ -1621,7 +1628,7 @@ export const Admin = () => {
                           <td className="px-8 py-6">
                             <div className="font-medium text-slate-900">{order.customer.name}</div>
                             <div className="text-xs text-slate-400 flex items-center gap-1">
-                              <Truck size={10} /> {order.customer.deliveryMethod === 'nova-poshta' ? 'НП' : 'УП'}, {order.customer.city}
+                              <Truck size={10} /> {getDeliveryShortLabel(getOrderDeliveryMethod(order))}, {order.customer.city}
                             </div>
                             {order.comment && (
                               <div className="mt-1 text-[10px] text-amber-600 italic">
