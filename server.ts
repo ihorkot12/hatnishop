@@ -1670,14 +1670,14 @@ app.post("/api/auth/register", asyncHandler(async (req: any, res: any) => {
         throw new Error("Database is in degraded mode (quota exceeded)");
       }
 
-      const products = await db.getProducts();
+      const products = await db.getProductsSummary();
       res.json(products.map(buildAdminProductSummary));
     } catch (error: any) {
       const { isQuota, isFirst } = recordDbError(error);
       if (isFirst && !isQuota) {
         console.warn("Error fetching admin products, using cache or fallback:", error.message);
       }
-      if (productsCache?.data) return res.json(productsCache.data.map(buildAdminProductSummary));
+      if (productsSummaryCache?.data) return res.json(productsSummaryCache.data.map(buildAdminProductSummary));
       res.status(isQuota ? 503 : 500).json({ error: "Service unavailable" });
     }
   }));
