@@ -638,7 +638,7 @@ export const Admin = () => {
   const fetchProducts = async () => {
     setIsProductLoading(true);
     try {
-      const res = await fetch('/api/products', { cache: 'no-store' });
+      const res = await fetch('/api/admin/products', { cache: 'no-store' });
       if (!res.ok) throw new Error('Failed to fetch products');
       const data = await res.json();
       if (Array.isArray(data)) {
@@ -652,6 +652,20 @@ export const Admin = () => {
       setProducts([]);
     } finally {
       setIsProductLoading(false);
+    }
+  };
+
+  const openProductEditor = async (product: any) => {
+    setEditingProduct(product);
+    setShowProductModal(true);
+
+    try {
+      const res = await fetch(`/api/admin/products/${encodeURIComponent(product.id)}`, { cache: 'no-store' });
+      if (!res.ok) throw new Error('Failed to fetch product details');
+      const fullProduct = await res.json();
+      setEditingProduct(fullProduct);
+    } catch (err) {
+      console.error('Error fetching product details:', err);
     }
   };
 
@@ -1983,7 +1997,7 @@ export const Admin = () => {
                                 <Share2 size={18} />
                               </button>
                               <button 
-                                onClick={() => { setEditingProduct(product); setShowProductModal(true); }}
+                                onClick={() => openProductEditor(product)}
                                 className="p-2 text-slate-400 hover:text-tiffany transition-colors"
                               >
                                 <Edit2 size={18} />

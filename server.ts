@@ -738,6 +738,16 @@ const buildPublicProduct = (product: any, options: { includeGallery?: boolean } 
   };
 };
 
+const buildAdminProductSummary = (product: any) => {
+  const normalized = normalizeProductForApi(product);
+  const preview = buildPublicProduct(normalized);
+  return {
+    ...normalized,
+    image: preview.image,
+    images: []
+  };
+};
+
 const buildPublicCategory = (category: any) => ({
   ...category,
   image: typeof category?.id === "string" && category.id.length > 0 && String(category?.image || "").startsWith("data:image/")
@@ -1649,6 +1659,46 @@ app.post("/api/auth/register", asyncHandler(async (req: any, res: any) => {
       const fallback = FALLBACK_PRODUCTS.find(p => p.id === req.params.id);
       if (fallback) return res.json(fallback);
       res.status(503).json({ error: "Service temporarily unavailable due to database quota" });
+    }
+  }));
+
+  app.get("/api/admin/products", authenticate, asyncHandler(async (req: any, res: any) => {
+    if (!requireAdmin(req, res)) return;
+    setNoStore(res);
+    try {
+      if (isDbInDegradedMode()) {
+        throw new Error("Database is in degraded mode (quota exceeded)");
+      }
+
+      const products = await db.getProducts();
+      res.json(products.map(buildAdminProductSummary));
+    } catch (error: any) {
+      const { isQuota, isFirst } = recordDbError(error);
+      if (isFirst && !isQuota) {
+        console.warn("Error fetching admin products, using cache or fallback:", error.message);
+      }
+      if (productsCache?.data) return res.json(productsCache.data.map(buildAdminProductSummary));
+      res.status(isQuota ? 503 : 500).json({ error: "Service unavailable" });
+    }
+  }));
+
+  app.get("/api/admin/products/:id", authenticate, asyncHandler(async (req: any, res: any) => {
+    if (!requireAdmin(req, res)) return;
+    setNoStore(res);
+    try {
+      if (isDbInDegradedMode()) {
+        throw new Error("Database is in degraded mode (quota exceeded)");
+      }
+
+      const product = await db.getProductById(req.params.id);
+      if (!product) return res.status(404).json({ error: "Product not found" });
+      res.json(normalizeProductForApi(product));
+    } catch (error: any) {
+      const { isQuota, isFirst } = recordDbError(error);
+      if (isFirst && !isQuota) {
+        console.warn("Error fetching admin product:", error.message);
+      }
+      res.status(isQuota ? 503 : 500).json({ error: "Service unavailable" });
     }
   }));
 
