@@ -9,6 +9,7 @@ import { ProductImporter } from '../components/ProductImporter';
 import { MOCK_PRODUCTS } from '../constants';
 import { Order, User } from '../types';
 import { calculateBundlePrice, suggestBundleItemIdsLocally } from '../utils/bundleRecommendations';
+import { isBundleProduct } from '../utils/productFlags';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, BarChart, Bar, Cell } from 'recharts';
 import { useAuth } from '../store/AuthContext';
 import { useNavigate } from 'react-router-dom';
@@ -205,7 +206,7 @@ export const Admin = () => {
       setProductDescription(editingProduct.description || '');
       setProductAiDescription(editingProduct.aiDescription || '');
       setBundleItems(editingProduct.bundle_items || []);
-      setIsBundle(editingProduct.isBundle === 1 || editingProduct.isBundle === true);
+      setIsBundle(isBundleProduct(editingProduct));
     } else {
       setMainImage('');
       setGalleryImages([]);
@@ -1778,7 +1779,7 @@ export const Admin = () => {
                             <div>
                               <div className="font-bold text-slate-900">{product.name}</div>
                               <div className="mt-2 flex flex-wrap gap-2">
-                                {(product.isBundle === true || product.isBundle === 1 || product.isBundle === '1') && (
+                                {isBundleProduct(product) && (
                                   <span className="rounded-full bg-tiffany/10 px-2.5 py-1 text-[10px] font-bold uppercase text-tiffany">Набір</span>
                                 )}
                                 {Number(product.stock || 0) > 0 && Number(product.stock || 0) < 5 && (

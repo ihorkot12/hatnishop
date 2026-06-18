@@ -384,6 +384,52 @@ const clearCache = () => {
   console.log("Cache cleared");
 };
 
+const parseJsonArrayField = (value: any) => {
+  if (!value) return [];
+  if (Array.isArray(value)) return value;
+  if (typeof value !== "string") return [];
+
+  try {
+    const parsed = JSON.parse(value);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+};
+
+const firstDefined = (source: any, keys: string[]) => {
+  for (const key of keys) {
+    if (source?.[key] !== undefined && source?.[key] !== null) return source[key];
+  }
+  return undefined;
+};
+
+const toBooleanFlag = (value: any) => (
+  value === true || value === 1 || value === "1" || value === "true"
+);
+
+const toNumberField = (value: any, fallback = 0) => {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : fallback;
+};
+
+const normalizeProductForApi = (product: any) => {
+  const isBundle = toBooleanFlag(firstDefined(product, ["isBundle", "isbundle", "is_bundle"]));
+  const isPopular = toBooleanFlag(firstDefined(product, ["isPopular", "ispopular", "is_popular"]));
+  const bundleItems = parseJsonArrayField(firstDefined(product, ["bundle_items", "bundleItems"]));
+
+  return {
+    ...product,
+    isBundle,
+    isPopular,
+    images: parseJsonArrayField(product.images),
+    bundle_items: bundleItems,
+    bundleItems,
+    bonusPoints: toNumberField(firstDefined(product, ["bonusPoints", "bonus_points"])),
+    reviewCount: toNumberField(firstDefined(product, ["reviewCount", "review_count"]))
+  };
+};
+
 // --- Database Initialization & Seeding ---
 let dbInitialized = false;
 let isInitializing = false;
@@ -1004,11 +1050,7 @@ app.post("/api/auth/register", asyncHandler(async (req: any, res: any) => {
       }
 
       const products = await db.getProductsSummary();
-      const formattedProducts = products.map(p => ({
-        ...p,
-        images: p.images ? (typeof p.images === 'string' ? JSON.parse(p.images) : p.images) : [],
-        bundle_items: p.bundle_items ? (typeof p.bundle_items === 'string' ? JSON.parse(p.bundle_items) : p.bundle_items) : []
-      }));
+      const formattedProducts = products.map(normalizeProductForApi);
       productsSummaryCache = { data: formattedProducts, timestamp: Date.now() };
       savePersistentCache();
       res.json(formattedProducts);
@@ -1039,11 +1081,7 @@ app.post("/api/auth/register", asyncHandler(async (req: any, res: any) => {
     setNoStore(res);
     try {
       const products = await db.getProducts();
-      const formattedProducts = products.map(p => ({
-        ...p,
-        images: p.images ? (typeof p.images === 'string' ? JSON.parse(p.images) : p.images) : [],
-        bundle_items: p.bundle_items ? (typeof p.bundle_items === 'string' ? JSON.parse(p.bundle_items) : p.bundle_items) : []
-      }));
+      const formattedProducts = products.map(normalizeProductForApi);
       productsCache = { data: formattedProducts, timestamp: Date.now() };
       savePersistentCache();
       res.json(formattedProducts);
@@ -1069,11 +1107,7 @@ app.post("/api/auth/register", asyncHandler(async (req: any, res: any) => {
       if (!product) {
         return res.status(404).json({ error: "Product not found" });
       }
-      const formatted = {
-        ...product,
-        images: product.images ? (typeof product.images === 'string' ? JSON.parse(product.images) : product.images) : [],
-        bundle_items: product.bundle_items ? (typeof product.bundle_items === 'string' ? JSON.parse(product.bundle_items) : product.bundle_items) : []
-      };
+      const formatted = normalizeProductForApi(product);
       res.json(formatted);
     } catch (error: any) {
       const { isQuota, isFirst } = recordDbError(error);

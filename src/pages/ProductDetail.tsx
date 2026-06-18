@@ -10,6 +10,7 @@ import { ProductCard } from '../components/ProductCard';
 import { generateStylingTip } from '../services/aiService';
 import { Review, Product } from '../types';
 import { suggestBundleItemsLocally } from '../utils/bundleRecommendations';
+import { isBundleProduct as hasBundleFlag } from '../utils/productFlags';
 
 export const ProductDetail = () => {
   const { id } = useParams();
@@ -71,7 +72,7 @@ export const ProductDetail = () => {
   }, [id]);
 
   const isWishlisted = product ? isInWishlist(product.id) : false;
-  const isBundleProduct = product?.isBundle === true || product?.isBundle === 1 || product?.isBundle === '1';
+  const isBundleProduct = hasBundleFlag(product);
 
   useEffect(() => {
     if (user && product) {

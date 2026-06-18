@@ -2,6 +2,8 @@ import { Product } from '../types';
 
 type ProductLike = Omit<Product, 'isBundle' | 'reviewCount'> & {
   isBundle?: boolean | number | string;
+  isbundle?: boolean | number | string;
+  is_bundle?: boolean | number | string;
   reviewCount?: number;
   bundle_items?: string[];
   review_count?: number;
@@ -35,8 +37,8 @@ const normalize = (value: unknown) =>
     .trim();
 
 const isBundle = (product: ProductLike) => {
-  const rawValue = product.isBundle;
-  return rawValue === true || rawValue === 1 || rawValue === '1';
+  const rawValue = product.isBundle ?? product.isbundle ?? product.is_bundle;
+  return rawValue === true || rawValue === 1 || rawValue === '1' || rawValue === 'true';
 };
 
 const hasAny = (text: string, keywords: string[]) => keywords.some((keyword) => text.includes(keyword));

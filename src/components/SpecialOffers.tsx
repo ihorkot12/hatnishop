@@ -3,6 +3,7 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { ArrowRight, Check, Gift, ShoppingBag, Sparkles, Tag, X } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useCart } from '../store/CartContext';
+import { isBundleProduct } from '../utils/productFlags';
 
 export const SpecialOffers = () => {
   const [isOpen, setIsOpen] = useState(false);
@@ -26,7 +27,7 @@ export const SpecialOffers = () => {
       .then((res) => (res.ok ? res.json() : []))
       .then((data) => {
         if (Array.isArray(data)) {
-          setBundles(data.filter((product) => product.isBundle).slice(0, 4));
+          setBundles(data.filter((product) => isBundleProduct(product)).slice(0, 4));
         }
       })
       .catch((error) => console.error(error));

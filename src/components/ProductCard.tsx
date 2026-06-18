@@ -5,6 +5,7 @@ import { Link } from 'react-router-dom';
 import { Product } from '../types';
 import { useCart } from '../store/CartContext';
 import { useWishlist } from '../store/WishlistContext';
+import { isBundleProduct } from '../utils/productFlags';
 
 interface ProductCardProps {
   product: Product;
@@ -20,8 +21,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, onQuickView }
   const stock = Number(product.stock || 0);
   const isLowStock = stock > 0 && stock < 5;
   const isAvailable = stock > 0;
-  const isBundleValue = (product as any).isBundle;
-  const isBundle = isBundleValue === true || isBundleValue === 1 || isBundleValue === '1';
+  const isBundle = isBundleProduct(product as any);
 
   return (
     <motion.article

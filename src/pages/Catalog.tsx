@@ -5,6 +5,7 @@ import { Filter, X, Search, SlidersHorizontal, ChevronDown } from 'lucide-react'
 import { ProductCard } from '../components/ProductCard';
 import { QuickView } from '../components/QuickView';
 import { Product } from '../types';
+import { isBundleProduct } from '../utils/productFlags';
 
 export const Catalog = () => {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -78,8 +79,7 @@ export const Catalog = () => {
       if (categoryFilter && !isBundleRoute && !allowedCategories.includes(p.category)) return false;
       if (p.price < minPrice || p.price > maxPrice) return false;
       if (popularOnly && !p.isPopular) return false;
-      const isBundle = (p as any).isBundle === true || (p as any).isBundle === 1 || (p as any).isBundle === '1';
-      if ((bundleOnly || isBundleRoute) && !isBundle) return false;
+      if ((bundleOnly || isBundleRoute) && !isBundleProduct(p as any)) return false;
       if (searchQuery && !p.name.toLowerCase().includes(searchQuery.toLowerCase())) return false;
       return true;
     });

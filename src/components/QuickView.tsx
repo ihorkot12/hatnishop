@@ -6,6 +6,7 @@ import { Product } from '../types';
 import { useCart } from '../store/CartContext';
 import { useAuth } from '../store/AuthContext';
 import { useWishlist } from '../store/WishlistContext';
+import { isBundleProduct } from '../utils/productFlags';
 
 interface QuickViewProps {
   product: Product | null;
@@ -66,8 +67,7 @@ export const QuickView: React.FC<QuickViewProps> = ({ product, onClose }) => {
   if (!product) return null;
 
   const isWishlisted = isInWishlist(product.id);
-  const isBundleValue = (product as any).isBundle;
-  const isBundle = isBundleValue === true || isBundleValue === 1 || isBundleValue === '1';
+  const isBundle = isBundleProduct(product as any);
 
   return (
     <AnimatePresence>
