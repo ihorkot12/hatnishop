@@ -9,3 +9,4 @@ coverage/
 .vercel
 store.db
 db_cache.json
+reports/*.xlsx
