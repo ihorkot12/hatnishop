@@ -9,6 +9,7 @@ import { useWishlist } from '../store/WishlistContext';
 import { ProductCard } from '../components/ProductCard';
 import { generateStylingTip } from '../services/aiService';
 import { Review, Product } from '../types';
+import { suggestBundleItemsLocally } from '../utils/bundleRecommendations';
 
 export const ProductDetail = () => {
   const { id } = useParams();
@@ -47,10 +48,9 @@ export const ProductDetail = () => {
           setProduct(found);
           setSelectedImage(found.image);
           
-          // Set related products from same category
-          const related = Array.isArray(allProducts) ? allProducts
-            .filter((p: any) => p.category === found.category && p.id !== found.id)
-            .slice(0, 4) : [];
+          const related = Array.isArray(allProducts)
+            ? suggestBundleItemsLocally(found, allProducts as any, { limit: 4 }) as Product[]
+            : [];
           setRelatedProducts(related);
 
           // Fetch bundle products if they exist

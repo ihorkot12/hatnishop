@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="900" height="900" viewBox="0 0 900 900" role="img" aria-label="Салатник склокераміка мал. бірюза">
+  <defs>
+    <radialGradient id="glow" cx="50%" cy="42%" r="62%">
+      <stop offset="0%" stop-color="#ffffff" stop-opacity="0.96"/>
+      <stop offset="100%" stop-color="#f8f4ef"/>
+    </radialGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="150%">
+      <feDropShadow dx="0" dy="22" stdDeviation="26" flood-color="#0f172a" flood-opacity="0.16"/>
+    </filter>
+  </defs>
+  <rect width="900" height="900" fill="url(#glow)"/>
+  <circle cx="732" cy="156" r="64" fill="#68b8b0" fill-opacity="0.14"/>
+  <circle cx="166" cy="730" r="92" fill="#68b8b0" fill-opacity="0.10"/>
+  <g filter="url(#shadow)">
+    <ellipse cx="450" cy="692" rx="230" ry="34" fill="#0f172a" fill-opacity="0.08"/>
+    <ellipse cx="450" cy="470" rx="220" ry="164" fill="#68b8b0" fill-opacity="0.18" stroke="#0f172a" stroke-width="10" stroke-linejoin="round"/><ellipse cx="450" cy="470" rx="132" ry="88" stroke="#0f172a" stroke-width="10" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+  </g>
+</svg>

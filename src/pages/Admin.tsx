@@ -8,6 +8,7 @@ import { Package, ShoppingCart, TrendingUp, Plus, Edit2, Trash2, CheckCircle, Cl
 import { ProductImporter } from '../components/ProductImporter';
 import { MOCK_PRODUCTS } from '../constants';
 import { Order, User } from '../types';
+import { calculateBundlePrice, suggestBundleItemIdsLocally } from '../utils/bundleRecommendations';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, BarChart, Bar, Cell } from 'recharts';
 import { useAuth } from '../store/AuthContext';
 import { useNavigate } from 'react-router-dom';
@@ -50,6 +51,23 @@ const getOrderCustomer = (order: any) => ({
   phone: order?.customer?.phone ?? order?.customer_phone ?? '',
   city: order?.customer?.city ?? order?.customer_city ?? '',
 });
+const firstFilled = (...values: any[]) =>
+  values.map((value) => String(value || '').trim()).find(Boolean) || '';
+const stripCityPrefix = (value: string, city: string) => {
+  if (!value || !city) return value;
+  const cityPrefix = `${city.trim()},`;
+  return value.toLowerCase().startsWith(cityPrefix.toLowerCase())
+    ? value.slice(cityPrefix.length).trim()
+    : value;
+};
+const getOrderDeliveryDestination = (order: any) => {
+  const customer = order?.customer || {};
+  const city = firstFilled(customer.city, order?.customer_city);
+  const warehouse = firstFilled(customer.warehouse, order?.warehouse, order?.customer_warehouse);
+  const address = firstFilled(customer.address, order?.customer_address, order?.address);
+  const destination = stripCityPrefix(warehouse || address, city);
+  return destination || 'Не вказано';
+};
 const getOrderPaymentMethod = (order: any) => order?.paymentMethod ?? order?.payment_method ?? 'cash';
 const getOrderDeliveryMethod = (order: any) => order?.customer?.deliveryMethod ?? order?.delivery_method;
 const getOrderBonusUsed = (order: any) => Number(order?.bonusUsed ?? order?.bonuses_used ?? order?.bonus_used ?? 0);
@@ -740,13 +758,27 @@ export const Admin = () => {
       if (suggestedIds && suggestedIds.length > 0) {
         setBundleItems(suggestedIds);
       } else {
-        alert('ШІ не зміг підібрати товари для набору');
+        const fallbackIds = suggestBundleItemIdsLocally({ id: editingProduct?.id || 'draft-bundle', name, category, price: Number(productFormRef.current?.querySelector<HTMLInputElement>('input[name="price"]')?.value || 0), image: '', description: '', stock: 1, rating: 5 }, products as any, { limit: 4 });
+        if (fallbackIds.length > 0) setBundleItems(fallbackIds);
+        else alert('Не вдалося підібрати товари для набору');
       }
     } catch (err) {
       console.error(err);
-      alert('Помилка при генерації набору');
+      const fallbackIds = suggestBundleItemIdsLocally({ id: editingProduct?.id || 'draft-bundle', name, category, price: Number(productFormRef.current?.querySelector<HTMLInputElement>('input[name="price"]')?.value || 0), image: '', description: '', stock: 1, rating: 5 }, products as any, { limit: 4 });
+      if (fallbackIds.length > 0) setBundleItems(fallbackIds);
+      else alert('Помилка при генерації набору');
     } finally {
       setIsGeneratingBundle(false);
+    }
+  };
+
+  const handleAutoGenerateBundle = (name: string, category: string) => {
+    const price = Number(productFormRef.current?.querySelector<HTMLInputElement>('input[name="price"]')?.value || 0);
+    const suggestedIds = suggestBundleItemIdsLocally({ id: editingProduct?.id || 'draft-bundle', name, category, price, image: '', description: '', stock: 1, rating: 5 }, products as any, { limit: 4 });
+    if (suggestedIds.length > 0) {
+      setBundleItems(suggestedIds);
+    } else {
+      alert('Не знайшов достатньо сумісних товарів');
     }
   };
 
@@ -2050,23 +2082,39 @@ export const Admin = () => {
 
                 {isBundle && (
                   <div className="bg-slate-50 p-6 rounded-3xl space-y-4">
-                    <div className="flex items-center justify-between">
+                    <div className="flex items-center justify-between gap-3">
                       <label className="text-xs font-bold text-slate-400 uppercase">Товари в наборі</label>
-                      <button 
-                        type="button"
-                        onClick={() => {
-                          const form = productFormRef.current;
-                          const name = (form?.querySelector('input[name="name"]') as HTMLInputElement)?.value;
-                          const category = (form?.querySelector('select[name="category"]') as HTMLSelectElement)?.value;
-                          if (name) handleAIGenerateBundle(name, category);
-                          else alert('Введіть назву товару');
-                        }}
-                        disabled={isGeneratingBundle}
-                        className="flex items-center gap-2 px-3 py-1.5 bg-indigo-50 text-indigo-600 rounded-lg text-[10px] font-bold hover:bg-indigo-100 transition-all disabled:opacity-50 border border-indigo-100 shadow-sm"
-                      >
-                        {isGeneratingBundle ? <Loader2 size={12} className="animate-spin" /> : <Sparkles size={12} className="text-indigo-500" />}
-                        <span>Підібрати ШІ</span>
-                      </button>
+                      <div className="flex flex-wrap justify-end gap-2">
+                        <button 
+                          type="button"
+                          onClick={() => {
+                            const form = productFormRef.current;
+                            const name = (form?.querySelector('input[name="name"]') as HTMLInputElement)?.value;
+                            const category = (form?.querySelector('select[name="category"]') as HTMLSelectElement)?.value;
+                            if (name) handleAutoGenerateBundle(name, category);
+                            else alert('Введіть назву товару');
+                          }}
+                          className="flex items-center gap-2 px-3 py-1.5 bg-tiffany/10 text-tiffany rounded-lg text-[10px] font-bold hover:bg-tiffany/15 transition-all border border-tiffany/15 shadow-sm"
+                        >
+                          <Package size={12} />
+                          <span>Авто-бандл</span>
+                        </button>
+                        <button 
+                          type="button"
+                          onClick={() => {
+                            const form = productFormRef.current;
+                            const name = (form?.querySelector('input[name="name"]') as HTMLInputElement)?.value;
+                            const category = (form?.querySelector('select[name="category"]') as HTMLSelectElement)?.value;
+                            if (name) handleAIGenerateBundle(name, category);
+                            else alert('Введіть назву товару');
+                          }}
+                          disabled={isGeneratingBundle}
+                          className="flex items-center gap-2 px-3 py-1.5 bg-indigo-50 text-indigo-600 rounded-lg text-[10px] font-bold hover:bg-indigo-100 transition-all disabled:opacity-50 border border-indigo-100 shadow-sm"
+                        >
+                          {isGeneratingBundle ? <Loader2 size={12} className="animate-spin" /> : <Sparkles size={12} className="text-indigo-500" />}
+                          <span>Підібрати ШІ</span>
+                        </button>
+                      </div>
                     </div>
                     
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -2125,7 +2173,8 @@ export const Admin = () => {
                                     return acc + Number(p?.price || 0);
                                   }, 0);
                                   // Apply a default 15% discount for the bundle price suggestion
-                                  const discounted = Math.round(total * 0.85);
+                                  const selectedProducts = bundleItems.map(id => products.find(prod => prod.id === id)).filter(Boolean) as any[];
+                                  const discounted = selectedProducts.length > 0 ? calculateBundlePrice(selectedProducts) : Math.round(total * 0.85);
                                   const priceInput = document.querySelector('input[name="price"]') as HTMLInputElement;
                                   if (priceInput) {
                                     priceInput.value = discounted.toString();
@@ -2133,7 +2182,7 @@ export const Admin = () => {
                                 }}
                                 className="w-full mt-2 text-[10px] font-bold text-tiffany hover:underline"
                               >
-                                Розрахувати ціну зі знижкою 15% ({Math.round(bundleItems.reduce((acc, id) => acc + Number(products.find(p => p.id === id)?.price || 0), 0) * 0.85)} грн)
+                                Розрахувати ціну зі знижкою 15% ({calculateBundlePrice(bundleItems.map(id => products.find(p => p.id === id)).filter(Boolean) as any[])} грн)
                               </button>
                             </>
                           )}
@@ -2322,6 +2371,10 @@ export const Admin = () => {
                         <div className="flex justify-between">
                           <span className="text-slate-500">Доставка:</span>
                           <span className="font-bold">{getDeliveryLabel(getOrderDeliveryMethod(editingOrder))}</span>
+                        </div>
+                        <div className="flex items-start justify-between gap-4">
+                          <span className="text-slate-500 shrink-0">Куди:</span>
+                          <span className="font-bold text-right leading-snug break-words">{getOrderDeliveryDestination(editingOrder)}</span>
                         </div>
                         <div className="flex justify-between">
                           <span className="text-slate-500">Оплата:</span>
