@@ -51,6 +51,171 @@ const getAI = () => {
   return new GoogleGenAI({ apiKey });
 };
 
+const getOpenAIKey = () => process.env.OPENAI_API_KEY || "";
+const getOpenAIImageKey = getOpenAIKey;
+const getOpenAIImageModel = () => process.env.OPENAI_IMAGE_MODEL || "gpt-image-2";
+const getOpenAITextModel = () => process.env.OPENAI_TEXT_MODEL || "gpt-5.4-mini";
+
+const buildProductImagePrompt = (name: string, category?: string) => [
+  `Professional ecommerce product photo for "${name}" in category "${category || "home"}".`,
+  "Realistic studio product photography, premium Ukrainian home goods shop aesthetic.",
+  "Soft natural light, clean neutral background, accurate object shape and material, no text, no logos, no watermark.",
+  "Square composition, product centered, suitable for a catalog card."
+].join(" ");
+
+const extractDataUrlImage = (value: any) => {
+  const match = String(value || "").match(/^data:(image\/(?:png|jpe?g|webp));base64,(.+)$/i);
+  if (!match) return null;
+  const mimeType = match[1].toLowerCase().replace("image/jpg", "image/jpeg");
+  const extension = mimeType.includes("png") ? "png" : mimeType.includes("webp") ? "webp" : "jpg";
+  return {
+    mimeType,
+    extension,
+    buffer: Buffer.from(match[2], "base64")
+  };
+};
+
+const parseOpenAIImageResponse = (data: any) => {
+  const b64 = data?.data?.[0]?.b64_json;
+  if (typeof b64 !== "string" || !b64) {
+    throw Object.assign(new Error("OpenAI image generation returned no image"), { status: 502 });
+  }
+  return `data:image/png;base64,${b64}`;
+};
+
+const openAIImageError = (status: number, data: any, rawText: string) => {
+  const providerMessage = data?.error?.message || data?.message || rawText || "OpenAI image request failed";
+  const message = status === 429
+    ? "OpenAI image generation quota or rate limit exceeded"
+    : `OpenAI image generation failed (${status}): ${providerMessage}`;
+  return Object.assign(new Error(message), {
+    status,
+    sourceError: providerMessage
+  });
+};
+
+const requestOpenAIImage = async (name: string, category?: string, base64Image?: string) => {
+  const apiKey = getOpenAIImageKey();
+  if (!apiKey) throw new Error("OPENAI_API_KEY is not configured");
+
+  const model = getOpenAIImageModel();
+  const prompt = buildProductImagePrompt(name, category);
+  const referenceImage = extractDataUrlImage(base64Image);
+  const endpoint = referenceImage
+    ? "https://api.openai.com/v1/images/edits"
+    : "https://api.openai.com/v1/images/generations";
+
+  const headers: Record<string, string> = {
+    Authorization: `Bearer ${apiKey}`
+  };
+  let body: BodyInit;
+
+  if (referenceImage) {
+    const form = new FormData();
+    form.append("model", model);
+    form.append("prompt", `${prompt} Use the provided image as the product reference and improve it into a clean catalog photo.`);
+    form.append("size", "1024x1024");
+    form.append(
+      "image",
+      new Blob([referenceImage.buffer], { type: referenceImage.mimeType }),
+      `reference.${referenceImage.extension}`
+    );
+    body = form;
+  } else {
+    headers["Content-Type"] = "application/json";
+    body = JSON.stringify({
+      model,
+      prompt,
+      size: "1024x1024",
+      n: 1
+    });
+  }
+
+  const response = await fetch(endpoint, {
+    method: "POST",
+    headers,
+    body
+  });
+  const rawText = await response.text();
+  let data: any = null;
+  try {
+    data = rawText ? JSON.parse(rawText) : null;
+  } catch {
+    data = null;
+  }
+
+  if (!response.ok) {
+    throw openAIImageError(response.status, data, rawText);
+  }
+
+  return parseOpenAIImageResponse(data);
+};
+
+const openAITextError = (status: number, data: any, rawText: string) => {
+  const providerMessage = data?.error?.message || data?.message || rawText || "OpenAI text request failed";
+  const message = status === 429
+    ? "OpenAI text generation quota or rate limit exceeded"
+    : `OpenAI text generation failed (${status}): ${providerMessage}`;
+  return Object.assign(new Error(message), {
+    status,
+    sourceError: providerMessage
+  });
+};
+
+const parseOpenAITextResponse = (data: any) => {
+  if (typeof data?.output_text === "string" && data.output_text.trim()) {
+    return data.output_text.trim();
+  }
+
+  const text = Array.isArray(data?.output)
+    ? data.output
+        .flatMap((item: any) => Array.isArray(item?.content) ? item.content : [])
+        .map((content: any) => content?.text || content?.output_text || "")
+        .filter(Boolean)
+        .join("\n")
+        .trim()
+    : "";
+
+  if (!text) {
+    throw Object.assign(new Error("OpenAI text generation returned no text"), { status: 502 });
+  }
+
+  return text;
+};
+
+const requestOpenAIText = async (input: string, instructions?: string) => {
+  const apiKey = getOpenAIKey();
+  if (!apiKey) throw new Error("OPENAI_API_KEY is not configured");
+
+  const response = await fetch("https://api.openai.com/v1/responses", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({
+      model: getOpenAITextModel(),
+      input,
+      ...(instructions ? { instructions } : {}),
+      store: false
+    })
+  });
+
+  const rawText = await response.text();
+  let data: any = null;
+  try {
+    data = rawText ? JSON.parse(rawText) : null;
+  } catch {
+    data = null;
+  }
+
+  if (!response.ok) {
+    throw openAITextError(response.status, data, rawText);
+  }
+
+  return parseOpenAITextResponse(data);
+};
+
 const cleanJSON = (text: string) => text.replace(/```json\n?|```/g, "").trim();
 
 export const app = express();
@@ -828,33 +993,58 @@ app.post("/api/auth/register", asyncHandler(async (req: any, res: any) => {
   app.post("/api/admin/ai/description", authenticate, asyncHandler(async (req: any, res: any) => {
     if (!requireAdmin(req, res)) return;
     const { name, category } = req.body;
+    const prompt = `Write a short warm Ukrainian product description for "${name}" in category "${category || "home"}". Use 2-3 sentences, no quotes, no intro.`;
+    if (getOpenAIKey()) {
+      try {
+        const text = await requestOpenAIText(prompt);
+        return res.json({ text, provider: "openai", model: getOpenAITextModel() });
+      } catch (error: any) {
+        console.warn("OpenAI description failed, falling back to Gemini:", error?.message || error);
+      }
+    }
+
     const response = await getAI().models.generateContent({
       model: "gemini-3-flash-preview",
       contents: [{
         role: "user",
-        parts: [{ text: `Write a short warm Ukrainian product description for "${name}" in category "${category || "home"}". Use 2-3 sentences, no quotes, no intro.` }]
+        parts: [{ text: prompt }]
       }]
     });
-    res.json({ text: response.text || "" });
+    res.json({ text: response.text || "", provider: "gemini" });
   }));
 
   app.post("/api/admin/ai/styling-tip", authenticate, asyncHandler(async (req: any, res: any) => {
     if (!requireAdmin(req, res)) return;
     const { name, category } = req.body;
+    const prompt = `Write a concise Ukrainian styling tip for using "${name}" from category "${category || "home"}" in a cozy home interior. Max 2 sentences.`;
+    if (getOpenAIKey()) {
+      try {
+        const text = await requestOpenAIText(prompt);
+        return res.json({ text, provider: "openai", model: getOpenAITextModel() });
+      } catch (error: any) {
+        console.warn("OpenAI styling tip failed, falling back to Gemini:", error?.message || error);
+      }
+    }
+
     const response = await getAI().models.generateContent({
       model: "gemini-3-flash-preview",
       contents: [{
         role: "user",
-        parts: [{ text: `Write a concise Ukrainian styling tip for using "${name}" from category "${category || "home"}" in a cozy home interior. Max 2 sentences.` }]
+        parts: [{ text: prompt }]
       }]
     });
-    res.json({ text: response.text || "" });
+    res.json({ text: response.text || "", provider: "gemini" });
   }));
 
   app.post("/api/admin/ai/product-image", authenticate, asyncHandler(async (req: any, res: any) => {
     if (!requireAdmin(req, res)) return;
     const { name, category, base64Image } = req.body;
-    const prompt = `Professional ecommerce product photo for "${name}" in category "${category || "home"}". Cozy premium minimal home aesthetic, soft natural light, neutral background, realistic, no text in image.`;
+    if (getOpenAIImageKey()) {
+      const image = await requestOpenAIImage(name, category, base64Image);
+      return res.json({ image, provider: "openai", model: getOpenAIImageModel() });
+    }
+
+    const prompt = buildProductImagePrompt(name, category);
     const parts: any[] = [{ text: prompt }];
 
     if (base64Image) {
@@ -882,11 +1072,22 @@ app.post("/api/auth/register", asyncHandler(async (req: any, res: any) => {
     const { productName, productCategory, allProducts } = req.body;
     const products = Array.isArray(allProducts) ? allProducts.slice(0, 80) : [];
     const productsList = products.map((p: any) => `- ${p.name} (ID: ${p.id}, category: ${p.category})`).join("\n");
+    const prompt = `Pick 2-4 complementary products for "${productName}" (${productCategory}). Return only JSON array of product IDs from this list:\n${productsList}`;
+    if (getOpenAIKey()) {
+      try {
+        const text = await requestOpenAIText(prompt, "Return valid JSON only. The response must be an array of product ID strings and nothing else.");
+        const items = JSON.parse(cleanJSON(text || "[]"));
+        return res.json({ items: Array.isArray(items) ? items : [], provider: "openai", model: getOpenAITextModel() });
+      } catch (error: any) {
+        console.warn("OpenAI bundle item suggestion failed, falling back to Gemini:", error?.message || error);
+      }
+    }
+
     const response = await getAI().models.generateContent({
       model: "gemini-3-flash-preview",
       contents: [{
         role: "user",
-        parts: [{ text: `Pick 2-4 complementary products for "${productName}" (${productCategory}). Return only JSON array of product IDs from this list:\n${productsList}` }]
+        parts: [{ text: prompt }]
       }],
       config: {
         responseMimeType: "application/json",
@@ -896,7 +1097,7 @@ app.post("/api/auth/register", asyncHandler(async (req: any, res: any) => {
 
     try {
       const items = JSON.parse(cleanJSON(response.text || "[]"));
-      res.json({ items: Array.isArray(items) ? items : [] });
+      res.json({ items: Array.isArray(items) ? items : [], provider: "gemini" });
     } catch {
       res.json({ items: [] });
     }
@@ -905,15 +1106,26 @@ app.post("/api/auth/register", asyncHandler(async (req: any, res: any) => {
   app.post("/api/admin/ai/director-report", authenticate, asyncHandler(async (req: any, res: any) => {
     if (!requireAdmin(req, res)) return;
     const { products = [], orders = [], stats = {}, siteSettings = {}, reviews = [] } = req.body;
+    const reportPrompt = `Analyze this Hatni Shtuchky ecommerce data and write a specific Ukrainian markdown director report with quick wins, UX/CRO advice, product/pricing advice, and next actions.\n\nPRODUCTS:\n${JSON.stringify(products.slice(0, 50), null, 2)}\n\nORDERS:\n${JSON.stringify(orders.slice(0, 30), null, 2)}\n\nREVIEWS:\n${JSON.stringify(reviews.slice(0, 20), null, 2)}\n\nSTATS:\n${JSON.stringify(stats, null, 2)}\n\nSITE SETTINGS:\n${JSON.stringify(siteSettings, null, 2)}`;
+    const reportInstructions = "You are a senior ecommerce, UX, CRO and merchandising advisor. Be practical, concrete, and write in Ukrainian.";
+    if (getOpenAIKey()) {
+      try {
+        const report = await requestOpenAIText(reportPrompt, reportInstructions);
+        return res.json({ report, provider: "openai", model: getOpenAITextModel() });
+      } catch (error: any) {
+        console.warn("OpenAI director report failed, falling back to Gemini:", error?.message || error);
+      }
+    }
+
     const response = await getAI().models.generateContent({
       model: "gemini-3-flash-preview",
-      contents: `Analyze this Hatni Shtuchky ecommerce data and write a specific Ukrainian markdown director report with quick wins, UX/CRO advice, product/pricing advice, and next actions.\n\nPRODUCTS:\n${JSON.stringify(products.slice(0, 50), null, 2)}\n\nORDERS:\n${JSON.stringify(orders.slice(0, 30), null, 2)}\n\nREVIEWS:\n${JSON.stringify(reviews.slice(0, 20), null, 2)}\n\nSTATS:\n${JSON.stringify(stats, null, 2)}\n\nSITE SETTINGS:\n${JSON.stringify(siteSettings, null, 2)}`,
+      contents: reportPrompt,
       config: {
-        systemInstruction: "You are a senior ecommerce, UX, CRO and merchandising advisor. Be practical, concrete, and write in Ukrainian.",
+        systemInstruction: reportInstructions,
         temperature: 0.7
       }
     });
-    res.json({ report: response.text || "" });
+    res.json({ report: response.text || "", provider: "gemini" });
   }));
 
   // Price Subscriptions
