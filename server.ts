@@ -363,6 +363,14 @@ const setNoStore = (res: any) => {
   res.set("Expires", "0");
 };
 
+const setPublicApiCache = (res: any, seconds = 60) => {
+  res.set("Cache-Control", `public, max-age=${seconds}, s-maxage=${Math.max(seconds, 300)}, stale-while-revalidate=600`);
+};
+
+const setImageCache = (res: any) => {
+  res.set("Cache-Control", "public, max-age=3600, s-maxage=86400, stale-while-revalidate=604800");
+};
+
 const xmlEscape = (value: string) =>
   value.replace(/[<>&'"]/g, (char) => ({
     "<": "&lt;",
@@ -707,6 +715,23 @@ const normalizeProductForApi = (product: any) => {
     bundleItems,
     bonusPoints: toNumberField(firstDefined(product, ["bonusPoints", "bonus_points"])),
     reviewCount: toNumberField(firstDefined(product, ["reviewCount", "review_count"]))
+  };
+};
+
+const productImageUrl = (id: string, slot: string | number = "main") =>
+  `/api/product-images/${encodeURIComponent(id)}/${encodeURIComponent(String(slot))}`;
+
+const buildPublicProduct = (product: any, options: { includeGallery?: boolean } = {}) => {
+  const normalized = normalizeProductForApi(product);
+  const hasProductId = typeof normalized.id === "string" && normalized.id.length > 0;
+  const gallery = mergeImageList(normalized.images).filter((image) => image !== normalized.image);
+
+  return {
+    ...normalized,
+    image: hasProductId ? productImageUrl(normalized.id, "main") : normalized.image,
+    images: options.includeGallery && hasProductId
+      ? gallery.map((_, index) => productImageUrl(normalized.id, index)).slice(0, 8)
+      : []
   };
 };
 
@@ -1442,15 +1467,51 @@ app.post("/api/auth/register", asyncHandler(async (req: any, res: any) => {
   }));
 
   // API Routes
+  app.get("/api/product-images/:id/:slot", asyncHandler(async (req: any, res: any) => {
+    setImageCache(res);
+    try {
+      const product = await db.getProductById(req.params.id);
+      if (!product) return res.status(404).send("Image not found");
+
+      const normalized = normalizeProductForApi(product);
+      const gallery = mergeImageList(normalized.images).filter((image) => image !== normalized.image);
+      const slot = String(req.params.slot || "main");
+      const galleryIndex = Number(slot);
+      const rawImage = slot === "main"
+        ? normalized.image || gallery[0]
+        : Number.isInteger(galleryIndex) && galleryIndex >= 0
+          ? gallery[galleryIndex]
+          : "";
+
+      if (!rawImage) return res.status(404).send("Image not found");
+
+      const dataImage = extractDataUrlImage(rawImage);
+      if (dataImage) {
+        res.type(dataImage.mimeType);
+        return res.send(dataImage.buffer);
+      }
+
+      if (/^https?:\/\//i.test(rawImage)) {
+        return res.redirect(302, rawImage);
+      }
+
+      res.status(404).send("Image not found");
+    } catch (error: any) {
+      const { isFirst } = recordDbError(error);
+      if (isFirst) console.warn("Error fetching product image:", error.message);
+      res.status(404).send("Image not found");
+    }
+  }));
+
   app.get("/api/products/catalog", asyncHandler(async (req: any, res: any) => {
-    setNoStore(res);
+    setPublicApiCache(res, 60);
     try {
       if (isDbInDegradedMode()) {
         throw new Error("Database is in degraded mode (quota exceeded)");
       }
 
       const products = await db.getProductsSummary();
-      const formattedProducts = products.map(normalizeProductForApi);
+      const formattedProducts = products.map((product) => buildPublicProduct(product));
       productsSummaryCache = { data: formattedProducts, timestamp: Date.now() };
       savePersistentCache();
       res.json(formattedProducts);
@@ -1497,7 +1558,7 @@ app.post("/api/auth/register", asyncHandler(async (req: any, res: any) => {
   }));
 
   app.get("/api/products/:id", asyncHandler(async (req: any, res: any) => {
-    setNoStore(res);
+    setPublicApiCache(res, 60);
     try {
       if (isDbInDegradedMode()) {
         throw new Error("Database is in degraded mode (quota exceeded)");
@@ -1507,7 +1568,7 @@ app.post("/api/auth/register", asyncHandler(async (req: any, res: any) => {
       if (!product) {
         return res.status(404).json({ error: "Product not found" });
       }
-      const formatted = normalizeProductForApi(product);
+      const formatted = buildPublicProduct(product, { includeGallery: true });
       res.json(formatted);
     } catch (error: any) {
       const { isQuota, isFirst } = recordDbError(error);
@@ -1833,7 +1894,7 @@ app.post("/api/auth/register", asyncHandler(async (req: any, res: any) => {
   }));
 
   app.get("/api/categories", asyncHandler(async (req: any, res: any) => {
-    setNoStore(res);
+    setPublicApiCache(res, 300);
     const now = Date.now();
     if (categoriesCache && (now - categoriesCache.timestamp < CACHE_TTL)) {
       return res.json(categoriesCache.data);
@@ -2003,6 +2064,7 @@ app.get("/api/admin/users", authenticate, asyncHandler(async (req: any, res: any
   }));
 
   app.get("/api/site-settings", asyncHandler(async (req: any, res: any) => {
+    setPublicApiCache(res, 120);
     const now = Date.now();
     if (siteSettingsCache && (now - siteSettingsCache.timestamp < CACHE_TTL)) {
       return res.json(siteSettingsCache.data);
@@ -2346,7 +2408,15 @@ async function startViteAndListen() {
     });
     app.use(vite.middlewares);
   } else if (process.env.VERCEL || process.env.NODE_ENV === "production") {
-    app.use(express.static(path.join(__dirname, "dist")));
+    app.use(express.static(path.join(__dirname, "dist"), {
+      setHeaders: (res, filePath) => {
+        if (filePath.includes(`${path.sep}assets${path.sep}`)) {
+          res.setHeader("Cache-Control", "public, max-age=31536000, immutable");
+        } else if (filePath.endsWith("index.html")) {
+          res.setHeader("Cache-Control", "public, max-age=0, must-revalidate");
+        }
+      }
+    }));
     app.get(/.*/, (req, res) => {
       res.sendFile(path.join(__dirname, "dist", "index.html"));
     });

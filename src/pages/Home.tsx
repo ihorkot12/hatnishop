@@ -122,6 +122,8 @@ export const Home = () => {
             <img
               src="https://images.unsplash.com/photo-1556910103-1c02745aae4d?auto=format&fit=crop&w=1200&q=80"
               alt="Тиха кухня з дерев'яними та керамічними деталями"
+              loading="lazy"
+              decoding="async"
               className="h-full min-h-[420px] w-full object-cover"
             />
             <div className="absolute bottom-0 left-0 right-0 bg-slate-950/80 p-5 text-white backdrop-blur-sm">

@@ -149,7 +149,7 @@ export const SpecialOffers = () => {
                       {bundles.map((bundle) => (
                         <div key={bundle.id} className="rounded-lg border border-slate-200 bg-white p-4">
                           <div className="grid grid-cols-[88px_1fr] gap-4">
-                            <img src={bundle.image} alt={bundle.name} className="h-[88px] w-[88px] rounded-lg object-cover" referrerPolicy="no-referrer" />
+                            <img src={bundle.image} alt={bundle.name} loading="lazy" decoding="async" className="h-[88px] w-[88px] rounded-lg object-cover" referrerPolicy="no-referrer" />
                             <div className="min-w-0">
                               <h4 className="line-clamp-2 font-bold text-slate-950">{bundle.name}</h4>
                               <div className="mt-2 font-bold text-tiffany">{bundle.price} грн</div>

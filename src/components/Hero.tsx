@@ -108,6 +108,9 @@ export const Hero = ({ title, subtitle, badge, featuredProduct: propProduct, loa
                   <img
                     src={featuredProduct.image}
                     alt={featuredProduct.name}
+                    loading="eager"
+                    decoding="async"
+                    fetchPriority="high"
                     className="h-full w-full object-cover object-[center_bottom]"
                     referrerPolicy="no-referrer"
                   />

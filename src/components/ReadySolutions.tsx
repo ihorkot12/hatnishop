@@ -80,6 +80,8 @@ export const ReadySolutions = () => {
                 <img
                   src={bundle.image}
                   alt={bundle.name}
+                  loading="lazy"
+                  decoding="async"
                   className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-[1.04]"
                 />
                 <span className="absolute left-4 top-4 rounded-md bg-tiffany px-3 py-1 text-[10px] font-bold uppercase text-slate-950">

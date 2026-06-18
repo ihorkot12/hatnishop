@@ -293,6 +293,9 @@ export const ProductDetail = () => {
             <img 
               src={selectedImage || product.image} 
               alt={product.name} 
+              loading="eager"
+              decoding="async"
+              fetchPriority="high"
               className="w-full h-full object-cover"
               referrerPolicy="no-referrer"
             />
@@ -302,7 +305,7 @@ export const ProductDetail = () => {
               onClick={() => setSelectedImage(product.image)}
               className={`aspect-square cursor-pointer overflow-hidden rounded-xl border transition-all duration-300 sm:rounded-2xl ${selectedImage === product.image ? 'border-tiffany ring-2 ring-tiffany/20' : 'border-slate-200 hover:border-tiffany'}`}
             >
-              <img src={product.image} alt="" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+              <img src={product.image} alt="" loading="lazy" decoding="async" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
             </div>
             {product.images && product.images.map((img: string, i: number) => (
               <div 
@@ -310,7 +313,7 @@ export const ProductDetail = () => {
                 onClick={() => setSelectedImage(img)}
                 className={`aspect-square cursor-pointer overflow-hidden rounded-xl border transition-all duration-300 sm:rounded-2xl ${selectedImage === img ? 'border-tiffany ring-2 ring-tiffany/20' : 'border-slate-200 hover:border-tiffany'}`}
               >
-                <img src={img} alt="" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                <img src={img} alt="" loading="lazy" decoding="async" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
               </div>
             ))}
           </div>
