@@ -1,10 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { generateDescription, generateProductImage, generateStylingTip, suggestBundleItems } from '../services/aiService';
+import { generateAndSaveProductGallery, generateAndSaveProductImage, generateDescription, generateProductGallery, generateProductImage, generateStylingTip, saveWebImageForProduct, searchProductWebImages, suggestBundleItems } from '../services/aiService';
 import { generateDirectorReport } from '../services/aiDirectorService';
 import { fileToBase64 } from '../utils/imageUtils';
 import Markdown from 'react-markdown';
-import { Package, ShoppingCart, TrendingUp, Plus, Edit2, Trash2, CheckCircle, Clock, Star, Truck, Users, Shield, UserPlus, Filter, Settings, MessageSquare, Tag, Upload, Loader2, Sparkles, Share2, Database, RefreshCw, AlertTriangle } from 'lucide-react';
+import { Package, ShoppingCart, TrendingUp, Plus, Edit2, Trash2, CheckCircle, Clock, Star, Truck, Users, Shield, UserPlus, Filter, Settings, MessageSquare, Tag, Upload, Loader2, Sparkles, Share2, Database, RefreshCw, AlertTriangle, Camera, Globe2, Images } from 'lucide-react';
 import { ProductImporter } from '../components/ProductImporter';
 import { MOCK_PRODUCTS } from '../constants';
 import { Order, User } from '../types';
@@ -143,6 +143,9 @@ export const Admin = () => {
   const [productDescription, setProductDescription] = useState<string>('');
   const [productAiDescription, setProductAiDescription] = useState<string>('');
   const [isGeneratingAI, setIsGeneratingAI] = useState(false);
+  const [isGeneratingGallery, setIsGeneratingGallery] = useState(false);
+  const [isSearchingWebImage, setIsSearchingWebImage] = useState(false);
+  const [bulkImageJob, setBulkImageJob] = useState<{ type: 'ai' | 'web'; done: number; total: number } | null>(null);
   const [isGeneratingAdvice, setIsGeneratingAdvice] = useState(false);
   const [isGeneratingBundle, setIsGeneratingBundle] = useState(false);
   const [bundleItems, setBundleItems] = useState<string[]>([]);
@@ -702,6 +705,69 @@ export const Admin = () => {
     }
   };
 
+  const getProductFormBasics = () => {
+    const form = productFormRef.current;
+    return {
+      name: (form?.querySelector('input[name="name"]') as HTMLInputElement)?.value?.trim() || '',
+      category: (form?.querySelector('select[name="category"]') as HTMLSelectElement)?.value || ''
+    };
+  };
+
+  const appendGalleryImages = (images: string[]) => {
+    setGalleryImages(prev => {
+      const seen = new Set(prev);
+      const next = [...prev];
+      for (const image of images) {
+        if (image && !seen.has(image)) {
+          seen.add(image);
+          next.push(image);
+        }
+      }
+      return next;
+    });
+  };
+
+  const handleFindWebImage = async () => {
+    const { name, category } = getProductFormBasics();
+    if (!name) {
+      alert('Введіть назву товару');
+      return;
+    }
+
+    setIsSearchingWebImage(true);
+    try {
+      const result = await searchProductWebImages(name, category);
+      if (!result.configured) {
+        window.open(result.openSearchUrl, '_blank', 'noopener,noreferrer');
+        alert('Автоматичний пошук реальних фото потребує GOOGLE_SEARCH_API_KEY та GOOGLE_SEARCH_ENGINE_ID у Vercel. Я відкрив готовий пошук, можна скопіювати фото або URL вручну.');
+        return;
+      }
+
+      const candidate = result.candidates[0];
+      if (!candidate) {
+        window.open(result.openSearchUrl, '_blank', 'noopener,noreferrer');
+        alert('Автоматично не знайшов якісне фото. Відкрив ручний пошук по назві.');
+        return;
+      }
+
+      if (editingProduct?.id) {
+        const saved = await saveWebImageForProduct(editingProduct.id);
+        const image = saved.product?.image || saved.candidate?.url || candidate.url;
+        setMainImage(image);
+        setGalleryImages(saved.product?.images || [image]);
+        fetchProducts();
+      } else {
+        setMainImage(candidate.url);
+        appendGalleryImages([candidate.url]);
+      }
+    } catch (err: any) {
+      console.error(err);
+      alert(`Не вдалося підібрати фото онлайн: ${err.message || 'помилка сервера'}`);
+    } finally {
+      setIsSearchingWebImage(false);
+    }
+  };
+
   const handleAIGenerateDescription = async (name: string, category: string) => {
     if (productDescription && productDescription.trim().length > 0) {
       if (!confirm('Опис вже існує. Ви впевнені, що хочете перегенерувати його?')) {
@@ -736,6 +802,71 @@ export const Admin = () => {
     } finally {
       setIsGeneratingAI(false);
     }
+  };
+
+  const handleAIGenerateGallery = async (name: string, category: string) => {
+    setIsGeneratingGallery(true);
+    try {
+      if (editingProduct?.id) {
+        const result = await generateAndSaveProductGallery(editingProduct.id, 3);
+        if (result.product?.image) setMainImage(result.product.image);
+        if (Array.isArray(result.product?.images)) setGalleryImages(result.product.images);
+        else appendGalleryImages(result.images || []);
+        fetchProducts();
+      } else {
+        const images = await generateProductGallery(name, category, mainImage, 3);
+        if (images.length > 0) {
+          if (!mainImage) setMainImage(images[0]);
+          appendGalleryImages(images);
+        }
+      }
+    } catch (err) {
+      console.error(err);
+      alert('Помилка при генерації AI галереї');
+    } finally {
+      setIsGeneratingGallery(false);
+    }
+  };
+
+  const runBulkImageJob = async (type: 'ai' | 'web') => {
+    if (products.length === 0) return;
+
+    if (type === 'web') {
+      const probe = await searchProductWebImages(products[0].name, products[0].category, 1);
+      if (!probe.configured) {
+        window.open(probe.openSearchUrl, '_blank', 'noopener,noreferrer');
+        alert('Для автоматичного масового підбору реальних фото треба додати GOOGLE_SEARCH_API_KEY та GOOGLE_SEARCH_ENGINE_ID у Vercel. Без них відкриваю ручний пошук.');
+        return;
+      }
+    }
+
+    const label = type === 'ai' ? 'AI-фото' : 'реальні фото з пошуку';
+    if (!window.confirm(`Запустити масове оновлення: ${label} для ${products.length} товарів? Це може тривати кілька хвилин.`)) return;
+
+    setBulkImageJob({ type, done: 0, total: products.length });
+    let success = 0;
+    let failed = 0;
+
+    for (const product of products) {
+      try {
+        const result = type === 'ai'
+          ? await generateAndSaveProductImage(product.id)
+          : await saveWebImageForProduct(product.id);
+        if (result.product) {
+          setProducts(prev => prev.map(item => item.id === product.id ? { ...item, ...result.product } : item));
+        }
+        success += 1;
+      } catch (err) {
+        console.error(`Bulk ${type} image failed for ${product.id}:`, err);
+        failed += 1;
+      } finally {
+        setBulkImageJob({ type, done: success + failed, total: products.length });
+      }
+    }
+
+    setBulkImageJob(null);
+    fetchProducts();
+    alert(`Готово. Оновлено: ${success}. Помилок: ${failed}.`);
   };
 
   const handleAIGenerateAdvice = async (name: string, category: string) => {
@@ -1584,12 +1715,35 @@ export const Admin = () => {
                   </button>
                 )}
                 {activeTab === 'products' && (
-                  <button 
-                    onClick={() => { setEditingProduct(null); setShowProductModal(true); }}
-                    className="bg-tiffany text-white px-6 py-3 rounded-xl font-bold flex items-center gap-2 hover:bg-slate-900 transition-all"
-                  >
-                    <Plus size={20} /> Додати товар
-                  </button>
+                  <div className="flex flex-wrap items-center justify-end gap-3">
+                    {bulkImageJob && (
+                      <div className="rounded-xl bg-slate-50 px-4 py-3 text-xs font-bold text-slate-500">
+                        Фото: {bulkImageJob.done}/{bulkImageJob.total}
+                      </div>
+                    )}
+                    <button
+                      onClick={() => runBulkImageJob('web')}
+                      disabled={!!bulkImageJob}
+                      className="bg-white text-slate-700 border border-slate-200 px-4 py-3 rounded-xl font-bold flex items-center gap-2 hover:border-tiffany hover:text-tiffany transition-all disabled:opacity-50"
+                    >
+                      {bulkImageJob?.type === 'web' ? <Loader2 size={18} className="animate-spin" /> : <Globe2 size={18} />}
+                      Реальні фото
+                    </button>
+                    <button
+                      onClick={() => runBulkImageJob('ai')}
+                      disabled={!!bulkImageJob}
+                      className="bg-indigo-600 text-white px-4 py-3 rounded-xl font-bold flex items-center gap-2 hover:bg-slate-900 transition-all disabled:opacity-50"
+                    >
+                      {bulkImageJob?.type === 'ai' ? <Loader2 size={18} className="animate-spin" /> : <Camera size={18} />}
+                      AI-фото всім
+                    </button>
+                    <button 
+                      onClick={() => { setEditingProduct(null); setShowProductModal(true); }}
+                      className="bg-tiffany text-white px-6 py-3 rounded-xl font-bold flex items-center gap-2 hover:bg-slate-900 transition-all"
+                    >
+                      <Plus size={20} /> Додати товар
+                    </button>
+                  </div>
                 )}
                 {activeTab === 'categories' && (
                   <button 
@@ -1916,21 +2070,30 @@ export const Admin = () => {
                   <div className="space-y-4">
                     <div className="flex items-center justify-between">
                       <label className="text-xs font-bold text-slate-400 uppercase">Головне зображення</label>
-                      <button 
-                        type="button"
-                        onClick={() => {
-                          const form = productFormRef.current;
-                          const name = (form?.querySelector('input[name="name"]') as HTMLInputElement)?.value;
-                          const category = (form?.querySelector('select[name="category"]') as HTMLSelectElement)?.value;
-                          if (name) handleAIGenerateImage(name, category);
-                          else alert('Введіть назву товару');
-                        }}
-                        disabled={isGeneratingAI}
-                        className="flex items-center gap-2 px-3 py-1.5 bg-indigo-50 text-indigo-600 rounded-lg text-[10px] font-bold hover:bg-indigo-100 transition-all disabled:opacity-50 border border-indigo-100 shadow-sm"
-                      >
-                        {isGeneratingAI ? <Loader2 size={12} className="animate-spin" /> : <Sparkles size={12} className="text-indigo-500" />}
-                        <span>Згенерувати AI Фото</span>
-                      </button>
+                      <div className="flex flex-wrap items-center justify-end gap-2">
+                        <button
+                          type="button"
+                          onClick={handleFindWebImage}
+                          disabled={isSearchingWebImage}
+                          className="flex items-center gap-2 px-3 py-1.5 bg-white text-slate-600 rounded-lg text-[10px] font-bold hover:text-tiffany transition-all disabled:opacity-50 border border-slate-200 shadow-sm"
+                        >
+                          {isSearchingWebImage ? <Loader2 size={12} className="animate-spin" /> : <Globe2 size={12} />}
+                          <span>Знайти онлайн</span>
+                        </button>
+                        <button 
+                          type="button"
+                          onClick={() => {
+                            const { name, category } = getProductFormBasics();
+                            if (name) handleAIGenerateImage(name, category);
+                            else alert('Введіть назву товару');
+                          }}
+                          disabled={isGeneratingAI}
+                          className="flex items-center gap-2 px-3 py-1.5 bg-indigo-50 text-indigo-600 rounded-lg text-[10px] font-bold hover:bg-indigo-100 transition-all disabled:opacity-50 border border-indigo-100 shadow-sm"
+                        >
+                          {isGeneratingAI ? <Loader2 size={12} className="animate-spin" /> : <Sparkles size={12} className="text-indigo-500" />}
+                          <span>AI Фото</span>
+                        </button>
+                      </div>
                     </div>
                     <div className="flex items-center gap-4 p-4 bg-slate-50 rounded-2xl border-2 border-dashed border-slate-200">
                       {mainImage ? (
@@ -1982,7 +2145,22 @@ export const Admin = () => {
                   </div>
 
                   <div className="space-y-4">
-                    <label className="text-xs font-bold text-slate-400 uppercase">Галерея зображень</label>
+                    <div className="flex items-center justify-between gap-3">
+                      <label className="text-xs font-bold text-slate-400 uppercase">Галерея зображень</label>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const { name, category } = getProductFormBasics();
+                          if (name) handleAIGenerateGallery(name, category);
+                          else alert('Введіть назву товару');
+                        }}
+                        disabled={isGeneratingGallery}
+                        className="flex items-center gap-2 px-3 py-1.5 bg-cyan-50 text-cyan-700 rounded-lg text-[10px] font-bold hover:bg-cyan-100 transition-all disabled:opacity-50 border border-cyan-100 shadow-sm"
+                      >
+                        {isGeneratingGallery ? <Loader2 size={12} className="animate-spin" /> : <Images size={12} />}
+                        <span>3 AI фото</span>
+                      </button>
+                    </div>
                     <div className="grid grid-cols-4 gap-2">
                       {galleryImages.map((img, idx) => (
                         <div key={idx} className="relative group aspect-square">

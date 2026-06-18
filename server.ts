@@ -56,12 +56,13 @@ const getOpenAIImageKey = getOpenAIKey;
 const getOpenAIImageModel = () => process.env.OPENAI_IMAGE_MODEL || "gpt-image-2";
 const getOpenAITextModel = () => process.env.OPENAI_TEXT_MODEL || "gpt-5.4-mini";
 
-const buildProductImagePrompt = (name: string, category?: string) => [
+const buildProductImagePrompt = (name: string, category?: string, shotDirection?: string) => [
   `Professional ecommerce product photo for "${name}" in category "${category || "home"}".`,
   "Realistic studio product photography, premium Ukrainian home goods shop aesthetic.",
   "Soft natural light, clean neutral background, accurate object shape and material, no text, no logos, no watermark.",
-  "Square composition, product centered, suitable for a catalog card."
-].join(" ");
+  "Square composition, product centered, suitable for a catalog card.",
+  shotDirection ? `Shot direction: ${shotDirection}` : ""
+].filter(Boolean).join(" ");
 
 const extractDataUrlImage = (value: any) => {
   const match = String(value || "").match(/^data:(image\/(?:png|jpe?g|webp));base64,(.+)$/i);
@@ -94,12 +95,12 @@ const openAIImageError = (status: number, data: any, rawText: string) => {
   });
 };
 
-const requestOpenAIImage = async (name: string, category?: string, base64Image?: string) => {
+const requestOpenAIImage = async (name: string, category?: string, base64Image?: string, shotDirection?: string) => {
   const apiKey = getOpenAIImageKey();
   if (!apiKey) throw new Error("OPENAI_API_KEY is not configured");
 
   const model = getOpenAIImageModel();
-  const prompt = buildProductImagePrompt(name, category);
+  const prompt = buildProductImagePrompt(name, category, shotDirection);
   const referenceImage = extractDataUrlImage(base64Image);
   const endpoint = referenceImage
     ? "https://api.openai.com/v1/images/edits"
@@ -217,6 +218,120 @@ const requestOpenAIText = async (input: string, instructions?: string) => {
 };
 
 const cleanJSON = (text: string) => text.replace(/```json\n?|```/g, "").trim();
+
+const getWebImageSearchConfig = () => ({
+  provider: "google-custom-search",
+  apiKey: process.env.GOOGLE_SEARCH_API_KEY || process.env.GOOGLE_CSE_API_KEY || "",
+  cx: process.env.GOOGLE_SEARCH_ENGINE_ID || process.env.GOOGLE_CSE_ID || process.env.GOOGLE_CX || ""
+});
+
+const buildProductImageSearchQuery = (name: string, category?: string) => [
+  String(name || "").trim(),
+  category ? String(category).trim() : "",
+  "фото товару купити Україна"
+].filter(Boolean).join(" ");
+
+const buildGoogleImageSearchUrl = (query: string) =>
+  `https://www.google.com/search?tbm=isch&q=${encodeURIComponent(query)}`;
+
+const searchWebImageCandidates = async (name: string, category?: string, limit = 8) => {
+  const query = buildProductImageSearchQuery(name, category);
+  const openSearchUrl = buildGoogleImageSearchUrl(query);
+  const config = getWebImageSearchConfig();
+
+  if (!config.apiKey || !config.cx) {
+    return {
+      configured: false,
+      provider: config.provider,
+      query,
+      openSearchUrl,
+      candidates: [] as Array<{ url: string; title: string; source: string }>
+    };
+  }
+
+  const searchUrl = new URL("https://www.googleapis.com/customsearch/v1");
+  searchUrl.searchParams.set("key", config.apiKey);
+  searchUrl.searchParams.set("cx", config.cx);
+  searchUrl.searchParams.set("q", query);
+  searchUrl.searchParams.set("searchType", "image");
+  searchUrl.searchParams.set("num", String(Math.max(1, Math.min(10, limit))));
+  searchUrl.searchParams.set("safe", "active");
+  searchUrl.searchParams.set("imgSize", "large");
+
+  const response = await fetch(searchUrl);
+  const rawText = await response.text();
+  let data: any = null;
+  try {
+    data = rawText ? JSON.parse(rawText) : null;
+  } catch {
+    data = null;
+  }
+
+  if (!response.ok) {
+    const message = data?.error?.message || rawText || "Image search failed";
+    throw Object.assign(new Error(`Google image search failed (${response.status}): ${message}`), {
+      status: response.status,
+      provider: config.provider
+    });
+  }
+
+  const candidates = (Array.isArray(data?.items) ? data.items : [])
+    .map((item: any) => ({
+      url: String(item?.link || ""),
+      title: String(item?.title || item?.displayLink || ""),
+      source: String(item?.image?.contextLink || item?.displayLink || "")
+    }))
+    .filter((item: any) => /^https?:\/\//i.test(item.url));
+
+  return {
+    configured: true,
+    provider: config.provider,
+    query,
+    openSearchUrl,
+    candidates
+  };
+};
+
+const requestGeminiProductImage = async (name: string, category?: string, base64Image?: string, shotDirection?: string) => {
+  const prompt = buildProductImagePrompt(name, category, shotDirection);
+  const parts: any[] = [{ text: prompt }];
+
+  if (base64Image) {
+    const match = String(base64Image).match(/^data:(image\/\w+);base64,(.+)$/);
+    if (match) {
+      parts.push({ inlineData: { mimeType: match[1], data: match[2] } });
+    }
+  }
+
+  const response = await getAI().models.generateContent({
+    model: "gemini-2.5-flash-image",
+    contents: { parts },
+    config: { imageConfig: { aspectRatio: "1:1" } }
+  });
+
+  const imagePart = response.candidates?.[0]?.content?.parts?.find((part: any) => part.inlineData);
+  if (!imagePart?.inlineData?.data) {
+    throw Object.assign(new Error("AI image generation returned no image"), { status: 502 });
+  }
+
+  return `data:image/png;base64,${imagePart.inlineData.data}`;
+};
+
+const requestConfiguredProductImage = async (name: string, category?: string, base64Image?: string, shotDirection?: string) => {
+  if (getOpenAIImageKey()) {
+    return {
+      image: await requestOpenAIImage(name, category, base64Image, shotDirection),
+      provider: "openai",
+      model: getOpenAIImageModel()
+    };
+  }
+
+  return {
+    image: await requestGeminiProductImage(name, category, base64Image, shotDirection),
+    provider: "gemini",
+    model: "gemini-2.5-flash-image"
+  };
+};
 
 export const app = express();
 const PORT = 3000;
@@ -592,6 +707,59 @@ const normalizeProductForApi = (product: any) => {
     bundleItems,
     bonusPoints: toNumberField(firstDefined(product, ["bonusPoints", "bonus_points"])),
     reviewCount: toNumberField(firstDefined(product, ["reviewCount", "review_count"]))
+  };
+};
+
+const mergeImageList = (...lists: any[]) => {
+  const merged: string[] = [];
+  const seen = new Set<string>();
+
+  for (const list of lists) {
+    const values = Array.isArray(list) ? list : parseJsonArrayField(list);
+    for (const value of values) {
+      const image = String(value || "").trim();
+      if (!image || seen.has(image)) continue;
+      seen.add(image);
+      merged.push(image);
+    }
+  }
+
+  return merged;
+};
+
+const buildProductUpdatePayload = (product: any, overrides: any = {}) => {
+  const normalized = normalizeProductForApi(product);
+  return {
+    name: normalized.name,
+    category: normalized.category,
+    price: normalized.price,
+    image: normalized.image,
+    description: normalized.description || "",
+    material: normalized.material,
+    brand: normalized.brand,
+    isPopular: normalized.isPopular,
+    isBundle: normalized.isBundle,
+    stock: normalized.stock || 0,
+    images: JSON.stringify(normalized.images || []),
+    bonusPoints: normalized.bonusPoints || 0,
+    bundle_items: JSON.stringify(normalized.bundle_items || []),
+    cost_price: normalized.cost_price,
+    ...overrides
+  };
+};
+
+const saveProductImages = async (product: any, mainImage: string, extraImages: string[] = []) => {
+  const normalized = normalizeProductForApi(product);
+  const gallery = mergeImageList([mainImage], extraImages, normalized.images).slice(0, 12);
+  await db.updateProduct(product.id, buildProductUpdatePayload(normalized, {
+    image: mainImage,
+    images: JSON.stringify(gallery)
+  }));
+  clearCache();
+  return {
+    ...normalized,
+    image: mainImage,
+    images: gallery
   };
 };
 
@@ -1039,40 +1207,60 @@ app.post("/api/auth/register", asyncHandler(async (req: any, res: any) => {
   app.post("/api/admin/ai/product-image", authenticate, asyncHandler(async (req: any, res: any) => {
     if (!requireAdmin(req, res)) return;
     const { name, category, base64Image } = req.body;
-    if (getOpenAIImageKey()) {
-      const image = await requestOpenAIImage(name, category, base64Image);
-      return res.json({ image, provider: "openai", model: getOpenAIImageModel() });
+    const result = await requestConfiguredProductImage(name, category, base64Image);
+    res.json(result);
+  }));
+
+  app.post("/api/admin/ai/product-gallery", authenticate, asyncHandler(async (req: any, res: any) => {
+    if (!requireAdmin(req, res)) return;
+    const { name, category, base64Image } = req.body;
+    const count = Math.max(1, Math.min(3, Number(req.body.count) || 3));
+    const shotDirections = [
+      "front hero shot, product fully visible, crisp glass and material details",
+      "three-quarter angle, editorial catalog lighting, subtle shadow under product",
+      "close detail crop that still clearly shows the item, premium product photography"
+    ];
+    const images: string[] = [];
+    let provider = "";
+    let model = "";
+
+    for (let index = 0; index < count; index += 1) {
+      const result = await requestConfiguredProductImage(
+        name,
+        category,
+        index === 0 ? base64Image : undefined,
+        shotDirections[index] || shotDirections[0]
+      );
+      images.push(result.image);
+      provider = result.provider;
+      model = result.model;
     }
 
-    const prompt = buildProductImagePrompt(name, category);
-    const parts: any[] = [{ text: prompt }];
+    res.json({ images, provider, model });
+  }));
 
-    if (base64Image) {
-      const match = String(base64Image).match(/^data:(image\/\w+);base64,(.+)$/);
-      if (match) {
-        parts.push({ inlineData: { mimeType: match[1], data: match[2] } });
-      }
+  app.post("/api/admin/images/search-web", authenticate, asyncHandler(async (req: any, res: any) => {
+    if (!requireAdmin(req, res)) return;
+    const { name, category } = req.body;
+    if (!String(name || "").trim()) {
+      return res.status(400).json({ error: "Product name is required" });
     }
 
-    const response = await getAI().models.generateContent({
-      model: "gemini-2.5-flash-image",
-      contents: { parts },
-      config: { imageConfig: { aspectRatio: "1:1" } }
-    });
-
-    const imagePart = response.candidates?.[0]?.content?.parts?.find((part: any) => part.inlineData);
-    if (!imagePart?.inlineData?.data) {
-      return res.status(502).json({ error: "AI image generation returned no image" });
-    }
-    res.json({ image: `data:image/png;base64,${imagePart.inlineData.data}` });
+    const result = await searchWebImageCandidates(name, category, Number(req.body.limit) || 8);
+    res.json(result);
   }));
 
   app.post("/api/admin/ai/bundle-items", authenticate, asyncHandler(async (req: any, res: any) => {
     if (!requireAdmin(req, res)) return;
     const { productName, productCategory, allProducts } = req.body;
-    const products = Array.isArray(allProducts) ? allProducts.slice(0, 80) : [];
-    const productsList = products.map((p: any) => `- ${p.name} (ID: ${p.id}, category: ${p.category})`).join("\n");
-    const prompt = `Pick 2-4 complementary products for "${productName}" (${productCategory}). Return only JSON array of product IDs from this list:\n${productsList}`;
+    const products = Array.isArray(allProducts)
+      ? allProducts
+          .filter((p: any) => !toBooleanFlag(firstDefined(p, ["isBundle", "isbundle", "is_bundle"])))
+          .filter((p: any) => Number(p?.stock || 0) > 0)
+          .slice(0, 120)
+      : [];
+    const productsList = products.map((p: any) => `- ${p.name} (ID: ${p.id}, category: ${p.category}, price: ${p.price})`).join("\n");
+    const prompt = `Pick 2-4 real standalone complementary products for "${productName}" (${productCategory}). Do not choose existing bundles or sets as bundle items. Prefer products that make sense together by use case, material, serving scenario, color/style, and price balance. Return only JSON array of product IDs from this list:\n${productsList}`;
     if (getOpenAIKey()) {
       try {
         const text = await requestOpenAIText(prompt, "Return valid JSON only. The response must be an array of product ID strings and nothing else.");
@@ -1330,6 +1518,121 @@ app.post("/api/auth/register", asyncHandler(async (req: any, res: any) => {
       const fallback = FALLBACK_PRODUCTS.find(p => p.id === req.params.id);
       if (fallback) return res.json(fallback);
       res.status(503).json({ error: "Service temporarily unavailable due to database quota" });
+    }
+  }));
+
+  app.post("/api/admin/products/:id/web-image", authenticate, asyncHandler(async (req: any, res: any) => {
+    if (!requireAdmin(req, res)) return;
+    try {
+      if (isDbInDegradedMode()) {
+        throw new Error("Database is in degraded mode (quota exceeded)");
+      }
+
+      const product = await db.getProductById(req.params.id);
+      if (!product) return res.status(404).json({ error: "Product not found" });
+
+      const normalized = normalizeProductForApi(product);
+      const result = await searchWebImageCandidates(normalized.name, normalized.category, Number(req.body.limit) || 8);
+      if (!result.configured) {
+        return res.status(428).json({
+          error: "Google image search is not configured",
+          query: result.query,
+          openSearchUrl: result.openSearchUrl,
+          provider: result.provider
+        });
+      }
+
+      const candidate = result.candidates[0];
+      if (!candidate) {
+        return res.status(404).json({
+          error: "No image candidates found",
+          query: result.query,
+          openSearchUrl: result.openSearchUrl
+        });
+      }
+
+      const updated = await saveProductImages(normalized, candidate.url);
+      res.json({ success: true, product: updated, candidate, query: result.query, provider: result.provider });
+    } catch (err: any) {
+      const { isQuota, isFirst } = recordDbError(err);
+      if (isFirst && !isQuota) {
+        console.warn("Error saving web image:", err.message);
+      }
+      res.status(isQuota ? 503 : (err.status || 500)).json({ error: err.message || "Service unavailable" });
+    }
+  }));
+
+  app.post("/api/admin/products/:id/ai-main-image", authenticate, asyncHandler(async (req: any, res: any) => {
+    if (!requireAdmin(req, res)) return;
+    try {
+      if (isDbInDegradedMode()) {
+        throw new Error("Database is in degraded mode (quota exceeded)");
+      }
+
+      const product = await db.getProductById(req.params.id);
+      if (!product) return res.status(404).json({ error: "Product not found" });
+
+      const normalized = normalizeProductForApi(product);
+      const reference = String(req.body.base64Image || normalized.image || "").startsWith("data:image/")
+        ? String(req.body.base64Image || normalized.image)
+        : undefined;
+      const result = await requestConfiguredProductImage(
+        normalized.name,
+        normalized.category,
+        reference,
+        "front hero shot, professional camera, exact ecommerce catalog framing"
+      );
+      const updated = await saveProductImages(normalized, result.image);
+      res.json({ success: true, product: updated, image: result.image, provider: result.provider, model: result.model });
+    } catch (err: any) {
+      const { isQuota, isFirst } = recordDbError(err);
+      if (isFirst && !isQuota) {
+        console.warn("Error saving AI main image:", err.message);
+      }
+      res.status(isQuota ? 503 : (err.status || 500)).json({ error: err.message || "Service unavailable" });
+    }
+  }));
+
+  app.post("/api/admin/products/:id/ai-gallery", authenticate, asyncHandler(async (req: any, res: any) => {
+    if (!requireAdmin(req, res)) return;
+    try {
+      if (isDbInDegradedMode()) {
+        throw new Error("Database is in degraded mode (quota exceeded)");
+      }
+
+      const product = await db.getProductById(req.params.id);
+      if (!product) return res.status(404).json({ error: "Product not found" });
+
+      const normalized = normalizeProductForApi(product);
+      const count = Math.max(1, Math.min(3, Number(req.body.count) || 3));
+      const shotDirections = [
+        "front hero shot, product fully visible, crisp details, premium ecommerce catalog",
+        "three-quarter camera angle, realistic shadow, clean studio surface",
+        "detail lifestyle-adjacent shot, still product-first, no text and no props hiding the item"
+      ];
+      const images: string[] = [];
+      let provider = "";
+      let model = "";
+
+      for (let index = 0; index < count; index += 1) {
+        const reference = index === 0 && String(normalized.image || "").startsWith("data:image/")
+          ? normalized.image
+          : undefined;
+        const result = await requestConfiguredProductImage(normalized.name, normalized.category, reference, shotDirections[index]);
+        images.push(result.image);
+        provider = result.provider;
+        model = result.model;
+      }
+
+      const mainImage = normalized.image || images[0];
+      const updated = await saveProductImages(normalized, mainImage, images);
+      res.json({ success: true, product: updated, images, provider, model });
+    } catch (err: any) {
+      const { isQuota, isFirst } = recordDbError(err);
+      if (isFirst && !isQuota) {
+        console.warn("Error saving AI gallery:", err.message);
+      }
+      res.status(isQuota ? 503 : (err.status || 500)).json({ error: err.message || "Service unavailable" });
     }
   }));
 

@@ -78,10 +78,10 @@ export const Hero = ({ title, subtitle, badge, featuredProduct: propProduct, loa
                 До каталогу <ArrowRight size={20} />
               </Link>
               <Link
-                to="/catalog?category=bundles"
+                to={featuredProduct ? `/product/${featuredProduct.id}#ai-bundle` : '/catalog'}
                 className="inline-flex items-center justify-center gap-3 rounded-lg border border-slate-200 bg-white px-7 py-4 font-bold text-slate-950 transition-colors hover:border-tiffany hover:text-tiffany hover:no-underline"
               >
-                Готові набори <Sparkles size={18} />
+                AI-бандл дня <Sparkles size={18} />
               </Link>
             </div>
 

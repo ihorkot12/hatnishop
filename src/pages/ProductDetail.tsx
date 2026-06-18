@@ -73,6 +73,16 @@ export const ProductDetail = () => {
 
   const isWishlisted = product ? isInWishlist(product.id) : false;
   const isBundleProduct = hasBundleFlag(product);
+  const smartBundleProducts = product && !isBundleProduct ? relatedProducts.slice(0, 4) : [];
+  const smartBundleItems = product ? [product, ...smartBundleProducts] : [];
+  const smartBundleTotal = smartBundleItems.reduce((sum, item) => sum + Number(item?.price || 0), 0);
+  const smartBundlePrice = Math.max(0, Math.round(smartBundleTotal * 0.85));
+  const smartBundleSavings = Math.max(0, smartBundleTotal - smartBundlePrice);
+
+  const addSmartBundleToCart = () => {
+    if (!product || smartBundleProducts.length === 0) return;
+    smartBundleItems.forEach((item) => addToCart(item as Product));
+  };
 
   useEffect(() => {
     if (user && product) {
@@ -152,6 +162,14 @@ export const ProductDetail = () => {
       fetchReviews();
     }
   }, [product, user?.role]);
+
+  useEffect(() => {
+    if (!loading && product && window.location.hash === '#ai-bundle') {
+      window.setTimeout(() => {
+        document.getElementById('ai-bundle')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }, 150);
+    }
+  }, [loading, product, relatedProducts.length]);
 
   useEffect(() => {
     document.getElementById('product-jsonld')?.remove();
@@ -480,22 +498,19 @@ export const ProductDetail = () => {
       </div>
 
       {/* Buy Together / Bundles */}
-      {!isBundleProduct && relatedProducts.length > 0 && (
-        <section className="mb-32 bg-slate-900 rounded-[4rem] p-12 md:p-20 text-white overflow-hidden relative">
+      {!isBundleProduct && smartBundleProducts.length > 0 && (
+        <section id="ai-bundle" className="mb-32 bg-slate-900 rounded-[4rem] p-12 md:p-20 text-white overflow-hidden relative scroll-mt-28">
           <div className="absolute top-0 right-0 w-1/2 h-full bg-tiffany/10 -skew-x-12 translate-x-1/4" />
           <div className="relative z-10 flex flex-col lg:flex-row items-center justify-between gap-16">
             <div className="max-w-xl">
-              <div className="text-tiffany font-bold text-xs uppercase tracking-[0.3em] mb-6">Економія 15%</div>
-              <h2 className="text-4xl md:text-5xl font-serif font-bold mb-8 leading-tight">Купуйте разом та економте</h2>
+              <div className="text-tiffany font-bold text-xs uppercase tracking-[0.3em] mb-6">AI-бандл - економія {smartBundleSavings} грн</div>
+              <h2 className="text-4xl md:text-5xl font-serif font-bold mb-8 leading-tight">Підібрали товари, які пасують разом</h2>
               <p className="text-white/60 text-lg mb-10 leading-relaxed">
-                  Ми підібрали ідеальне доповнення до вашого вибору. Купуючи ці товари разом, ви отримуєте спеціальну знижку 15%.
+                Алгоритм дивиться на категорію, сценарій використання, ціну та сумісність товарів. Одним кліком додаєте весь набір у кошик.
               </p>
               <div className="flex items-center gap-8">
                 <div className="flex -space-x-6">
-                  <div className="w-20 h-20 rounded-full border-4 border-slate-900 overflow-hidden shadow-2xl">
-                    <img src={product.image} alt="" className="w-full h-full object-cover" />
-                  </div>
-                  {[relatedProducts[0]].map((p, i) => (
+                  {smartBundleItems.slice(0, 4).map((p, i) => (
                     <div key={p.id} className="w-20 h-20 rounded-full border-4 border-slate-900 overflow-hidden shadow-2xl" style={{ zIndex: 10 - i }}>
                       <img src={p.image} alt="" className="w-full h-full object-cover" />
                     </div>
@@ -503,24 +518,36 @@ export const ProductDetail = () => {
                 </div>
                 <div>
                   <div className="text-3xl font-bold text-tiffany">
-                    {Math.round((Number(product.price) + Number(relatedProducts[0]?.price || 0)) * 0.85)} грн
+                    {smartBundlePrice} грн
                   </div>
                   <div className="text-sm text-white/40 line-through">
-                    {Number(product.price) + Number(relatedProducts[0]?.price || 0)} грн
+                    {smartBundleTotal} грн
                   </div>
                 </div>
               </div>
+              <div className="mt-8 grid gap-3 sm:grid-cols-2">
+                {smartBundleProducts.map((item) => (
+                  <Link
+                    key={item.id}
+                    to={`/product/${item.id}`}
+                    className="flex min-w-0 items-center gap-3 rounded-2xl border border-white/10 bg-white/5 p-3 text-white hover:border-tiffany hover:no-underline"
+                  >
+                    <img src={item.image} alt="" className="h-12 w-12 rounded-xl object-cover" referrerPolicy="no-referrer" />
+                    <div className="min-w-0">
+                      <div className="truncate text-sm font-bold">{item.name}</div>
+                      <div className="text-xs text-white/45">{item.price} грн</div>
+                    </div>
+                  </Link>
+                ))}
+              </div>
             </div>
             <button 
-              onClick={() => {
-                addToCart(product);
-                if (relatedProducts[0]) {
-                  addToCart(relatedProducts[0]);
-                }
-              }}
+              onClick={addSmartBundleToCart}
               className="px-12 py-6 bg-tiffany text-white rounded-2xl font-bold text-lg hover:bg-white hover:text-tiffany transition-all shadow-2xl shadow-tiffany/20 active:scale-95"
             >
-              Додати набір у кошик
+              <span className="inline-flex items-center gap-3">
+                <Sparkles size={20} /> Зібрати AI-бандл у кошик
+              </span>
             </button>
           </div>
         </section>

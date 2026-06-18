@@ -77,7 +77,20 @@ const image = await request('/api/admin/ai/product-image', {
   category: 'tableware',
 });
 
+const gallery = await request('/api/admin/ai/product-gallery', {
+  name: 'Test glass plate',
+  category: 'tableware',
+  count: 1,
+});
+
+const webImageSearch = await request('/api/admin/images/search-web', {
+  name: 'PMTP/BMPL-1019-4 Блюдо скляне В НАБОРІ',
+  category: 'tableware',
+  limit: 1,
+});
+
 const imageValue = typeof image.data?.image === 'string' ? image.data.image : '';
+const galleryImageValue = typeof gallery.data?.images?.[0] === 'string' ? gallery.data.images[0] : '';
 
 console.log(JSON.stringify({
   description: {
@@ -113,5 +126,24 @@ console.log(JSON.stringify({
     bytesApprox: imageValue ? Math.round((imageValue.length - 'data:image/png;base64,'.length) * 0.75) : 0,
     error: image.data?.error || null,
     message: image.data?.message || null,
+  },
+  gallery: {
+    status: gallery.status,
+    ok: gallery.ok,
+    provider: gallery.data?.provider,
+    model: gallery.data?.model,
+    count: Array.isArray(gallery.data?.images) ? gallery.data.images.length : null,
+    hasImage: galleryImageValue.startsWith('data:image/png;base64,'),
+    bytesApprox: galleryImageValue ? Math.round((galleryImageValue.length - 'data:image/png;base64,'.length) * 0.75) : 0,
+    error: gallery.data?.error || null,
+  },
+  webImageSearch: {
+    status: webImageSearch.status,
+    ok: webImageSearch.ok,
+    configured: webImageSearch.data?.configured,
+    provider: webImageSearch.data?.provider,
+    candidateCount: Array.isArray(webImageSearch.data?.candidates) ? webImageSearch.data.candidates.length : null,
+    hasManualSearchUrl: typeof webImageSearch.data?.openSearchUrl === 'string' && webImageSearch.data.openSearchUrl.includes('google.com/search'),
+    error: webImageSearch.data?.error || null,
   },
 }, null, 2));
