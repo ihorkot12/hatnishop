@@ -765,7 +765,7 @@ const buildAdminProductSummary = (product: any) => {
   const imageIsPlaceholder = toBooleanFlag(firstDefined(normalized, ["imageIsPlaceholder", "image_is_placeholder"]))
     || !hasImage
     || rawImage.startsWith("data:image/svg")
-    || isStaleProductImage(rawImage);
+    || (rawImage.length > 0 && isStaleProductImage(rawImage));
   const preview = buildPublicProduct(normalized);
   return {
     ...normalized,
