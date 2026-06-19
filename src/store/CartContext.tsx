@@ -46,7 +46,8 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
           const next = prev
             .map(item => {
               const liveProduct = availableProducts.get(item.id);
-              if (!liveProduct || Number(liveProduct.stock || 0) < 1) return null;
+              if (!liveProduct) return item;
+              if (Number(liveProduct.stock || 0) < 1) return null;
 
               return {
                 ...liveProduct,
