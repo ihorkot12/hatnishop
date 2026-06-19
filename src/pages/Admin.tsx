@@ -8,7 +8,7 @@ import { Package, ShoppingCart, TrendingUp, Plus, Edit2, Trash2, CheckCircle, Cl
 import { ProductImporter } from '../components/ProductImporter';
 import { MOCK_PRODUCTS } from '../constants';
 import { Order, User } from '../types';
-import { calculateBundlePrice, suggestBundleItemIdsLocally } from '../utils/bundleRecommendations';
+import { calculateBundlePrice, suggestBundleItemIdsLocally, suggestBundleItemsLocally } from '../utils/bundleRecommendations';
 import { isBundleProduct } from '../utils/productFlags';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, BarChart, Bar, Cell } from 'recharts';
 import { useAuth } from '../store/AuthContext';
@@ -151,6 +151,12 @@ export const Admin = () => {
   const [bulkImageJob, setBulkImageJob] = useState<{ type: 'ai' | 'web'; done: number; total: number } | null>(null);
   const [productImageFilter, setProductImageFilter] = useState<ProductImageFilter>('needs-ai');
   const [productQualityFilter, setProductQualityFilter] = useState<ProductQualityFilter>('all');
+  const [selectedProductIds, setSelectedProductIds] = useState<string[]>([]);
+  const [bulkCategory, setBulkCategory] = useState('');
+  const [bulkTargetMargin, setBulkTargetMargin] = useState(45);
+  const [bulkPopularMode, setBulkPopularMode] = useState<'popular' | 'regular'>('popular');
+  const [isBulkUpdating, setIsBulkUpdating] = useState(false);
+  const [isCreatingSmartBundle, setIsCreatingSmartBundle] = useState(false);
   const [isGeneratingAdvice, setIsGeneratingAdvice] = useState(false);
   const [isGeneratingBundle, setIsGeneratingBundle] = useState(false);
   const [bundleItems, setBundleItems] = useState<string[]>([]);
@@ -205,6 +211,90 @@ export const Admin = () => {
   const productHasWeakMargin = (product: any) => {
     const margin = productMarginPercent(product);
     return margin !== null && margin < 25;
+  };
+
+  const parseAdminArrayField = (value: unknown) => {
+    if (Array.isArray(value)) return value.filter(Boolean).map(item => String(item));
+    if (typeof value === 'string' && value.trim()) {
+      try {
+        const parsed = JSON.parse(value);
+        return Array.isArray(parsed) ? parsed.filter(Boolean).map(item => String(item)) : [];
+      } catch {
+        return [];
+      }
+    }
+    return [];
+  };
+
+  const getProductCostPrice = (product: any) => Number(product?.cost_price ?? product?.costPrice ?? 0);
+  const getProductBonusPoints = (product: any) => Number(product?.bonusPoints ?? product?.bonus_points ?? 0);
+
+  const buildAdminProductPayload = (product: any, overrides: Record<string, any> = {}) => ({
+    name: product.name || '',
+    category: product.category || 'tableware',
+    price: Number(product.price || 0),
+    image: product.image || '',
+    description: product.description || '',
+    material: product.material || '',
+    brand: product.brand || '',
+    isPopular: product.isPopular === true || product.ispopular === true || product.is_popular === true || product.isPopular === 1 || product.ispopular === 1 || product.is_popular === 1 || product.isPopular === '1' || product.ispopular === '1' || product.is_popular === '1',
+    isBundle: isBundleProduct(product),
+    stock: Number(product.stock || 0),
+    images: parseAdminArrayField(product.images),
+    bonusPoints: getProductBonusPoints(product),
+    bundle_items: parseAdminArrayField(product.bundle_items ?? product.bundleItems),
+    cost_price: product.cost_price ?? product.costPrice,
+    rating: Number(product.rating || 5),
+    reviewCount: Number(product.reviewCount ?? product.review_count ?? 0),
+    ...overrides
+  });
+
+  const normalizeAdminProductText = (value: unknown) =>
+    String(value || '').toLowerCase().replace(/\s+/g, ' ').trim();
+
+  const inferBundleTheme = (items: any[]) => {
+    const text = normalizeAdminProductText(items.map(item => `${item.name} ${item.category} ${item.material || ''}`).join(' '));
+    if (/кава|лате|чаш|кухоль|глеч|склян|келих/.test(text)) return 'Ранкова кава';
+    if (/таріл|блюдо|салат|серв|видел|лож/.test(text)) return 'Сервірування столу';
+    if (/банк|ємн|контейн|сипуч|орган|кошик/.test(text)) return 'Порядок на кухні';
+    if (/форма|деко|випіч|лопат|пензл/.test(text)) return 'Кухонний старт';
+    return 'Подарунок для дому';
+  };
+
+  const buildBundleDescription = (items: any[], regularTotal: number, bundlePrice: number) => {
+    const savings = Math.max(0, regularTotal - bundlePrice);
+    const itemLines = items.map((item, index) => `${index + 1}. ${item.name} — ${Number(item.price || 0)} грн`).join('\n');
+    return [
+      `Готовий набір Hatni Shop з ${items.length} сумісних товарів.`,
+      '',
+      'У наборі:',
+      itemLines,
+      '',
+      `Окремо: ${regularTotal} грн.`,
+      `Ціна набору: ${bundlePrice} грн.`,
+      `Економія: ${savings} грн.`,
+      '',
+      'Набір сформований так, щоб товари пасували за сценарієм використання, ціною та наявністю.'
+    ].join('\n');
+  };
+
+  const getSmartBundleItems = () => {
+    const selectedStandalone = selectedProducts.filter(product => !isBundleProduct(product) && Number(product.stock || 0) > 0);
+    if (selectedStandalone.length >= 2) return selectedStandalone.slice(0, 6);
+
+    const getCandidates = (source: any[]) =>
+      source.filter(product => !isBundleProduct(product) && Number(product.stock || 0) > 0 && Number(product.price || 0) > 0);
+    const visibleCandidates = getCandidates(visibleProducts);
+    const allCandidates = getCandidates(products);
+    const visiblePhotoCount = visibleCandidates.filter(productHasUsablePhoto).length;
+    const candidates = visibleCandidates.length >= 2 && visiblePhotoCount >= 2 ? visibleCandidates : allCandidates;
+    const seed = selectedStandalone[0] || candidates.find(product => productHasUsablePhoto(product)) || candidates[0];
+    if (!seed) return [];
+
+    const suggested = suggestBundleItemsLocally(seed as any, candidates as any, { limit: 5 }) as any[];
+    return Array.from(new Map([seed, ...suggested].filter(Boolean).map(product => [product.id, product])).values())
+      .sort((a, b) => Number(productHasUsablePhoto(b)) - Number(productHasUsablePhoto(a)))
+      .slice(0, 6);
   };
 
   const productImageCounts = useMemo(() => {
@@ -265,6 +355,33 @@ export const Admin = () => {
     }
     return imageFilteredProducts.filter(product => productHasWeakMargin(product));
   }, [imageFilteredProducts, productQualityFilter]);
+
+  const selectedProducts = useMemo(
+    () => products.filter(product => selectedProductIds.includes(product.id)),
+    [products, selectedProductIds]
+  );
+  const visibleProductIds = useMemo(() => visibleProducts.map(product => product.id), [visibleProducts]);
+  const allVisibleProductsSelected = visibleProductIds.length > 0 && visibleProductIds.every(id => selectedProductIds.includes(id));
+
+  const toggleProductSelection = (productId: string) => {
+    setSelectedProductIds(prev => prev.includes(productId)
+      ? prev.filter(id => id !== productId)
+      : [...prev, productId]
+    );
+  };
+
+  const toggleVisibleProductsSelection = () => {
+    setSelectedProductIds(prev => {
+      if (allVisibleProductsSelected) {
+        return prev.filter(id => !visibleProductIds.includes(id));
+      }
+      return Array.from(new Set([...prev, ...visibleProductIds]));
+    });
+  };
+
+  useEffect(() => {
+    setSelectedProductIds(prev => prev.filter(id => products.some(product => product.id === id)));
+  }, [products]);
 
   useEffect(() => {
     document.title = 'Адмін-панель — Хатні Штучки';
@@ -986,8 +1103,155 @@ export const Admin = () => {
     return '';
   };
 
-  const runBulkImageJob = async (type: 'ai' | 'web') => {
-    const targetProducts = visibleProducts;
+  const updateSelectedProducts = async (
+    targets: any[],
+    makeOverrides: (product: any) => Record<string, any> | null,
+    successLabel: string
+  ) => {
+    if (targets.length === 0) {
+      alert('Виберіть товари для масової дії.');
+      return;
+    }
+
+    setIsBulkUpdating(true);
+    let success = 0;
+    let failed = 0;
+    let skipped = 0;
+
+    try {
+      for (const product of targets) {
+        const overrides = makeOverrides(product);
+        if (!overrides) {
+          skipped += 1;
+          continue;
+        }
+
+        const res = await fetch(`/api/admin/products/${encodeURIComponent(product.id)}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(buildAdminProductPayload(product, overrides))
+        });
+
+        if (res.ok) {
+          success += 1;
+        } else {
+          failed += 1;
+        }
+      }
+
+      await fetchProducts();
+      if (failed === 0) setSelectedProductIds([]);
+      alert(`${successLabel}. Оновлено: ${success}. Пропущено: ${skipped}. Помилок: ${failed}.`);
+    } catch (err: any) {
+      console.error(err);
+      alert(`Помилка масового оновлення: ${err?.message || err}`);
+    } finally {
+      setIsBulkUpdating(false);
+    }
+  };
+
+  const applyBulkCategory = () => {
+    if (!bulkCategory) {
+      alert('Оберіть категорію для вибраних товарів.');
+      return;
+    }
+    updateSelectedProducts(selectedProducts, () => ({ category: bulkCategory }), 'Категорію застосовано');
+  };
+
+  const applyBulkMargin = () => {
+    const margin = Math.min(85, Math.max(5, Number(bulkTargetMargin || 0)));
+    updateSelectedProducts(
+      selectedProducts,
+      (product) => {
+        const cost = getProductCostPrice(product);
+        if (cost <= 0) return null;
+        const price = Math.max(1, Math.ceil(cost / (1 - margin / 100)));
+        return {
+          price,
+          bonusPoints: Math.max(0, Math.round(price * 0.05))
+        };
+      },
+      `Ціни перераховано під маржу ${margin}%`
+    );
+  };
+
+  const applyBulkPopular = () => {
+    updateSelectedProducts(
+      selectedProducts,
+      () => ({ isPopular: bulkPopularMode === 'popular' }),
+      'Статус популярності оновлено'
+    );
+  };
+
+  const createSmartBundle = async () => {
+    const items = getSmartBundleItems();
+    if (items.length < 2) {
+      alert('Потрібно мінімум 2 доступні товари, щоб створити набір.');
+      return;
+    }
+
+    const regularTotal = items.reduce((sum, product) => sum + Number(product.price || 0), 0);
+    const bundlePrice = calculateBundlePrice(items as any[], 0.12);
+    const savings = Math.max(0, regularTotal - bundlePrice);
+    const theme = inferBundleTheme(items);
+    const normalizedTheme = normalizeAdminProductText(theme);
+    const similarBundles = products.filter(product =>
+      isBundleProduct(product) && normalizeAdminProductText(product.name).includes(normalizedTheme)
+    ).length;
+    const name = similarBundles > 0 ? `Набір "${theme}" #${similarBundles + 1}` : `Набір "${theme}"`;
+    const images = items
+      .filter(productHasUsablePhoto)
+      .map(product => String(product.image || '').trim())
+      .filter(Boolean);
+    const costs = items.map(getProductCostPrice).filter(cost => cost > 0);
+    const stock = Math.max(0, Math.min(...items.map(product => Number(product.stock || 0))));
+
+    const payload = {
+      name,
+      category: 'bundles',
+      price: bundlePrice,
+      image: images[0] || '',
+      images: images.slice(1, 5),
+      description: buildBundleDescription(items, regularTotal, bundlePrice),
+      material: 'комплект',
+      brand: 'Hatni Shop',
+      isPopular: true,
+      isBundle: true,
+      stock,
+      bonusPoints: Math.round(bundlePrice * 0.05),
+      bundle_items: items.map(product => product.id),
+      cost_price: costs.length === items.length ? Math.round(costs.reduce((sum, cost) => sum + cost, 0) * 0.96) : undefined,
+      rating: 5,
+      reviewCount: 0
+    };
+
+    setIsCreatingSmartBundle(true);
+    try {
+      const res = await fetch('/api/admin/products', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}));
+        alert(`Не вдалося створити набір: ${errorData.error || res.statusText}`);
+        return;
+      }
+
+      await fetchProducts();
+      setSelectedProductIds([]);
+      alert(`Створено ${name}. Економія для клієнта: ${savings} грн.`);
+    } catch (err: any) {
+      console.error(err);
+      alert(`Помилка створення набору: ${err?.message || err}`);
+    } finally {
+      setIsCreatingSmartBundle(false);
+    }
+  };
+
+  const runBulkImageJob = async (type: 'ai' | 'web', customProducts?: any[]) => {
+    const targetProducts = customProducts && customProducts.length > 0 ? customProducts : visibleProducts;
     if (targetProducts.length === 0) {
       alert('У цьому фільтрі немає товарів для обробки.');
       return;
@@ -1009,7 +1273,8 @@ export const Admin = () => {
     }
 
     const label = type === 'ai' ? 'AI-фото' : 'реальні фото з пошуку';
-    if (!window.confirm(`Запустити масове оновлення: ${label} для ${targetProducts.length} товарів у поточному фільтрі? Це може тривати кілька хвилин.`)) return;
+    const scopeLabel = customProducts && customProducts.length > 0 ? 'вибраних товарів' : 'товарів у поточному фільтрі';
+    if (!window.confirm(`Запустити масове оновлення: ${label} для ${targetProducts.length} ${scopeLabel}? Це може тривати кілька хвилин.`)) return;
 
     setBulkImageJob({ type, done: 0, total: targetProducts.length });
     let success = 0;
@@ -2078,6 +2343,124 @@ export const Admin = () => {
                       );
                     })}
                   </div>
+                  <div className="mt-5 grid gap-4 xl:grid-cols-[1.15fr_0.85fr]">
+                    <div className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
+                      <div className="mb-4 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                        <div>
+                          <div className="text-sm font-black text-slate-900">Масові дії</div>
+                          <div className="text-xs font-semibold text-slate-400">
+                            Вибрано {selectedProductIds.length}. Можна змінити категорію, ціну, популярність або обробити фото.
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={toggleVisibleProductsSelection}
+                          disabled={visibleProducts.length === 0 || isBulkUpdating}
+                          className="w-fit rounded-xl border border-slate-200 bg-slate-50 px-4 py-2 text-xs font-bold text-slate-600 transition-all hover:border-tiffany hover:text-tiffany disabled:opacity-50"
+                        >
+                          {allVisibleProductsSelected ? 'Зняти видимі' : 'Вибрати видимі'}
+                        </button>
+                      </div>
+                      <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+                        <select
+                          value={bulkCategory}
+                          onChange={(e) => setBulkCategory(e.target.value)}
+                          className="min-h-[46px] rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm font-bold text-slate-700 focus:border-tiffany focus:outline-none"
+                        >
+                          <option value="">Категорія...</option>
+                          {categories.map(category => (
+                            <option key={category.id || category.slug} value={category.slug}>{category.name}</option>
+                          ))}
+                        </select>
+                        <button
+                          type="button"
+                          onClick={applyBulkCategory}
+                          disabled={isBulkUpdating || selectedProductIds.length === 0 || !bulkCategory}
+                          className="min-h-[46px] rounded-xl bg-slate-900 px-4 text-sm font-bold text-white transition-all hover:bg-tiffany disabled:opacity-50"
+                        >
+                          Застосувати категорію
+                        </button>
+                        <div className="flex min-h-[46px] overflow-hidden rounded-xl border border-slate-200 bg-slate-50">
+                          <input
+                            type="number"
+                            min={5}
+                            max={85}
+                            value={bulkTargetMargin}
+                            onChange={(e) => setBulkTargetMargin(Number(e.target.value))}
+                            className="w-full bg-transparent px-3 text-sm font-bold text-slate-700 outline-none"
+                          />
+                          <span className="flex items-center border-l border-slate-200 px-3 text-xs font-black text-slate-400">%</span>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={applyBulkMargin}
+                          disabled={isBulkUpdating || selectedProductIds.length === 0}
+                          className="min-h-[46px] rounded-xl border border-emerald-100 bg-emerald-50 px-4 text-sm font-bold text-emerald-700 transition-all hover:bg-emerald-100 disabled:opacity-50"
+                        >
+                          Перерахувати ціну
+                        </button>
+                      </div>
+                      <div className="mt-3 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+                        <select
+                          value={bulkPopularMode}
+                          onChange={(e) => setBulkPopularMode(e.target.value as 'popular' | 'regular')}
+                          className="min-h-[46px] rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm font-bold text-slate-700 focus:border-tiffany focus:outline-none"
+                        >
+                          <option value="popular">Популярний</option>
+                          <option value="regular">Не популярний</option>
+                        </select>
+                        <button
+                          type="button"
+                          onClick={applyBulkPopular}
+                          disabled={isBulkUpdating || selectedProductIds.length === 0}
+                          className="min-h-[46px] rounded-xl border border-slate-200 bg-white px-4 text-sm font-bold text-slate-700 transition-all hover:border-tiffany hover:text-tiffany disabled:opacity-50"
+                        >
+                          Оновити статус
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => runBulkImageJob('web', selectedProducts)}
+                          disabled={!!bulkImageJob || selectedProductIds.length === 0}
+                          className="min-h-[46px] rounded-xl border border-slate-200 bg-white px-4 text-sm font-bold text-slate-700 transition-all hover:border-tiffany hover:text-tiffany disabled:opacity-50"
+                        >
+                          Фото з пошуку
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => runBulkImageJob('ai', selectedProducts)}
+                          disabled={!!bulkImageJob || selectedProductIds.length === 0}
+                          className="min-h-[46px] rounded-xl bg-indigo-600 px-4 text-sm font-bold text-white transition-all hover:bg-slate-900 disabled:opacity-50"
+                        >
+                          AI-фото вибраним
+                        </button>
+                      </div>
+                    </div>
+                    <div className="rounded-2xl border border-tiffany/20 bg-tiffany/5 p-4">
+                      <div className="mb-4 flex items-start justify-between gap-3">
+                        <div>
+                          <div className="text-sm font-black text-slate-900">Smart-набір</div>
+                          <div className="text-xs font-semibold text-slate-500">
+                            Виділіть 2+ товари або залиште вибір пустим, і система сама підбере сумісний комплект.
+                          </div>
+                        </div>
+                        <Sparkles size={22} className="text-tiffany" />
+                      </div>
+                      <div className="rounded-xl bg-white/70 p-3 text-xs font-bold text-slate-500">
+                        {selectedProducts.length >= 2
+                          ? `Буде створено з ${selectedProducts.length} вибраних товарів.`
+                          : 'Автопідбір бере товари з поточного фільтра, а якщо там немає фото — з усього каталогу.'}
+                      </div>
+                      <button
+                        type="button"
+                        onClick={createSmartBundle}
+                        disabled={isCreatingSmartBundle || isBulkUpdating || products.length < 2}
+                        className="mt-4 flex min-h-[48px] w-full items-center justify-center gap-2 rounded-xl bg-slate-900 px-4 text-sm font-black text-white transition-all hover:bg-tiffany disabled:opacity-50"
+                      >
+                        {isCreatingSmartBundle ? <Loader2 size={18} className="animate-spin" /> : <Sparkles size={18} />}
+                        Створити smart-набір
+                      </button>
+                    </div>
+                  </div>
                 </div>
               )}
 
@@ -2247,6 +2630,16 @@ export const Admin = () => {
                   <table className="w-full text-left">
                     <thead className="bg-slate-50 text-slate-400 text-[10px] uppercase tracking-widest font-bold">
                       <tr>
+                        <th className="w-14 px-8 py-4">
+                          <input
+                            type="checkbox"
+                            checked={allVisibleProductsSelected}
+                            onChange={toggleVisibleProductsSelection}
+                            disabled={visibleProducts.length === 0}
+                            aria-label="Вибрати всі видимі товари"
+                            className="h-4 w-4 rounded border-slate-300 text-tiffany focus:ring-tiffany"
+                          />
+                        </th>
                         <th className="px-8 py-4">Товар</th>
                         <th className="px-8 py-4">Категорія</th>
                         <th className="px-8 py-4">Ціна</th>
@@ -2256,12 +2649,21 @@ export const Admin = () => {
                     <tbody className="divide-y divide-slate-50">
                       {visibleProducts.length === 0 ? (
                         <tr>
-                          <td colSpan={4} className="px-8 py-12 text-center text-sm font-bold text-slate-400">
+                          <td colSpan={5} className="px-8 py-12 text-center text-sm font-bold text-slate-400">
                             У цьому фільтрі товарів немає
                           </td>
                         </tr>
                       ) : visibleProducts.map(product => (
                         <tr key={product.id} className="hover:bg-slate-50/50 transition-colors">
+                          <td className="px-8 py-6 align-top">
+                            <input
+                              type="checkbox"
+                              checked={selectedProductIds.includes(product.id)}
+                              onChange={() => toggleProductSelection(product.id)}
+                              aria-label={`Вибрати ${product.name}`}
+                              className="mt-3 h-4 w-4 rounded border-slate-300 text-tiffany focus:ring-tiffany"
+                            />
+                          </td>
                           <td className="px-8 py-6 flex items-center gap-4">
                             {productHasUsablePhoto(product) ? (
                               <img src={product.image} className="w-12 h-12 rounded-lg object-cover" alt="" referrerPolicy="no-referrer" />
