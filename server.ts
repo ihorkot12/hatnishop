@@ -1911,6 +1911,7 @@ app.post("/api/auth/register", asyncHandler(async (req: any, res: any) => {
 
   app.get("/api/admin/orders", authenticate, asyncHandler(async (req: any, res: any) => {
     if (req.user.role !== 'admin') return res.status(403).json({ error: "Forbidden" });
+    setNoStore(res);
     try {
       if (isDbInDegradedMode()) {
         throw new Error("Database is in degraded mode (quota exceeded)");
