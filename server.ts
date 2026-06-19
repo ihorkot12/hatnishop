@@ -1841,7 +1841,7 @@ app.post("/api/auth/register", asyncHandler(async (req: any, res: any) => {
       const product = { ...req.body };
 
       // Check for duplicates by name
-      const existingProducts = await db.getProducts();
+      const existingProducts = await db.getProductsSummary();
       const isDuplicate = existingProducts.some(p => p.name.toLowerCase() === product.name.toLowerCase());
       if (isDuplicate) {
         return res.status(400).json({ error: `Товар з назвою "${product.name}" вже існує в базі даних` });
