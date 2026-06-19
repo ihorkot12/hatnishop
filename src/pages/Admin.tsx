@@ -82,6 +82,7 @@ const getOrderBonusUsed = (order: any) => Number(order?.bonusUsed ?? order?.bonu
 const getOrderFinalTotal = (order: any) => Number(order?.finalTotal ?? order?.total_amount ?? order?.final_total ?? order?.total ?? 0);
 const getOrderCreatedAt = (order: any) => order?.createdAt ?? order?.created_at ?? new Date().toISOString();
 type ProductImageFilter = 'needs-ai' | 'generated' | 'missing' | 'all';
+type ProductQualityFilter = 'all' | 'missing-photo' | 'missing-description' | 'missing-cost' | 'low-stock' | 'bad-margin';
 
 export const Admin = () => {
   const { user, loading } = useAuth();
@@ -149,6 +150,7 @@ export const Admin = () => {
   const [isSearchingWebImage, setIsSearchingWebImage] = useState(false);
   const [bulkImageJob, setBulkImageJob] = useState<{ type: 'ai' | 'web'; done: number; total: number } | null>(null);
   const [productImageFilter, setProductImageFilter] = useState<ProductImageFilter>('needs-ai');
+  const [productQualityFilter, setProductQualityFilter] = useState<ProductQualityFilter>('all');
   const [isGeneratingAdvice, setIsGeneratingAdvice] = useState(false);
   const [isGeneratingBundle, setIsGeneratingBundle] = useState(false);
   const [bundleItems, setBundleItems] = useState<string[]>([]);
@@ -185,11 +187,31 @@ export const Admin = () => {
       .slice(0, 8);
   };
 
+  const productHasUsablePhoto = (product: any) => {
+    const image = String(product?.image || '').trim();
+    if (!image) return false;
+    if (product?.imageIsPlaceholder === true || product?.hasImage === false) return false;
+    return !isStaleAdminProductImage(image);
+  };
+
+  const productHasDescription = (product: any) => String(product?.description || '').trim().length >= 30;
+  const productHasCostPrice = (product: any) => Number(product?.cost_price || product?.costPrice || 0) > 0;
+  const productMarginPercent = (product: any) => {
+    const price = Number(product?.price || 0);
+    const cost = Number(product?.cost_price || product?.costPrice || 0);
+    if (price <= 0 || cost <= 0) return null;
+    return Math.round(((price - cost) / price) * 100);
+  };
+  const productHasWeakMargin = (product: any) => {
+    const margin = productMarginPercent(product);
+    return margin !== null && margin < 25;
+  };
+
   const productImageCounts = useMemo(() => {
     return products.reduce(
       (acc, product) => {
         const isGenerated = product.imageIsGenerated === true;
-        const isMissing = product.imageIsPlaceholder === true || product.hasImage === false;
+        const isMissing = !productHasUsablePhoto(product);
         acc.all += 1;
         if (!isGenerated) acc.needsAi += 1;
         if (isGenerated) acc.generated += 1;
@@ -200,16 +222,49 @@ export const Admin = () => {
     );
   }, [products]);
 
-  const visibleProducts = useMemo(() => {
+  const productQualityCounts = useMemo(() => {
+    return products.reduce(
+      (acc, product) => {
+        const stock = Number(product?.stock || 0);
+        acc.total += 1;
+        if (!productHasUsablePhoto(product)) acc.missingPhoto += 1;
+        if (!productHasDescription(product)) acc.missingDescription += 1;
+        if (!productHasCostPrice(product)) acc.missingCost += 1;
+        if (stock > 0 && stock < 5) acc.lowStock += 1;
+        if (productHasWeakMargin(product)) acc.badMargin += 1;
+        return acc;
+      },
+      { total: 0, missingPhoto: 0, missingDescription: 0, missingCost: 0, lowStock: 0, badMargin: 0 }
+    );
+  }, [products]);
+
+  const imageFilteredProducts = useMemo(() => {
     if (productImageFilter === 'all') return products;
     if (productImageFilter === 'generated') {
       return products.filter(product => product.imageIsGenerated === true);
     }
     if (productImageFilter === 'missing') {
-      return products.filter(product => product.imageIsPlaceholder === true || product.hasImage === false);
+      return products.filter(product => !productHasUsablePhoto(product));
     }
     return products.filter(product => product.imageIsGenerated !== true);
   }, [products, productImageFilter]);
+
+  const visibleProducts = useMemo(() => {
+    if (productQualityFilter === 'all') return imageFilteredProducts;
+    if (productQualityFilter === 'missing-photo') {
+      return imageFilteredProducts.filter(product => !productHasUsablePhoto(product));
+    }
+    if (productQualityFilter === 'missing-description') {
+      return imageFilteredProducts.filter(product => !productHasDescription(product));
+    }
+    if (productQualityFilter === 'missing-cost') {
+      return imageFilteredProducts.filter(product => !productHasCostPrice(product));
+    }
+    if (productQualityFilter === 'low-stock') {
+      return imageFilteredProducts.filter(product => Number(product?.stock || 0) > 0 && Number(product?.stock || 0) < 5);
+    }
+    return imageFilteredProducts.filter(product => productHasWeakMargin(product));
+  }, [imageFilteredProducts, productQualityFilter]);
 
   useEffect(() => {
     document.title = 'Адмін-панель — Хатні Штучки';
@@ -1941,6 +1996,91 @@ export const Admin = () => {
                 )}
               </div>
 
+              {activeTab === 'products' && (
+                <div className="border-b border-slate-50 bg-slate-50/60 px-6 py-5">
+                  <div className="mb-4 flex flex-col gap-2 lg:flex-row lg:items-end lg:justify-between">
+                    <div>
+                      <div className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400">Контроль якості</div>
+                      <div className="mt-1 text-sm font-semibold text-slate-600">
+                        Показано {visibleProducts.length} з {productQualityCounts.total}. Швидко відловлюємо товари без фото, опису, собівартості або з ризиковою маржею.
+                      </div>
+                    </div>
+                    {productQualityFilter !== 'all' && (
+                      <button
+                        type="button"
+                        onClick={() => setProductQualityFilter('all')}
+                        className="w-fit rounded-xl bg-white px-4 py-2 text-xs font-bold text-slate-500 shadow-sm transition-all hover:text-slate-900"
+                      >
+                        Скинути контроль якості
+                      </button>
+                    )}
+                  </div>
+                  <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-5">
+                    {([
+                      {
+                        filter: 'missing-photo' as ProductQualityFilter,
+                        label: 'Без фото',
+                        count: productQualityCounts.missingPhoto,
+                        icon: Camera,
+                        className: 'border-amber-100 bg-amber-50 text-amber-700'
+                      },
+                      {
+                        filter: 'missing-description' as ProductQualityFilter,
+                        label: 'Без опису',
+                        count: productQualityCounts.missingDescription,
+                        icon: MessageSquare,
+                        className: 'border-sky-100 bg-sky-50 text-sky-700'
+                      },
+                      {
+                        filter: 'missing-cost' as ProductQualityFilter,
+                        label: 'Без собівартості',
+                        count: productQualityCounts.missingCost,
+                        icon: Tag,
+                        className: 'border-violet-100 bg-violet-50 text-violet-700'
+                      },
+                      {
+                        filter: 'low-stock' as ProductQualityFilter,
+                        label: 'Малий залишок',
+                        count: productQualityCounts.lowStock,
+                        icon: AlertTriangle,
+                        className: 'border-rose-100 bg-rose-50 text-rose-700'
+                      },
+                      {
+                        filter: 'bad-margin' as ProductQualityFilter,
+                        label: 'Слабка маржа',
+                        count: productQualityCounts.badMargin,
+                        icon: TrendingUp,
+                        className: 'border-orange-100 bg-orange-50 text-orange-700'
+                      }
+                    ]).map(metric => {
+                      const Icon = metric.icon;
+                      const isActive = productQualityFilter === metric.filter;
+                      return (
+                        <button
+                          key={metric.filter}
+                          type="button"
+                          onClick={() => {
+                            setProductQualityFilter(metric.filter);
+                            setProductImageFilter('all');
+                          }}
+                          className={`flex min-h-[92px] items-center justify-between rounded-2xl border px-4 py-3 text-left transition-all ${
+                            isActive
+                              ? 'border-slate-900 bg-slate-900 text-white shadow-lg shadow-slate-900/10'
+                              : metric.className
+                          }`}
+                        >
+                          <div>
+                            <div className="text-2xl font-black">{metric.count}</div>
+                            <div className="mt-1 text-xs font-bold uppercase tracking-widest opacity-80">{metric.label}</div>
+                          </div>
+                          <Icon size={22} className={isActive ? 'text-tiffany' : 'opacity-70'} />
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
               <div className="overflow-x-auto">
                 {activeTab === 'orders' ? (
                   <table className="w-full text-left">
@@ -2123,7 +2263,13 @@ export const Admin = () => {
                       ) : visibleProducts.map(product => (
                         <tr key={product.id} className="hover:bg-slate-50/50 transition-colors">
                           <td className="px-8 py-6 flex items-center gap-4">
-                            <img src={product.image} className="w-12 h-12 rounded-lg object-cover" alt="" referrerPolicy="no-referrer" />
+                            {productHasUsablePhoto(product) ? (
+                              <img src={product.image} className="w-12 h-12 rounded-lg object-cover" alt="" referrerPolicy="no-referrer" />
+                            ) : (
+                              <div className="flex h-12 w-12 items-center justify-center rounded-lg border border-dashed border-slate-200 bg-slate-50 text-slate-300">
+                                <Package size={18} />
+                              </div>
+                            )}
                             <div>
                               <div className="font-bold text-slate-900">{product.name}</div>
                               <div className="mt-2 flex flex-wrap gap-2">
@@ -2138,16 +2284,32 @@ export const Admin = () => {
                                 )}
                                 {product.imageIsGenerated ? (
                                   <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-[10px] font-bold uppercase text-emerald-600">AI фото</span>
-                                ) : product.imageIsPlaceholder || product.hasImage === false ? (
+                                ) : !productHasUsablePhoto(product) ? (
                                   <span className="rounded-full bg-amber-50 px-2.5 py-1 text-[10px] font-bold uppercase text-amber-600">Без фото</span>
                                 ) : (
                                   <span className="rounded-full bg-indigo-50 px-2.5 py-1 text-[10px] font-bold uppercase text-indigo-600">Потрібне AI</span>
+                                )}
+                                {!productHasDescription(product) && (
+                                  <span className="rounded-full bg-sky-50 px-2.5 py-1 text-[10px] font-bold uppercase text-sky-600">Без опису</span>
+                                )}
+                                {!productHasCostPrice(product) && (
+                                  <span className="rounded-full bg-violet-50 px-2.5 py-1 text-[10px] font-bold uppercase text-violet-600">Без собівартості</span>
+                                )}
+                                {productHasWeakMargin(product) && (
+                                  <span className="rounded-full bg-orange-50 px-2.5 py-1 text-[10px] font-bold uppercase text-orange-600">Маржа {productMarginPercent(product)}%</span>
                                 )}
                               </div>
                             </div>
                           </td>
                           <td className="px-8 py-6 text-slate-500">{product.category}</td>
-                          <td className="px-8 py-6 font-bold text-slate-900">{product.price} грн</td>
+                          <td className="px-8 py-6">
+                            <div className="font-bold text-slate-900">{product.price} грн</div>
+                            {productMarginPercent(product) !== null && (
+                              <div className={`mt-1 text-[10px] font-bold uppercase ${productHasWeakMargin(product) ? 'text-orange-500' : 'text-emerald-500'}`}>
+                                Маржа {productMarginPercent(product)}%
+                              </div>
+                            )}
+                          </td>
                           <td className="px-8 py-6">
                             <div className="flex gap-3">
                               <button 

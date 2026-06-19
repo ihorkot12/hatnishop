@@ -18,6 +18,10 @@ export const Catalog = () => {
   const [maxPrice, setMaxPrice] = useState(5000);
   const [popularOnly, setPopularOnly] = useState(false);
   const [bundleOnly, setBundleOnly] = useState(false);
+  const [availabilityFilter, setAvailabilityFilter] = useState<'all' | 'available' | 'low' | 'out'>('all');
+  const [selectedMaterial, setSelectedMaterial] = useState('all');
+  const [selectedBrand, setSelectedBrand] = useState('all');
+  const [budgetPreset, setBudgetPreset] = useState<'all' | 'under-300' | '300-700' | '700-plus'>('all');
   const [showFilters, setShowFilters] = useState(false);
   const [searchQuery, setSearchQuery] = useState(searchUrlQuery || '');
   const [sortBy, setSortBy] = useState<'default' | 'price-asc' | 'price-desc' | 'popular'>('default');
@@ -66,6 +70,37 @@ export const Catalog = () => {
     fetchData();
   }, []);
 
+  const normalizeSearchValue = (value: unknown) => String(value || '').toLowerCase().trim();
+
+  const filterOptions = useMemo(() => {
+    const materials = Array.from(new Set(products.map(product => String(product.material || '').trim()).filter(Boolean))).sort();
+    const brands = Array.from(new Set(products.map(product => String(product.brand || '').trim()).filter(Boolean))).sort();
+    return { materials, brands };
+  }, [products]);
+
+  const activeFilterCount = [
+    popularOnly,
+    bundleOnly,
+    availabilityFilter !== 'all',
+    selectedMaterial !== 'all',
+    selectedBrand !== 'all',
+    budgetPreset !== 'all',
+    minPrice > 0 || maxPrice < 5000
+  ].filter(Boolean).length;
+
+  const resetCatalogFilters = () => {
+    setSearchParams({});
+    setMinPrice(0);
+    setMaxPrice(5000);
+    setPopularOnly(false);
+    setBundleOnly(false);
+    setAvailabilityFilter('all');
+    setSelectedMaterial('all');
+    setSelectedBrand('all');
+    setBudgetPreset('all');
+    setSearchQuery('');
+  };
+
   const filteredProducts = useMemo(() => {
     const selectedCategory = isBundleRoute ? null : categories.find(c => c.slug === categoryFilter);
     const childCategorySlugs = selectedCategory 
@@ -75,12 +110,31 @@ export const Catalog = () => {
       ? [selectedCategory.slug, ...childCategorySlugs]
       : [];
 
+    const query = normalizeSearchValue(searchQuery);
     let result = products.filter(p => {
+      const stock = Number(p.stock || 0);
       if (categoryFilter && !isBundleRoute && !allowedCategories.includes(p.category)) return false;
       if (p.price < minPrice || p.price > maxPrice) return false;
+      if (budgetPreset === 'under-300' && p.price > 300) return false;
+      if (budgetPreset === '300-700' && (p.price < 300 || p.price > 700)) return false;
+      if (budgetPreset === '700-plus' && p.price < 700) return false;
       if (popularOnly && !p.isPopular) return false;
       if ((bundleOnly || isBundleRoute) && !isBundleProduct(p as any)) return false;
-      if (searchQuery && !p.name.toLowerCase().includes(searchQuery.toLowerCase())) return false;
+      if (availabilityFilter === 'available' && stock <= 0) return false;
+      if (availabilityFilter === 'low' && !(stock > 0 && stock < 5)) return false;
+      if (availabilityFilter === 'out' && stock > 0) return false;
+      if (selectedMaterial !== 'all' && String(p.material || '') !== selectedMaterial) return false;
+      if (selectedBrand !== 'all' && String(p.brand || '') !== selectedBrand) return false;
+      if (query) {
+        const haystack = [
+          p.name,
+          p.category,
+          p.description,
+          p.material,
+          p.brand
+        ].map(normalizeSearchValue).join(' ');
+        if (!haystack.includes(query)) return false;
+      }
       return true;
     });
 
@@ -89,7 +143,7 @@ export const Catalog = () => {
     if (sortBy === 'popular') result.sort((a, b) => (b.isPopular ? 1 : 0) - (a.isPopular ? 1 : 0));
 
     return result;
-  }, [categoryFilter, isBundleRoute, minPrice, maxPrice, popularOnly, bundleOnly, searchQuery, sortBy, products, categories]);
+  }, [categoryFilter, isBundleRoute, minPrice, maxPrice, budgetPreset, popularOnly, bundleOnly, availabilityFilter, selectedMaterial, selectedBrand, searchQuery, sortBy, products, categories]);
 
   return (
     <div className="bg-[#F9F7F5] min-h-screen">
@@ -161,6 +215,69 @@ export const Catalog = () => {
               <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={14} />
             </div>
           </div>
+        </div>
+
+        <div className="mb-10 grid gap-3 rounded-[2rem] border border-slate-100 bg-white p-4 shadow-sm md:grid-cols-4">
+          {([
+            { value: 'all', label: 'Усі бюджети', hint: 'без обмежень' },
+            { value: 'under-300', label: 'До 300 грн', hint: 'малий подарунок' },
+            { value: '300-700', label: '300-700 грн', hint: 'найчастіший вибір' },
+            { value: '700-plus', label: '700+ грн', hint: 'преміум / набір' }
+          ] as const).map(option => (
+            <button
+              key={option.value}
+              type="button"
+              onClick={() => setBudgetPreset(option.value)}
+              className={`rounded-2xl px-5 py-4 text-left transition-all ${
+                budgetPreset === option.value
+                  ? 'bg-slate-950 text-white shadow-lg shadow-slate-950/10'
+                  : 'bg-slate-50 text-slate-600 hover:bg-slate-100'
+              }`}
+            >
+              <div className="text-sm font-bold">{option.label}</div>
+              <div className={`mt-1 text-[10px] font-bold uppercase tracking-widest ${budgetPreset === option.value ? 'text-white/50' : 'text-slate-400'}`}>{option.hint}</div>
+            </button>
+          ))}
+        </div>
+
+        <div className="mb-10 grid gap-3 rounded-[2rem] border border-slate-100 bg-white p-4 shadow-sm md:grid-cols-4">
+          <select
+            value={availabilityFilter}
+            onChange={(event) => setAvailabilityFilter(event.target.value as 'all' | 'available' | 'low' | 'out')}
+            className="rounded-2xl border-none bg-slate-50 px-5 py-4 text-sm font-bold text-slate-600 focus:ring-2 focus:ring-tiffany"
+          >
+            <option value="all">Уся наявність</option>
+            <option value="available">В наявності</option>
+            <option value="low">Мало залишилось</option>
+            <option value="out">Немає в наявності</option>
+          </select>
+          <select
+            value={selectedMaterial}
+            onChange={(event) => setSelectedMaterial(event.target.value)}
+            className="rounded-2xl border-none bg-slate-50 px-5 py-4 text-sm font-bold text-slate-600 focus:ring-2 focus:ring-tiffany"
+          >
+            <option value="all">Усі матеріали</option>
+            {filterOptions.materials.map(material => (
+              <option key={material} value={material}>{material}</option>
+            ))}
+          </select>
+          <select
+            value={selectedBrand}
+            onChange={(event) => setSelectedBrand(event.target.value)}
+            className="rounded-2xl border-none bg-slate-50 px-5 py-4 text-sm font-bold text-slate-600 focus:ring-2 focus:ring-tiffany"
+          >
+            <option value="all">Усі бренди</option>
+            {filterOptions.brands.map(brand => (
+              <option key={brand} value={brand}>{brand}</option>
+            ))}
+          </select>
+          <button
+            type="button"
+            onClick={resetCatalogFilters}
+            className="rounded-2xl bg-slate-950 px-5 py-4 text-sm font-bold text-white transition-all hover:bg-tiffany"
+          >
+            Скинути фільтри{activeFilterCount > 0 ? ` (${activeFilterCount})` : ''}
+          </button>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-12">
