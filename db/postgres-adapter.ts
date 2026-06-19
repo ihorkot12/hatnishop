@@ -595,6 +595,10 @@ export class PostgresAdapter implements DatabaseAdapter {
     await sql`DELETE FROM notifications WHERE user_id = ${userId}`;
   }
 
+  async clearAllNotifications(): Promise<void> {
+    await sql`DELETE FROM notifications`;
+  }
+
   async createNotification(notif: Partial<Notification>): Promise<void> {
     await sql`
       INSERT INTO notifications (id, user_id, title, message, type) 

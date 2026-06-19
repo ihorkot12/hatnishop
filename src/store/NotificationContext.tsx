@@ -17,6 +17,7 @@ interface NotificationContextType {
   fetchNotifications: () => Promise<void>;
   markAsRead: (id: string) => Promise<void>;
   clearNotifications: () => Promise<void>;
+  clearAllNotifications: () => Promise<void>;
 }
 
 const NotificationContext = createContext<NotificationContextType | undefined>(undefined);
@@ -67,6 +68,18 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
     }
   };
 
+  const clearAllNotifications = async () => {
+    if (user?.role !== 'admin') return;
+    try {
+      const res = await fetch('/api/admin/notifications', { method: 'DELETE', credentials: 'same-origin' });
+      if (res.ok) {
+        setNotifications([]);
+      }
+    } catch (err) {
+      // Admin can retry from the dropdown if the request fails transiently.
+    }
+  };
+
   useEffect(() => {
     if (user) {
       fetchNotifications();
@@ -80,7 +93,7 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
   const unreadCount = notifications.filter(n => !n.is_read).length;
 
   return (
-    <NotificationContext.Provider value={{ notifications, unreadCount, fetchNotifications, markAsRead, clearNotifications }}>
+    <NotificationContext.Provider value={{ notifications, unreadCount, fetchNotifications, markAsRead, clearNotifications, clearAllNotifications }}>
       {children}
     </NotificationContext.Provider>
   );

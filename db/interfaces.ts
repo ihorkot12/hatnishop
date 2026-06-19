@@ -140,6 +140,7 @@ export interface DatabaseAdapter {
   getNotifications(userId: string): Promise<Notification[]>;
   markNotificationRead(id: string, userId: string): Promise<void>;
   clearNotifications(userId: string): Promise<void>;
+  clearAllNotifications(): Promise<void>;
   createNotification(notif: Partial<Notification>): Promise<void>;
   getAllUsers(): Promise<User[]>;
   getAdminStats(): Promise<{

@@ -13,7 +13,7 @@ export const Navbar = () => {
   const { totalItems } = useCart();
   const { user, logout } = useAuth();
   const { wishlist } = useWishlist();
-  const { notifications, unreadCount, markAsRead, clearNotifications } = useNotifications();
+  const { notifications, unreadCount, markAsRead, clearNotifications, clearAllNotifications } = useNotifications();
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [showNotifMenu, setShowNotifMenu] = useState(false);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
@@ -96,16 +96,16 @@ export const Navbar = () => {
       <TopBar />
       <nav className="bg-white/80 backdrop-blur-2xl border-b border-slate-200/50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex justify-between items-center h-24 gap-3 min-w-0">
-          <div className="flex items-center gap-12 min-w-0">
+        <div className="flex items-center h-24 gap-3 min-w-0">
+          <div className="flex min-w-0 flex-1 items-center gap-5 xl:gap-10">
             <Link 
               to="/" 
               onClick={scrollToTop}
-              className="text-xl sm:text-3xl font-serif font-bold tracking-tight text-slate-900 hover:no-underline group shrink-0"
+              className="text-xl sm:text-2xl xl:text-3xl font-serif font-bold tracking-tight text-slate-900 hover:no-underline group shrink-0"
             >
               ХАТНІ <span className="text-[#68b8b0] italic transition-colors group-hover:text-tiffany">ШТУЧКИ</span>
             </Link>
-            <div className="hidden md:flex items-center gap-6 text-[11px] uppercase tracking-[0.15em] font-bold">
+            <div className="hidden min-w-0 flex-1 items-center justify-center gap-4 overflow-hidden text-[10px] font-bold uppercase tracking-[0.12em] lg:flex xl:gap-6 xl:text-[11px] xl:tracking-[0.15em]">
               <div 
                 className="relative group"
                 onMouseEnter={() => setShowCatalogMenu(true)}
@@ -150,15 +150,15 @@ export const Navbar = () => {
               <NavLink to="/bundle-builder" className={navLinkClass}>
                 Зібрати набір
               </NavLink>
-              {categories.filter(c => !c.parent_id).slice(0, 4).map(cat => (
-                <NavLink key={cat.id} to={`/catalog?category=${cat.slug}`} className={navLinkClass}>
+              {categories.filter(c => !c.parent_id).slice(0, 4).map((cat, index) => (
+                <NavLink key={cat.id} to={`/catalog?category=${cat.slug}`} className={(state) => `${navLinkClass(state)} ${index >= 3 ? 'hidden 2xl:block' : ''}`}>
                   {cat.name}
                 </NavLink>
               ))}
             </div>
           </div>
 
-          <div className="flex items-center gap-2 sm:gap-6 shrink-0">
+          <div className="ml-auto flex shrink-0 items-center gap-1 sm:gap-3 xl:gap-5">
             <button 
               onClick={() => setIsSearchOpen(!isSearchOpen)}
               className="p-2 text-slate-400 hover:text-slate-900 transition-all duration-300"
@@ -197,11 +197,11 @@ export const Navbar = () => {
                     initial={{ opacity: 0, y: 10, scale: 0.95 }}
                     animate={{ opacity: 1, y: 0, scale: 1 }}
                     exit={{ opacity: 0, y: 10, scale: 0.95 }}
-                    className="absolute right-0 mt-4 w-80 bg-white rounded-3xl shadow-2xl border border-slate-100 p-6 z-50"
+                    className="absolute right-0 mt-4 w-80 bg-white rounded-3xl shadow-2xl border border-slate-100 p-6 z-50 sm:w-96"
                   >
-                    <div className="flex items-center justify-between mb-6">
+                    <div className="mb-6 flex items-start justify-between gap-4">
                       <h3 className="font-bold text-slate-900">Сповіщення</h3>
-                      <div className="flex items-center gap-3">
+                      <div className="flex flex-wrap items-center justify-end gap-2">
                         <span className="text-[10px] font-bold text-tiffany uppercase tracking-widest">{unreadCount} нових</span>
                         {notifications.length > 0 && (
                           <button
@@ -213,6 +213,19 @@ export const Navbar = () => {
                             className="rounded-full bg-slate-50 px-3 py-1.5 text-[10px] font-bold uppercase tracking-widest text-slate-400 transition-all hover:bg-red-50 hover:text-red-500"
                           >
                             Очистити
+                          </button>
+                        )}
+                        {user?.role === 'admin' && (
+                          <button
+                            type="button"
+                            onClick={async () => {
+                              if (!window.confirm('Очистити всі сповіщення для всіх користувачів?')) return;
+                              await clearAllNotifications();
+                              setShowNotifMenu(false);
+                            }}
+                            className="rounded-full bg-red-50 px-3 py-1.5 text-[10px] font-bold uppercase tracking-widest text-red-500 transition-all hover:bg-red-500 hover:text-white"
+                          >
+                            Очистити всім
                           </button>
                         )}
                       </div>

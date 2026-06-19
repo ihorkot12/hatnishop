@@ -1543,6 +1543,23 @@ app.post("/api/auth/register", asyncHandler(async (req: any, res: any) => {
     }
   }));
 
+  app.delete("/api/admin/notifications", authenticate, asyncHandler(async (req: any, res: any) => {
+    if (!requireAdmin(req, res)) return;
+    try {
+      if (isDbInDegradedMode()) {
+        throw new Error("Database is in degraded mode (quota exceeded)");
+      }
+      await db.clearAllNotifications();
+      res.json({ success: true });
+    } catch (err: any) {
+      const { isQuota, isFirst } = recordDbError(err);
+      if (isFirst && !isQuota) {
+        console.warn("Error clearing all notifications:", err.message);
+      }
+      res.status(isQuota ? 503 : 500).json({ error: "Service unavailable" });
+    }
+  }));
+
   // Admin: Update Price (triggers notifications)
   app.post("/api/admin/products/:id/price", authenticate, asyncHandler(async (req: any, res: any) => {
     if (!requireAdmin(req, res)) return;
