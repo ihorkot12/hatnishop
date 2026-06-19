@@ -916,7 +916,10 @@ export const Admin = () => {
 
   const getBlockingBulkImageError = (type: 'ai' | 'web', error: any) => {
     const message = String(error?.message || '').trim();
-    if (type === 'ai' && /billing hard limit|quota|rate limit/i.test(message)) {
+    if (type === 'ai' && /Gemini.*quota|Gemini.*rate limit/i.test(message)) {
+      return 'AI-фото зупинено: Gemini також уперся в квоту. Збільшіть ліміт Gemini API або поповніть OpenAI Billing.';
+    }
+    if (type === 'ai' && /billing hard limit|OpenAI.*quota|OpenAI.*rate limit/i.test(message)) {
       return 'AI-фото зупинено: на OpenAI закінчився ліміт/кредити. Поповніть Billing або додайте GEMINI_API_KEY у Vercel як запасний генератор.';
     }
     if (type === 'ai' && /OPENAI_API_KEY|GEMINI_API_KEY|not configured/i.test(message)) {

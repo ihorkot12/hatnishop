@@ -84,6 +84,16 @@ const parseOpenAIImageResponse = (data: any) => {
   return `data:image/png;base64,${b64}`;
 };
 
+const parseProviderErrorMessage = (error: any) => {
+  const raw = String(error?.message || error?.sourceError || error || "");
+  try {
+    const parsed = JSON.parse(raw);
+    return parsed?.error?.message || parsed?.message || raw;
+  } catch {
+    return raw;
+  }
+};
+
 const openAIImageError = (status: number, data: any, rawText: string) => {
   const providerMessage = data?.error?.message || data?.message || rawText || "OpenAI image request failed";
   const isBillingLimit = /billing hard limit/i.test(providerMessage);
@@ -309,11 +319,25 @@ const requestGeminiProductImage = async (name: string, category?: string, base64
     }
   }
 
-  const response = await getAI().models.generateContent({
-    model: "gemini-2.5-flash-image",
-    contents: { parts },
-    config: { imageConfig: { aspectRatio: "1:1" } }
-  });
+  let response: any;
+  try {
+    response = await getAI().models.generateContent({
+      model: "gemini-2.5-flash-image",
+      contents: { parts },
+      config: { imageConfig: { aspectRatio: "1:1" } }
+    });
+  } catch (error: any) {
+    const providerMessage = parseProviderErrorMessage(error);
+    const isQuota = /quota|rate limit|limit exceeded/i.test(providerMessage);
+    throw Object.assign(new Error(
+      isQuota
+        ? "Gemini image generation quota or rate limit exceeded"
+        : `Gemini image generation failed: ${providerMessage}`
+    ), {
+      status: isQuota ? 429 : (error?.status || 500),
+      sourceError: providerMessage
+    });
+  }
 
   const imagePart = response.candidates?.[0]?.content?.parts?.find((part: any) => part.inlineData);
   if (!imagePart?.inlineData?.data) {
