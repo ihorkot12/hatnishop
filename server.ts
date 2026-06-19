@@ -86,11 +86,14 @@ const parseOpenAIImageResponse = (data: any) => {
 
 const openAIImageError = (status: number, data: any, rawText: string) => {
   const providerMessage = data?.error?.message || data?.message || rawText || "OpenAI image request failed";
-  const message = status === 429
+  const isBillingLimit = /billing hard limit/i.test(providerMessage);
+  const message = isBillingLimit
+    ? "OpenAI image generation billing hard limit has been reached"
+    : status === 429
     ? "OpenAI image generation quota or rate limit exceeded"
     : `OpenAI image generation failed (${status}): ${providerMessage}`;
   return Object.assign(new Error(message), {
-    status,
+    status: isBillingLimit ? 402 : status,
     sourceError: providerMessage
   });
 };
@@ -154,11 +157,14 @@ const requestOpenAIImage = async (name: string, category?: string, base64Image?:
 
 const openAITextError = (status: number, data: any, rawText: string) => {
   const providerMessage = data?.error?.message || data?.message || rawText || "OpenAI text request failed";
-  const message = status === 429
+  const isBillingLimit = /billing hard limit/i.test(providerMessage);
+  const message = isBillingLimit
+    ? "OpenAI text generation billing hard limit has been reached"
+    : status === 429
     ? "OpenAI text generation quota or rate limit exceeded"
     : `OpenAI text generation failed (${status}): ${providerMessage}`;
   return Object.assign(new Error(message), {
-    status,
+    status: isBillingLimit ? 402 : status,
     sourceError: providerMessage
   });
 };
@@ -319,11 +325,17 @@ const requestGeminiProductImage = async (name: string, category?: string, base64
 
 const requestConfiguredProductImage = async (name: string, category?: string, base64Image?: string, shotDirection?: string) => {
   if (getOpenAIImageKey()) {
-    return {
-      image: await requestOpenAIImage(name, category, base64Image, shotDirection),
-      provider: "openai",
-      model: getOpenAIImageModel()
-    };
+    try {
+      return {
+        image: await requestOpenAIImage(name, category, base64Image, shotDirection),
+        provider: "openai",
+        model: getOpenAIImageModel()
+      };
+    } catch (error: any) {
+      const canFallbackToGemini = Boolean(process.env.GEMINI_API_KEY)
+        && /billing hard limit|quota|rate limit/i.test(String(error?.message || error?.sourceError || ""));
+      if (!canFallbackToGemini) throw error;
+    }
   }
 
   return {

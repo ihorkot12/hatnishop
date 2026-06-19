@@ -13,7 +13,10 @@ const postAI = async <T,>(path: string, body: unknown): Promise<T> => {
   }
 
   if (!res.ok) {
-    throw new Error(data?.error || 'AI request failed');
+    throw Object.assign(new Error(data?.error || 'AI request failed'), {
+      status: res.status,
+      data,
+    });
   }
 
   return data as T;
@@ -45,13 +48,26 @@ export const generateProductGallery = async (name: string, category: string, bas
 };
 
 export const searchProductWebImages = async (name: string, category: string, limit = 8) => {
-  return postAI<{
-    configured: boolean;
-    provider: string;
-    query: string;
-    openSearchUrl: string;
-    candidates: Array<{ url: string; title: string; source: string }>;
-  }>('/api/admin/images/search-web', { name, category, limit });
+  try {
+    return await postAI<{
+      configured: boolean;
+      provider: string;
+      query: string;
+      openSearchUrl: string;
+      candidates: Array<{ url: string; title: string; source: string }>;
+    }>('/api/admin/images/search-web', { name, category, limit });
+  } catch (error: any) {
+    if (error?.status === 428 && error?.data) {
+      return error.data as {
+        configured: boolean;
+        provider: string;
+        query: string;
+        openSearchUrl: string;
+        candidates: Array<{ url: string; title: string; source: string }>;
+      };
+    }
+    throw error;
+  }
 };
 
 export const saveWebImageForProduct = async (productId: string) => {

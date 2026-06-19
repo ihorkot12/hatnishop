@@ -150,8 +150,8 @@ export const Navbar = () => {
               <NavLink to="/bundle-builder" className={navLinkClass}>
                 Зібрати набір
               </NavLink>
-              {categories.filter(c => !c.parent_id).slice(0, 4).map((cat, index) => (
-                <NavLink key={cat.id} to={`/catalog?category=${cat.slug}`} className={(state) => `${navLinkClass(state)} ${index >= 3 ? 'hidden 2xl:block' : ''}`}>
+              {categories.filter(c => !c.parent_id).slice(0, 3).map(cat => (
+                <NavLink key={cat.id} to={`/catalog?category=${cat.slug}`} className={navLinkClass}>
                   {cat.name}
                 </NavLink>
               ))}

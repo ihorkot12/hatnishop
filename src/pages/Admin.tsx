@@ -914,6 +914,20 @@ export const Admin = () => {
     }
   };
 
+  const getBlockingBulkImageError = (type: 'ai' | 'web', error: any) => {
+    const message = String(error?.message || '').trim();
+    if (type === 'ai' && /billing hard limit|quota|rate limit/i.test(message)) {
+      return 'AI-фото зупинено: на OpenAI закінчився ліміт/кредити. Поповніть Billing або додайте GEMINI_API_KEY у Vercel як запасний генератор.';
+    }
+    if (type === 'ai' && /OPENAI_API_KEY|GEMINI_API_KEY|not configured/i.test(message)) {
+      return 'AI-фото зупинено: не налаштований ключ генерації зображень у Vercel.';
+    }
+    if (type === 'web' && /Google image search is not configured|GOOGLE_SEARCH/i.test(message)) {
+      return 'Реальні фото зупинено: не налаштовані GOOGLE_SEARCH_API_KEY та GOOGLE_SEARCH_ENGINE_ID у Vercel.';
+    }
+    return '';
+  };
+
   const runBulkImageJob = async (type: 'ai' | 'web') => {
     const targetProducts = visibleProducts;
     if (targetProducts.length === 0) {
@@ -922,7 +936,13 @@ export const Admin = () => {
     }
 
     if (type === 'web') {
-      const probe = await searchProductWebImages(targetProducts[0].name, targetProducts[0].category, 1);
+      let probe;
+      try {
+        probe = await searchProductWebImages(targetProducts[0].name, targetProducts[0].category, 1);
+      } catch (error: any) {
+        alert(getBlockingBulkImageError(type, error) || `Не вдалося перевірити пошук фото: ${error?.message || error}`);
+        return;
+      }
       if (!probe.configured) {
         window.open(probe.openSearchUrl, '_blank', 'noopener,noreferrer');
         alert('Для автоматичного масового підбору реальних фото треба додати GOOGLE_SEARCH_API_KEY та GOOGLE_SEARCH_ENGINE_ID у Vercel. Без них відкриваю ручний пошук.');
@@ -936,6 +956,7 @@ export const Admin = () => {
     setBulkImageJob({ type, done: 0, total: targetProducts.length });
     let success = 0;
     let failed = 0;
+    let stoppedMessage = '';
 
     for (const product of targetProducts) {
       try {
@@ -957,6 +978,11 @@ export const Admin = () => {
       } catch (err) {
         console.error(`Bulk ${type} image failed for ${product.id}:`, err);
         failed += 1;
+        const blockingMessage = getBlockingBulkImageError(type, err);
+        if (blockingMessage) {
+          stoppedMessage = blockingMessage;
+          break;
+        }
       } finally {
         setBulkImageJob({ type, done: success + failed, total: targetProducts.length });
       }
@@ -964,6 +990,11 @@ export const Admin = () => {
 
     setBulkImageJob(null);
     fetchProducts();
+    const skipped = Math.max(0, targetProducts.length - success - failed);
+    if (stoppedMessage) {
+      alert(`${stoppedMessage}\nОновлено: ${success}. Помилок: ${failed}. Не оброблено: ${skipped}.`);
+      return;
+    }
     alert(`Готово. Оновлено: ${success}. Помилок: ${failed}.`);
   };
 
