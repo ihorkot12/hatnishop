@@ -418,19 +418,15 @@ export class NeonAdapter implements DatabaseAdapter {
     const orders = await this.sql`SELECT * FROM orders ORDER BY created_at DESC`;
     if (orders.length === 0) return [];
 
-    const orderIds = orders.map((o: any) => o.id);
-    const allItems = await this.sql`
-      SELECT oi.*, p.name, p.image 
-      FROM order_items oi 
-      JOIN products p ON oi.product_id = p.id 
-      WHERE oi.order_id IN (${orderIds})
-    `;
-
-    const itemsByOrderId = allItems.reduce((acc: any, item: any) => {
-      if (!acc[item.order_id]) acc[item.order_id] = [];
-      acc[item.order_id].push(item);
-      return acc;
-    }, {});
+    const itemsByOrderId: Record<string, any[]> = {};
+    for (const order of orders) {
+      itemsByOrderId[order.id] = await this.sql`
+        SELECT oi.*, p.name, p.image
+        FROM order_items oi
+        JOIN products p ON oi.product_id = p.id
+        WHERE oi.order_id = ${order.id}
+      `;
+    }
 
     return orders.map((order: any) => ({
       id: order.id,
