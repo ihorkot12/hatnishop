@@ -332,7 +332,7 @@ export class SqliteAdapter implements DatabaseAdapter {
       const items = this.db.prepare(`
         SELECT oi.*, p.name, p.image 
         FROM order_items oi 
-        JOIN products p ON oi.product_id = p.id 
+        LEFT JOIN products p ON oi.product_id = p.id
         WHERE oi.order_id = ?
       `).all(order.id) as any[];
       result.push({
@@ -359,8 +359,8 @@ export class SqliteAdapter implements DatabaseAdapter {
         },
         items: items.map((item: any) => ({
           id: item.product_id,
-          name: item.name,
-          image: item.image,
+          name: item.name || item.product_id,
+          image: item.image || "",
           price: Number(item.price),
           quantity: item.quantity
         }))

@@ -423,7 +423,7 @@ export class NeonAdapter implements DatabaseAdapter {
       itemsByOrderId[order.id] = await this.sql`
         SELECT oi.*, p.name, p.image
         FROM order_items oi
-        JOIN products p ON oi.product_id = p.id
+        LEFT JOIN products p ON oi.product_id = p.id
         WHERE oi.order_id = ${order.id}
       `;
     }
@@ -452,8 +452,8 @@ export class NeonAdapter implements DatabaseAdapter {
       },
       items: (itemsByOrderId[order.id] || []).map((item: any) => ({
         id: item.product_id,
-        name: item.name,
-        image: item.image,
+        name: item.name || item.product_id,
+        image: item.image || "",
         price: Number(item.price),
         quantity: item.quantity
       }))
