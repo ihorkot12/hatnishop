@@ -2361,7 +2361,28 @@ app.get("/api/admin/users", authenticate, asyncHandler(async (req: any, res: any
         promoDiscount = Math.min(Math.max(promoDiscount, 0), serverTotal);
       }
 
-      const bonusBase = Math.max(0, serverTotal - promoDiscount);
+      const bundleOffer = req.body?.bundleOffer || null;
+      let bundleDiscount = 0;
+      if (bundleOffer && Array.isArray(bundleOffer.productIds)) {
+        const offerIds = Array.from(new Set<string>(
+          bundleOffer.productIds
+            .map((id: any) => normalizeString(id, 120))
+            .filter(Boolean)
+        )).slice(0, 8) as string[];
+        const orderedIds = new Set(orderItems.map(item => item.product_id));
+
+        if (offerIds.length >= 2 && offerIds.every(id => orderedIds.has(id))) {
+          const bundleRate = Math.min(0.18, Math.max(0.05, toFiniteNumber(bundleOffer.discountRate, 0.12)));
+          const bundleBase = offerIds.reduce((sum: number, id: string) => {
+            const item = orderItems.find(orderItem => orderItem.product_id === id);
+            return sum + toFiniteNumber(item?.price);
+          }, 0);
+          bundleDiscount = Math.min(Math.round(bundleBase * bundleRate), Math.max(0, serverTotal - promoDiscount));
+        }
+      }
+
+      const totalDiscount = Math.min(serverTotal, promoDiscount + bundleDiscount);
+      const bonusBase = Math.max(0, serverTotal - totalDiscount);
       const bonusSpendLimit = calculateBonusSpendLimit(bonusBase);
       const loyaltyUser = authUser?.id ? await db.getUserById(authUser.id) : null;
       let safeBonusUsed = 0;
@@ -2388,7 +2409,11 @@ app.get("/api/admin/users", authenticate, asyncHandler(async (req: any, res: any
         warehouse,
         total: serverTotal,
         payment_method: paymentMethod,
-        comment: comment || (promoCode ? `Промокод: ${promoCode}` : undefined)
+        comment: [
+          comment,
+          promoCode ? `Промокод: ${promoCode}` : "",
+          bundleDiscount > 0 ? `Конструктор набору: -${bundleDiscount} грн` : ""
+        ].filter(Boolean).join("\n") || undefined
       }, orderItems, safeBonusUsed, safeFinalTotal);
 
       const orderSummary = {
@@ -2416,7 +2441,9 @@ app.get("/api/admin/users", authenticate, asyncHandler(async (req: any, res: any
         total: serverTotal,
         bonusUsed: safeBonusUsed,
         bonusLimit: bonusSpendLimit,
-        discount: promoDiscount,
+        discount: totalDiscount,
+        promoDiscount,
+        bundleDiscount,
         finalTotal: safeFinalTotal,
         cashbackPending
       });

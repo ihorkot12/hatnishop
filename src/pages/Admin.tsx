@@ -131,6 +131,7 @@ export const Admin = () => {
   const [showCategoryModal, setShowCategoryModal] = useState(false);
   const [showOrderModal, setShowOrderModal] = useState(false);
   const [editingProduct, setEditingProduct] = useState<any>(null);
+  const [newProductMode, setNewProductMode] = useState<'product' | 'bundle'>('product');
   const [editingCategory, setEditingCategory] = useState<any>(null);
   const [categoryImage, setCategoryImage] = useState<string>('');
   const [editingBonusCode, setEditingBonusCode] = useState<any>(null);
@@ -251,9 +252,9 @@ export const Admin = () => {
       setProductDescription('');
       setProductAiDescription('');
       setBundleItems([]);
-      setIsBundle(false);
+      setIsBundle(newProductMode === 'bundle');
     }
-  }, [editingProduct, showProductModal]);
+  }, [editingProduct, showProductModal, newProductMode]);
 
   useEffect(() => {
     if (editingCategory) {
@@ -684,6 +685,7 @@ export const Admin = () => {
   };
 
   const openProductEditor = async (product: any) => {
+    setNewProductMode('product');
     setEditingProduct(product);
     setShowProductModal(true);
 
@@ -1832,8 +1834,22 @@ export const Admin = () => {
                       {bulkImageJob?.type === 'ai' ? <Loader2 size={18} className="animate-spin" /> : <Camera size={18} />}
                       AI-фото видимим
                     </button>
+                    <button
+                      onClick={() => {
+                        setNewProductMode('bundle');
+                        setEditingProduct(null);
+                        setShowProductModal(true);
+                      }}
+                      className="bg-slate-900 text-white px-6 py-3 rounded-xl font-bold flex items-center gap-2 hover:bg-tiffany transition-all"
+                    >
+                      <Sparkles size={20} /> Створити набір
+                    </button>
                     <button 
-                      onClick={() => { setEditingProduct(null); setShowProductModal(true); }}
+                      onClick={() => {
+                        setNewProductMode('product');
+                        setEditingProduct(null);
+                        setShowProductModal(true);
+                      }}
                       className="bg-tiffany text-white px-6 py-3 rounded-xl font-bold flex items-center gap-2 hover:bg-slate-900 transition-all"
                     >
                       <Plus size={20} /> Додати товар
@@ -2132,7 +2148,9 @@ export const Admin = () => {
               }}
               className="relative w-full max-w-4xl bg-white rounded-[2.5rem] shadow-2xl p-8 overflow-y-auto max-h-[90vh]"
             >
-              <h2 className="text-2xl font-bold mb-8">{editingProduct ? 'Редагувати товар' : 'Додати новий товар'}</h2>
+              <h2 className="text-2xl font-bold mb-8">
+                {editingProduct ? 'Редагувати товар' : newProductMode === 'bundle' ? 'Створити набір' : 'Додати новий товар'}
+              </h2>
               <form ref={productFormRef} onSubmit={handleProductSubmit} className="space-y-6">
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                   <div className="space-y-2">

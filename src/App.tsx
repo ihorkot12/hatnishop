@@ -9,6 +9,7 @@ import { Home } from './pages/Home';
 import { Catalog } from './pages/Catalog';
 import { ProductDetail } from './pages/ProductDetail';
 import { Cart } from './pages/Cart';
+import { BundleBuilder } from './pages/BundleBuilder';
 import { Wishlist } from './pages/Wishlist';
 import { Login } from './pages/Login';
 import { Profile } from './pages/Profile';
@@ -31,6 +32,7 @@ export default function App() {
                   <Routes>
                     <Route path="/" element={<Home />} />
                     <Route path="/catalog" element={<Catalog />} />
+                    <Route path="/bundle-builder" element={<BundleBuilder />} />
                     <Route path="/product/:id" element={<ProductDetail />} />
                     <Route path="/cart" element={<Cart />} />
                     <Route path="/wishlist" element={<Wishlist />} />

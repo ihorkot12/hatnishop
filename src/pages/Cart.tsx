@@ -21,7 +21,7 @@ type NovaPoshtaWarehouse = {
 };
 
 export const Cart = () => {
-  const { cart, updateQuantity, removeFromCart, totalPrice, clearCart, userBonuses, appliedBonuses, applyBonuses } = useCart();
+  const { cart, updateQuantity, removeFromCart, totalPrice, clearCart, userBonuses, appliedBonuses, applyBonuses, activeBundleOffer, bundleDiscount, clearBundleOffer } = useCart();
   const { user } = useAuth();
   const [isSuccess, setIsSuccess] = useState(false);
   const [completedOrder, setCompletedOrder] = useState<{ cashbackPending: number } | null>(null);
@@ -145,7 +145,9 @@ export const Cart = () => {
     return Math.floor(Number(appliedBonusCode.discount_amount || 0));
   };
 
-  const discount = Math.min(Math.max(calculateDiscount(), 0), totalPrice);
+  const promoDiscount = Math.min(Math.max(calculateDiscount(), 0), totalPrice);
+  const bundleDiscountAmount = Math.min(Math.max(bundleDiscount, 0), Math.max(0, totalPrice - promoDiscount));
+  const discount = promoDiscount + bundleDiscountAmount;
   const bonusBase = Math.max(0, totalPrice - discount);
   const bonusSpendLimit = calculateBonusSpendLimit(bonusBase);
   const availableBonuses = Math.max(0, Math.floor(userBonuses || 0));
@@ -201,6 +203,7 @@ export const Cart = () => {
       total: totalPrice,
       bonusUsed: appliedBonusAmount,
       promoCode: appliedBonusCode?.code,
+      bundleOffer: activeBundleOffer && bundleDiscountAmount > 0 ? activeBundleOffer : undefined,
       finalTotal: finalTotal,
       deliverySummary: isDeliveryFree ? 'free' : 'carrier-tariff',
       isQuickOrder,
@@ -681,7 +684,7 @@ export const Cart = () => {
                 {appliedBonusCode && (
                   <div className="mt-2 flex items-center justify-between bg-emerald-50 p-2 rounded-lg border border-emerald-100">
                     <span className="text-[10px] text-emerald-600 font-bold uppercase tracking-widest">Код застосовано: {appliedBonusCode.code}</span>
-                    <span className="text-[10px] text-emerald-600 font-bold">-{discount} грн</span>
+                    <span className="text-[10px] text-emerald-600 font-bold">-{promoDiscount} грн</span>
                   </div>
                 )}
               </div>
@@ -704,7 +707,25 @@ export const Cart = () => {
                 {appliedBonusCode && (
                   <div className="flex justify-between text-emerald-400 text-sm">
                     <span>Промокод ({appliedBonusCode.code})</span>
-                    <span>-{discount} грн</span>
+                    <span>-{promoDiscount} грн</span>
+                  </div>
+                )}
+                {activeBundleOffer && bundleDiscountAmount > 0 && (
+                  <div className="rounded-2xl bg-tiffany/10 p-4 text-sm text-white">
+                    <div className="flex justify-between gap-4">
+                      <span className="font-bold text-tiffany">{activeBundleOffer.title}</span>
+                      <span className="font-bold text-tiffany">-{bundleDiscountAmount} грн</span>
+                    </div>
+                    <div className="mt-2 flex items-center justify-between gap-4 text-[11px] text-white/45">
+                      <span>Знижка конструктора наборів</span>
+                      <button
+                        type="button"
+                        onClick={clearBundleOffer}
+                        className="font-bold text-white/55 underline-offset-4 hover:text-white hover:underline"
+                      >
+                        прибрати
+                      </button>
+                    </div>
                   </div>
                 )}
                 <div className="flex justify-between text-white/60 text-sm">

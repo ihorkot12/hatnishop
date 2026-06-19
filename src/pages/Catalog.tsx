@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Filter, X, Search, SlidersHorizontal, ChevronDown } from 'lucide-react';
 import { ProductCard } from '../components/ProductCard';
@@ -108,7 +108,13 @@ export const Catalog = () => {
                   : 'Найкращий вибір естетичного посуду, декору та текстилю в Україні. Обирайте предмети, що створюють настрій та затишок у вашій оселі.'}
               </p>
             </div>
-            <div className="flex items-center gap-4">
+            <div className="flex flex-wrap items-center gap-4">
+              <Link
+                to="/bundle-builder"
+                className="inline-flex min-h-12 items-center justify-center rounded-2xl bg-slate-950 px-6 py-4 text-xs font-bold uppercase tracking-widest text-white shadow-xl shadow-slate-950/10 hover:bg-tiffany hover:no-underline"
+              >
+                Зібрати набір
+              </Link>
               <div className="relative group">
                 <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300 group-focus-within:text-tiffany transition-colors" size={18} />
                 <input 

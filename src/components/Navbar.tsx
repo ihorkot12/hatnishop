@@ -147,6 +147,9 @@ export const Navbar = () => {
                   )}
                 </AnimatePresence>
               </div>
+              <NavLink to="/bundle-builder" className={navLinkClass}>
+                Зібрати набір
+              </NavLink>
               {categories.filter(c => !c.parent_id).slice(0, 4).map(cat => (
                 <NavLink key={cat.id} to={`/catalog?category=${cat.slug}`} className={navLinkClass}>
                   {cat.name}
@@ -353,6 +356,13 @@ export const Navbar = () => {
                       onClick={() => setIsMobileMenuOpen(false)}
                     >
                       Весь каталог
+                    </Link>
+                    <Link
+                      to="/bundle-builder"
+                      className="text-lg font-bold text-slate-900 hover:text-tiffany"
+                      onClick={() => setIsMobileMenuOpen(false)}
+                    >
+                      Зібрати набір
                     </Link>
                     {categories.filter(c => !c.parent_id).map(cat => (
                       <Link 
