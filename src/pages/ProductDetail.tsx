@@ -47,7 +47,8 @@ export const ProductDetail = () => {
 
         if (found && !found.error) {
           setProduct(found);
-          setSelectedImage(found.image);
+          const initialImage = found.image || (Array.isArray(found.images) ? found.images.find(Boolean) : '');
+          setSelectedImage(initialImage || null);
           
           const related = Array.isArray(allProducts)
             ? suggestBundleItemsLocally(found, allProducts as any, { limit: 4 }) as Product[]
@@ -271,6 +272,12 @@ export const ProductDetail = () => {
     </div>
   );
 
+  const productImages = [
+    product.image,
+    ...(Array.isArray(product.images) ? product.images : [])
+  ].filter(Boolean);
+  const activeImage = selectedImage || productImages[0] || '';
+
   return (
     <div className="max-w-7xl mx-auto px-4 pb-24 pt-6 sm:px-6 sm:py-8 lg:px-8 lg:py-10">
       {/* Breadcrumbs */}
@@ -290,23 +297,31 @@ export const ProductDetail = () => {
             animate={{ opacity: 1, scale: 1 }}
             className="aspect-[4/3] overflow-hidden rounded-[1.75rem] border border-slate-100 bg-white shadow-lg sm:aspect-square sm:rounded-[2.5rem]"
           >
-            <img 
-              src={selectedImage || product.image} 
-              alt={product.name} 
-              loading="eager"
-              decoding="async"
-              fetchPriority="high"
-              className="w-full h-full object-cover"
-              referrerPolicy="no-referrer"
-            />
+            {activeImage ? (
+              <img
+                src={activeImage}
+                alt={product.name}
+                loading="eager"
+                decoding="async"
+                fetchPriority="high"
+                className="w-full h-full object-cover"
+                referrerPolicy="no-referrer"
+              />
+            ) : (
+              <div className="flex h-full w-full items-center justify-center bg-[#f4f0ea]">
+                <span className="font-serif text-5xl font-bold uppercase text-slate-300">Hatni</span>
+              </div>
+            )}
           </motion.div>
           <div className="grid grid-cols-4 gap-3 sm:gap-4">
-            <div 
-              onClick={() => setSelectedImage(product.image)}
-              className={`aspect-square cursor-pointer overflow-hidden rounded-xl border transition-all duration-300 sm:rounded-2xl ${selectedImage === product.image ? 'border-tiffany ring-2 ring-tiffany/20' : 'border-slate-200 hover:border-tiffany'}`}
-            >
-              <img src={product.image} alt="" loading="lazy" decoding="async" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
-            </div>
+            {product.image && (
+              <div
+                onClick={() => setSelectedImage(product.image)}
+                className={`aspect-square cursor-pointer overflow-hidden rounded-xl border transition-all duration-300 sm:rounded-2xl ${selectedImage === product.image ? 'border-tiffany ring-2 ring-tiffany/20' : 'border-slate-200 hover:border-tiffany'}`}
+              >
+                <img src={product.image} alt="" loading="lazy" decoding="async" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+              </div>
+            )}
             {product.images && product.images.map((img: string, i: number) => (
               <div 
                 key={i} 

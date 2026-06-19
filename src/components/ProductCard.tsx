@@ -22,6 +22,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, onQuickView }
   const isLowStock = stock > 0 && stock < 5;
   const isAvailable = stock > 0;
   const isBundle = isBundleProduct(product as any);
+  const hasProductImage = Boolean(String(product.image || '').trim());
 
   return (
     <motion.article
@@ -32,15 +33,26 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, onQuickView }
       className="group relative overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm transition-shadow duration-500 hover:shadow-2xl hover:shadow-slate-950/10"
     >
       <Link to={`/product/${product.id}`} className="relative block aspect-[4/5] overflow-hidden bg-[#f4f0ea] hover:no-underline">
-        <img
-          src={product.image}
-          alt={product.name}
-          loading="lazy"
-          decoding="async"
-          sizes="(min-width: 1280px) 25vw, (min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw"
-          className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-[1.04]"
-          referrerPolicy="no-referrer"
-        />
+        {hasProductImage ? (
+          <img
+            src={product.image}
+            alt={product.name}
+            loading="lazy"
+            decoding="async"
+            sizes="(min-width: 1280px) 25vw, (min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw"
+            className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-[1.04]"
+            referrerPolicy="no-referrer"
+          />
+        ) : (
+          <div
+            aria-label={product.name}
+            className="flex h-full w-full items-center justify-center bg-[#f4f0ea] text-center"
+          >
+            <span className="font-serif text-4xl font-bold uppercase text-slate-300">
+              Hatni
+            </span>
+          </div>
+        )}
 
         <div className="absolute left-4 top-4 flex flex-col gap-2">
           {isBundle && (

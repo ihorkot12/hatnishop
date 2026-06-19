@@ -160,8 +160,9 @@ export const Admin = () => {
   const [isResettingDb, setIsResettingDb] = useState(false);
 
   const staleProductImagePatterns = [
-    /images\.unsplash\.com\/photo-1517705008128-361805f42e86/i,
+    /images\.unsplash\.com/i,
     /placeholder|placehold\.co|picsum\.photos/i,
+    /data:image\/svg/i,
   ];
 
   const isStaleAdminProductImage = (value: unknown) => {

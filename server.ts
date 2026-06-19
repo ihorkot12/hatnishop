@@ -702,8 +702,9 @@ const toNumberField = (value: any, fallback = 0) => {
 };
 
 const STALE_PRODUCT_IMAGE_PATTERNS = [
-  /images\.unsplash\.com\/photo-1517705008128-361805f42e86/i,
+  /images\.unsplash\.com/i,
   /placeholder|placehold\.co|picsum\.photos/i,
+  /data:image\/svg/i,
 ];
 
 const isStaleProductImage = (value: any) => {
@@ -736,12 +737,17 @@ const categoryImageUrl = (id: string) => `/api/category-images/${encodeURICompon
 const buildPublicProduct = (product: any, options: { includeGallery?: boolean } = {}) => {
   const normalized = normalizeProductForApi(product);
   const hasProductId = typeof normalized.id === "string" && normalized.id.length > 0;
-  const gallery = mergeImageList(normalized.images).filter((image) => image !== normalized.image);
-  const shouldProxyMainImage = hasProductId && (!normalized.image || String(normalized.image).startsWith("data:image/"));
+  const rawMainImage = String(normalized.image || "");
+  const hasStoredImage = toBooleanFlag(firstDefined(normalized, ["hasImage", "has_image"]));
+  const imageIsPlaceholder = toBooleanFlag(firstDefined(normalized, ["imageIsPlaceholder", "image_is_placeholder"]));
+  const mainImage = rawMainImage && !isStaleProductImage(rawMainImage) ? rawMainImage : "";
+  const gallery = mergeImageList(normalized.images).filter((image) => image !== mainImage);
+  const shouldProxyStoredMain = hasProductId && !rawMainImage && hasStoredImage && !imageIsPlaceholder;
+  const shouldProxyMainImage = hasProductId && (mainImage.startsWith("data:image/") || shouldProxyStoredMain);
 
   return {
     ...normalized,
-    image: shouldProxyMainImage ? productImageUrl(normalized.id, "main") : normalized.image,
+    image: shouldProxyMainImage ? productImageUrl(normalized.id, "main") : mainImage,
     images: options.includeGallery && hasProductId
       ? gallery.map((image, index) => String(image).startsWith("data:image/") ? productImageUrl(normalized.id, index) : image).slice(0, 8)
       : []
@@ -759,7 +765,7 @@ const buildAdminProductSummary = (product: any) => {
   const imageIsPlaceholder = toBooleanFlag(firstDefined(normalized, ["imageIsPlaceholder", "image_is_placeholder"]))
     || !hasImage
     || rawImage.startsWith("data:image/svg")
-    || /placeholder|placehold\.co|picsum\.photos/i.test(rawImage);
+    || isStaleProductImage(rawImage);
   const preview = buildPublicProduct(normalized);
   return {
     ...normalized,
@@ -832,6 +838,50 @@ const saveProductImages = async (product: any, mainImage: string, extraImages: s
     ...normalized,
     image: mainImage,
     images: gallery
+  };
+};
+
+const cleanProductImageFields = (product: any) => {
+  const currentMain = String(product?.image || "").trim();
+  const rawGallery = parseJsonArrayField(product?.images);
+  const mainWasStale = currentMain.length > 0 && isStaleProductImage(currentMain);
+  const galleryHadStale = rawGallery.some((image) => isStaleProductImage(image));
+  const seen = new Set<string>();
+  let gallery = rawGallery
+    .map((image) => String(image || "").trim())
+    .filter((image) => {
+      if (!image || isStaleProductImage(image) || seen.has(image)) return false;
+      seen.add(image);
+      return true;
+    });
+
+  let mainImage = currentMain;
+  let promotedFromGallery = false;
+  let clearedMain = false;
+
+  if (mainWasStale) {
+    const promotedImage = gallery.shift();
+    if (promotedImage) {
+      mainImage = promotedImage;
+      promotedFromGallery = true;
+    } else {
+      mainImage = "";
+      clearedMain = true;
+    }
+  }
+
+  gallery = gallery.filter((image) => image !== mainImage).slice(0, 12);
+
+  return {
+    changed: mainImage !== currentMain || JSON.stringify(gallery) !== JSON.stringify(rawGallery),
+    mainImage,
+    images: gallery,
+    mainWasStale,
+    galleryHadStale,
+    promotedFromGallery,
+    clearedMain,
+    galleryBefore: rawGallery.length,
+    galleryAfter: gallery.length
   };
 };
 
@@ -1537,16 +1587,17 @@ app.post("/api/auth/register", asyncHandler(async (req: any, res: any) => {
       if (!product) return res.status(404).send("Image not found");
 
       const normalized = normalizeProductForApi(product);
-      const gallery = mergeImageList(normalized.images).filter((image) => image !== normalized.image);
+      const mainImage = isStaleProductImage(normalized.image) ? "" : normalized.image;
+      const gallery = mergeImageList(normalized.images).filter((image) => image !== mainImage);
       const slot = String(req.params.slot || "main");
       const galleryIndex = Number(slot);
       const rawImage = slot === "main"
-        ? normalized.image || gallery[0]
+        ? mainImage || gallery[0]
         : Number.isInteger(galleryIndex) && galleryIndex >= 0
           ? gallery[galleryIndex]
           : "";
 
-      if (!rawImage) return res.status(404).send("Image not found");
+      if (!rawImage || isStaleProductImage(rawImage)) return res.status(404).send("Image not found");
 
       const dataImage = extractDataUrlImage(rawImage);
       if (dataImage) {
@@ -1857,6 +1908,78 @@ app.post("/api/auth/register", asyncHandler(async (req: any, res: any) => {
         console.warn("Error saving AI gallery:", err.message);
       }
       res.status(isQuota ? 503 : (err.status || 500)).json({ error: err.message || "Service unavailable" });
+    }
+  }));
+
+  app.post("/api/admin/products/cleanup-images", authenticate, asyncHandler(async (req: any, res: any) => {
+    if (!requireAdmin(req, res)) return;
+    try {
+      if (isDbInDegradedMode()) {
+        throw new Error("Database is in degraded mode (quota exceeded)");
+      }
+
+      const products = await db.getProducts();
+      const result = {
+        total: products.length,
+        checked: 0,
+        updated: 0,
+        staleMain: 0,
+        staleGallery: 0,
+        promotedFromGallery: 0,
+        clearedMain: 0,
+        failed: 0,
+        examples: [] as any[],
+        failures: [] as any[]
+      };
+
+      for (const product of products) {
+        result.checked += 1;
+        try {
+          const clean = cleanProductImageFields(product);
+          if (clean.mainWasStale) result.staleMain += 1;
+          if (clean.galleryHadStale) result.staleGallery += 1;
+          if (clean.promotedFromGallery) result.promotedFromGallery += 1;
+          if (clean.clearedMain) result.clearedMain += 1;
+          if (!clean.changed) continue;
+
+          await db.updateProduct(product.id, buildProductUpdatePayload(product, {
+            image: clean.mainImage,
+            images: JSON.stringify(clean.images)
+          }));
+          result.updated += 1;
+
+          if (result.examples.length < 20) {
+            result.examples.push({
+              id: product.id,
+              name: product.name,
+              mainWasStale: clean.mainWasStale,
+              galleryHadStale: clean.galleryHadStale,
+              promotedFromGallery: clean.promotedFromGallery,
+              clearedMain: clean.clearedMain,
+              galleryBefore: clean.galleryBefore,
+              galleryAfter: clean.galleryAfter
+            });
+          }
+        } catch (error: any) {
+          result.failed += 1;
+          if (result.failures.length < 10) {
+            result.failures.push({
+              id: product.id,
+              name: product.name,
+              error: error?.message || String(error)
+            });
+          }
+        }
+      }
+
+      if (result.updated > 0) clearCache();
+      res.json(result);
+    } catch (err: any) {
+      const { isQuota, isFirst } = recordDbError(err);
+      if (isFirst && !isQuota) {
+        console.warn("Error cleaning product images:", err.message);
+      }
+      res.status(isQuota ? 503 : 500).json({ error: "Service unavailable" });
     }
   }));
 
