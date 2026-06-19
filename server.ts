@@ -1918,9 +1918,14 @@ app.post("/api/auth/register", asyncHandler(async (req: any, res: any) => {
         throw new Error("Database is in degraded mode (quota exceeded)");
       }
 
-      const products = await db.getProducts();
+      const requestedIds = Array.isArray(req.body?.ids)
+        ? req.body.ids.map((id: any) => String(id || "").trim()).filter(Boolean)
+        : (req.body?.id ? [String(req.body.id).trim()].filter(Boolean) : []);
+      const productRefs = requestedIds.length > 0
+        ? requestedIds.map((id: string) => ({ id }))
+        : await db.getProductsSummary();
       const result = {
-        total: products.length,
+        total: productRefs.length,
         checked: 0,
         updated: 0,
         staleMain: 0,
@@ -1932,9 +1937,11 @@ app.post("/api/auth/register", asyncHandler(async (req: any, res: any) => {
         failures: [] as any[]
       };
 
-      for (const product of products) {
-        result.checked += 1;
+      for (const productRef of productRefs) {
         try {
+          const product = await db.getProductById(String(productRef.id));
+          if (!product) continue;
+          result.checked += 1;
           const clean = cleanProductImageFields(product);
           if (clean.mainWasStale) result.staleMain += 1;
           if (clean.galleryHadStale) result.staleGallery += 1;
@@ -1964,8 +1971,8 @@ app.post("/api/auth/register", asyncHandler(async (req: any, res: any) => {
           result.failed += 1;
           if (result.failures.length < 10) {
             result.failures.push({
-              id: product.id,
-              name: product.name,
+              id: productRef.id,
+              name: (productRef as any).name || "",
               error: error?.message || String(error)
             });
           }
