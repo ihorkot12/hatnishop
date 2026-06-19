@@ -139,6 +139,7 @@ export interface DatabaseAdapter {
   getSubscriptionsByProductId(productId: string): Promise<PriceSubscription[]>;
   getNotifications(userId: string): Promise<Notification[]>;
   markNotificationRead(id: string, userId: string): Promise<void>;
+  clearNotifications(userId: string): Promise<void>;
   createNotification(notif: Partial<Notification>): Promise<void>;
   getAllUsers(): Promise<User[]>;
   getAdminStats(): Promise<{

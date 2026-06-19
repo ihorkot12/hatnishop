@@ -13,7 +13,7 @@ export const Navbar = () => {
   const { totalItems } = useCart();
   const { user, logout } = useAuth();
   const { wishlist } = useWishlist();
-  const { notifications, unreadCount, markAsRead } = useNotifications();
+  const { notifications, unreadCount, markAsRead, clearNotifications } = useNotifications();
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [showNotifMenu, setShowNotifMenu] = useState(false);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
@@ -198,7 +198,21 @@ export const Navbar = () => {
                   >
                     <div className="flex items-center justify-between mb-6">
                       <h3 className="font-bold text-slate-900">Сповіщення</h3>
-                      <span className="text-[10px] font-bold text-tiffany uppercase tracking-widest">{unreadCount} нових</span>
+                      <div className="flex items-center gap-3">
+                        <span className="text-[10px] font-bold text-tiffany uppercase tracking-widest">{unreadCount} нових</span>
+                        {notifications.length > 0 && (
+                          <button
+                            type="button"
+                            onClick={async () => {
+                              await clearNotifications();
+                              setShowNotifMenu(false);
+                            }}
+                            className="rounded-full bg-slate-50 px-3 py-1.5 text-[10px] font-bold uppercase tracking-widest text-slate-400 transition-all hover:bg-red-50 hover:text-red-500"
+                          >
+                            Очистити
+                          </button>
+                        )}
+                      </div>
                     </div>
                     
                     <div className="space-y-4 max-h-96 overflow-y-auto pr-2 custom-scrollbar">

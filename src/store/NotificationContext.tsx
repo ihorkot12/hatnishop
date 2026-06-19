@@ -16,6 +16,7 @@ interface NotificationContextType {
   unreadCount: number;
   fetchNotifications: () => Promise<void>;
   markAsRead: (id: string) => Promise<void>;
+  clearNotifications: () => Promise<void>;
 }
 
 const NotificationContext = createContext<NotificationContextType | undefined>(undefined);
@@ -55,6 +56,17 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
     }
   };
 
+  const clearNotifications = async () => {
+    try {
+      const res = await fetch('/api/notifications', { method: 'DELETE', credentials: 'same-origin' });
+      if (res.ok) {
+        setNotifications([]);
+      }
+    } catch (err) {
+      // The next poll will reconcile if clearing fails transiently.
+    }
+  };
+
   useEffect(() => {
     if (user) {
       fetchNotifications();
@@ -68,7 +80,7 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
   const unreadCount = notifications.filter(n => !n.is_read).length;
 
   return (
-    <NotificationContext.Provider value={{ notifications, unreadCount, fetchNotifications, markAsRead }}>
+    <NotificationContext.Provider value={{ notifications, unreadCount, fetchNotifications, markAsRead, clearNotifications }}>
       {children}
     </NotificationContext.Provider>
   );

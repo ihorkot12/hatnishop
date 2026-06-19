@@ -543,6 +543,10 @@ export class SqliteAdapter implements DatabaseAdapter {
     this.db.prepare("UPDATE notifications SET is_read = 1 WHERE id = ? AND user_id = ?").run(id, userId);
   }
 
+  async clearNotifications(userId: string): Promise<void> {
+    this.db.prepare("DELETE FROM notifications WHERE user_id = ?").run(userId);
+  }
+
   async createNotification(notif: Partial<Notification>): Promise<void> {
     this.db.prepare("INSERT INTO notifications (id, user_id, title, message, type) VALUES (?, ?, ?, ?, ?)").run(
       notif.id, notif.user_id, notif.title, notif.message, notif.type

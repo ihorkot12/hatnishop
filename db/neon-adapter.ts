@@ -624,6 +624,10 @@ export class NeonAdapter implements DatabaseAdapter {
     await this.sql`UPDATE notifications SET is_read = 1 WHERE id = ${id} AND user_id = ${userId}`;
   }
 
+  async clearNotifications(userId: string): Promise<void> {
+    await this.sql`DELETE FROM notifications WHERE user_id = ${userId}`;
+  }
+
   async createNotification(notif: Partial<Notification>): Promise<void> {
     await this.sql`
       INSERT INTO notifications (id, user_id, title, message, type) 
