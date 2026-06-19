@@ -159,6 +159,31 @@ export const Admin = () => {
   const [isDbStatusLoading, setIsDbStatusLoading] = useState(false);
   const [isResettingDb, setIsResettingDb] = useState(false);
 
+  const staleProductImagePatterns = [
+    /images\.unsplash\.com\/photo-1517705008128-361805f42e86/i,
+    /placeholder|placehold\.co|picsum\.photos/i,
+  ];
+
+  const isStaleAdminProductImage = (value: unknown) => {
+    const image = String(value || '').trim();
+    return !image || staleProductImagePatterns.some(pattern => pattern.test(image));
+  };
+
+  const normalizeAdminGalleryImages = (images: unknown, main = '') => {
+    const mainImage = String(main || '').trim();
+    const seen = new Set<string>(mainImage ? [mainImage] : []);
+    const values = Array.isArray(images) ? images : [];
+
+    return values
+      .map(image => String(image || '').trim())
+      .filter(image => {
+        if (!image || isStaleAdminProductImage(image) || seen.has(image)) return false;
+        seen.add(image);
+        return true;
+      })
+      .slice(0, 8);
+  };
+
   const productImageCounts = useMemo(() => {
     return products.reduce(
       (acc, product) => {
@@ -241,7 +266,7 @@ export const Admin = () => {
   useEffect(() => {
     if (editingProduct) {
       setMainImage(editingProduct.image || '');
-      setGalleryImages(editingProduct.images || []);
+      setGalleryImages(normalizeAdminGalleryImages(editingProduct.images || [], editingProduct.image || ''));
       setProductDescription(editingProduct.description || '');
       setProductAiDescription(editingProduct.aiDescription || '');
       setBundleItems(editingProduct.bundle_items || []);
@@ -759,15 +784,16 @@ export const Admin = () => {
 
   const appendGalleryImages = (images: string[]) => {
     setGalleryImages(prev => {
-      const seen = new Set(prev);
+      const seen = new Set([mainImage, ...prev].filter(Boolean));
       const next = [...prev];
       for (const image of images) {
-        if (image && !seen.has(image)) {
-          seen.add(image);
-          next.push(image);
+        const cleanImage = String(image || '').trim();
+        if (cleanImage && !isStaleAdminProductImage(cleanImage) && !seen.has(cleanImage)) {
+          seen.add(cleanImage);
+          next.push(cleanImage);
         }
       }
-      return next;
+      return normalizeAdminGalleryImages(next, mainImage);
     });
   };
 
@@ -804,11 +830,11 @@ export const Admin = () => {
         const saved = await saveWebImageForProduct(editingProduct.id);
         const image = saved.product?.image || saved.candidate?.url || candidate.url;
         setMainImage(image);
-        setGalleryImages(saved.product?.images || [image]);
+        setGalleryImages(normalizeAdminGalleryImages(saved.product?.images || [], image));
         fetchProducts();
       } else {
         setMainImage(candidate.url);
-        appendGalleryImages([candidate.url]);
+        setGalleryImages(prev => normalizeAdminGalleryImages(prev, candidate.url));
       }
     } catch (err: any) {
       console.error(err);
@@ -844,7 +870,9 @@ export const Admin = () => {
     try {
       const image = await generateProductImage(name, category, mainImage);
       if (image) {
-        setMainImage(await optimizeMainImage(image));
+        const optimizedImage = await optimizeMainImage(image);
+        setMainImage(optimizedImage);
+        setGalleryImages(prev => normalizeAdminGalleryImages(prev, optimizedImage));
       }
     } catch (err) {
       console.error(err);
@@ -859,11 +887,14 @@ export const Admin = () => {
     try {
       if (editingProduct?.id) {
         const result = await generateAndSaveProductGallery(editingProduct.id, 3);
-        if (result.product?.image) setMainImage(await optimizeMainImage(result.product.image));
+        const nextMainImage = result.product?.image ? await optimizeMainImage(result.product.image) : mainImage;
+        if (nextMainImage) setMainImage(nextMainImage);
         if (Array.isArray(result.product?.images)) {
-          setGalleryImages(await Promise.all(result.product.images.map(optimizeGalleryImage)));
+          const optimizedImages = await Promise.all(result.product.images.map(optimizeGalleryImage));
+          setGalleryImages(normalizeAdminGalleryImages(optimizedImages, nextMainImage));
         } else {
-          appendGalleryImages(await Promise.all((result.images || []).map(optimizeGalleryImage)));
+          const optimizedImages = await Promise.all((result.images || []).map(optimizeGalleryImage));
+          setGalleryImages(normalizeAdminGalleryImages(optimizedImages, nextMainImage));
         }
         fetchProducts();
       } else {
@@ -991,7 +1022,11 @@ export const Admin = () => {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
     const optimizedMainImage = await optimizeMainImage(mainImage);
-    const optimizedGalleryImages = await Promise.all(galleryImages.map(optimizeGalleryImage));
+    const cleanGalleryImages = normalizeAdminGalleryImages(galleryImages, optimizedMainImage);
+    const optimizedGalleryImages = normalizeAdminGalleryImages(
+      await Promise.all(cleanGalleryImages.map(optimizeGalleryImage)),
+      optimizedMainImage
+    );
     setMainImage(optimizedMainImage);
     setGalleryImages(optimizedGalleryImages);
 
@@ -2140,7 +2175,7 @@ export const Admin = () => {
                       if (!mainImage) {
                         setMainImage(base64);
                       } else {
-                        setGalleryImages(prev => [...prev, base64]);
+                        appendGalleryImages([base64]);
                       }
                     }
                   }
@@ -2308,7 +2343,7 @@ export const Admin = () => {
                           onChange={async (e) => {
                             const files = Array.from(e.target.files || []);
                             const base64s = await Promise.all(files.map(fileToBase64));
-                            setGalleryImages(prev => [...prev, ...base64s]);
+                            appendGalleryImages(base64s);
                           }}
                           className="hidden"
                         />
@@ -2325,7 +2360,7 @@ export const Admin = () => {
                             e.preventDefault();
                             const val = (e.target as HTMLInputElement).value;
                             if (val) {
-                              setGalleryImages(prev => [...prev, val]);
+                              appendGalleryImages([val]);
                               (e.target as HTMLInputElement).value = '';
                             }
                           }

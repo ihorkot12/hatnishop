@@ -701,6 +701,16 @@ const toNumberField = (value: any, fallback = 0) => {
   return Number.isFinite(parsed) ? parsed : fallback;
 };
 
+const STALE_PRODUCT_IMAGE_PATTERNS = [
+  /images\.unsplash\.com\/photo-1517705008128-361805f42e86/i,
+  /placeholder|placehold\.co|picsum\.photos/i,
+];
+
+const isStaleProductImage = (value: any) => {
+  const image = String(value || "").trim();
+  return !image || STALE_PRODUCT_IMAGE_PATTERNS.some(pattern => pattern.test(image));
+};
+
 const normalizeProductForApi = (product: any) => {
   const isBundle = toBooleanFlag(firstDefined(product, ["isBundle", "isbundle", "is_bundle"]));
   const isPopular = toBooleanFlag(firstDefined(product, ["isPopular", "ispopular", "is_popular"]));
@@ -710,7 +720,7 @@ const normalizeProductForApi = (product: any) => {
     ...product,
     isBundle,
     isPopular,
-    images: parseJsonArrayField(product.images),
+    images: parseJsonArrayField(product.images).filter((image) => !isStaleProductImage(image)),
     bundle_items: bundleItems,
     bundleItems,
     bonusPoints: toNumberField(firstDefined(product, ["bonusPoints", "bonus_points"])),
@@ -778,7 +788,7 @@ const mergeImageList = (...lists: any[]) => {
     const values = Array.isArray(list) ? list : parseJsonArrayField(list);
     for (const value of values) {
       const image = String(value || "").trim();
-      if (!image || seen.has(image)) continue;
+      if (!image || seen.has(image) || isStaleProductImage(image)) continue;
       seen.add(image);
       merged.push(image);
     }
@@ -810,7 +820,9 @@ const buildProductUpdatePayload = (product: any, overrides: any = {}) => {
 
 const saveProductImages = async (product: any, mainImage: string, extraImages: string[] = []) => {
   const normalized = normalizeProductForApi(product);
-  const gallery = mergeImageList([mainImage], extraImages, normalized.images).slice(0, 12);
+  const gallery = mergeImageList(extraImages)
+    .filter((image) => image !== mainImage)
+    .slice(0, 12);
   await db.updateProduct(product.id, buildProductUpdatePayload(normalized, {
     image: mainImage,
     images: JSON.stringify(gallery)
