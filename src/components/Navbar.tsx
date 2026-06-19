@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { Link, NavLink, useNavigate } from 'react-router-dom';
 import { ShoppingBag, Search, Menu, User, LogOut, Heart, X, Bell, BellOff, AlertTriangle } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -20,6 +20,8 @@ export const Navbar = () => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [categories, setCategories] = useState<any[]>([]);
   const [showCatalogMenu, setShowCatalogMenu] = useState(false);
+  const notifMenuRef = useRef<HTMLDivElement>(null);
+  const userMenuRef = useRef<HTMLDivElement>(null);
 
   React.useEffect(() => {
     fetch('/api/categories/catalog')
@@ -33,6 +35,41 @@ export const Navbar = () => {
       })
       .catch(err => console.error(err));
   }, []);
+
+  React.useEffect(() => {
+    if (!showUserMenu && !showNotifMenu) return;
+
+    const closeFloatingMenus = () => {
+      setShowUserMenu(false);
+      setShowNotifMenu(false);
+    };
+
+    const handlePointerDown = (event: PointerEvent) => {
+      const target = event.target as Node;
+      const insideUserMenu = userMenuRef.current?.contains(target);
+      const insideNotifMenu = notifMenuRef.current?.contains(target);
+      if (!insideUserMenu && !insideNotifMenu) closeFloatingMenus();
+    };
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') closeFloatingMenus();
+    };
+
+    const autoHideTimer = window.setTimeout(closeFloatingMenus, 4500);
+
+    document.addEventListener('pointerdown', handlePointerDown);
+    document.addEventListener('keydown', handleKeyDown);
+    window.addEventListener('scroll', closeFloatingMenus, { passive: true });
+    window.addEventListener('resize', closeFloatingMenus);
+
+    return () => {
+      window.clearTimeout(autoHideTimer);
+      document.removeEventListener('pointerdown', handlePointerDown);
+      document.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('scroll', closeFloatingMenus);
+      window.removeEventListener('resize', closeFloatingMenus);
+    };
+  }, [showUserMenu, showNotifMenu]);
 
   const navLinkClass = ({ isActive }: { isActive: boolean }) => 
     `relative transition-all duration-300 whitespace-nowrap py-1 ${
@@ -135,9 +172,12 @@ export const Navbar = () => {
               )}
             </Link>
 
-            <div className="relative hidden sm:block">
+            <div ref={notifMenuRef} className="relative hidden sm:block">
               <button 
-                onClick={() => setShowNotifMenu(!showNotifMenu)}
+                onClick={() => {
+                  setShowNotifMenu(prev => !prev);
+                  setShowUserMenu(false);
+                }}
                 className="p-2 text-slate-400 hover:text-slate-900 transition-all duration-300 relative"
               >
                 <Bell size={20} strokeWidth={1.5} />
@@ -204,11 +244,14 @@ export const Navbar = () => {
               </AnimatePresence>
             </Link>
             
-            <div className="relative hidden md:block">
+            <div ref={userMenuRef} className="relative hidden md:block">
               {user ? (
                 <div className="flex items-center gap-3">
                   <button 
-                    onClick={() => setShowUserMenu(!showUserMenu)}
+                    onClick={() => {
+                      setShowUserMenu(prev => !prev);
+                      setShowNotifMenu(false);
+                    }}
                     className="flex items-center gap-2 p-2 text-slate-900 hover:text-tiffany transition-all"
                   >
                     {user.avatar ? (
@@ -228,7 +271,7 @@ export const Navbar = () => {
                         <div className="text-tiffany font-bold">{user.bonuses} грн</div>
                       </div>
                       {user.role === 'admin' && (
-                        <Link to="/admin" className="flex items-center gap-3 px-4 py-3 text-sm text-slate-600 hover:bg-slate-50 rounded-xl transition-all">
+                        <Link to="/admin" onClick={() => setShowUserMenu(false)} className="flex items-center gap-3 px-4 py-3 text-sm text-slate-600 hover:bg-slate-50 rounded-xl transition-all">
                           <User size={16} /> Адмін-панель
                         </Link>
                       )}
