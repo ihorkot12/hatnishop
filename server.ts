@@ -2029,18 +2029,14 @@ app.post("/api/auth/register", asyncHandler(async (req: any, res: any) => {
   }));
 
   app.get("/api/categories", asyncHandler(async (req: any, res: any) => {
-    setPublicApiCache(res, 300);
-    const now = Date.now();
-    if (categoriesCache && (now - categoriesCache.timestamp < CACHE_TTL)) {
-      return res.json(categoriesCache.data);
-    }
+    setNoStore(res);
     try {
       if (isDbInDegradedMode()) {
         throw new Error("Database is in degraded mode (quota exceeded)");
       }
 
       const categories = await db.getCategories();
-      categoriesCache = { data: categories, timestamp: now };
+      categoriesCache = { data: categories, timestamp: Date.now() };
       savePersistentCache();
       res.json(categories);
     } catch (error: any) {
