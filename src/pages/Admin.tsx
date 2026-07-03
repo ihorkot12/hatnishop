@@ -2597,7 +2597,7 @@ export const Admin = () => {
                       {categories.map(cat => (
                         <tr key={cat.id} className="hover:bg-slate-50/50 transition-colors">
                           <td className="px-8 py-6 flex items-center gap-4">
-                            <img src={cat.image} className="w-12 h-12 rounded-lg object-cover" alt="" referrerPolicy="no-referrer" />
+                          <img src={cat.image} className="w-12 h-12 rounded-lg object-cover" alt="" loading="lazy" decoding="async" referrerPolicy="no-referrer" />
                             <div>
                               <div className="font-bold text-slate-900">{cat.name}</div>
                               {cat.parent_id && (
@@ -2674,7 +2674,14 @@ export const Admin = () => {
                           </td>
                           <td className="px-8 py-6 flex items-center gap-4">
                             {productHasUsablePhoto(product) ? (
-                              <img src={product.image} className="w-12 h-12 rounded-lg object-cover" alt="" referrerPolicy="no-referrer" />
+                              <img
+                                src={product.image}
+                                className="w-12 h-12 rounded-lg object-cover"
+                                alt=""
+                                loading="lazy"
+                                decoding="async"
+                                referrerPolicy="no-referrer"
+                              />
                             ) : (
                               <div className="flex h-12 w-12 items-center justify-center rounded-lg border border-dashed border-slate-200 bg-slate-50 text-slate-300">
                                 <Package size={18} />
@@ -2866,7 +2873,7 @@ export const Admin = () => {
                     <div className="flex items-center gap-4 p-4 bg-slate-50 rounded-2xl border-2 border-dashed border-slate-200">
                       {mainImage ? (
                         <div className="relative group">
-                          <img src={mainImage} className="w-24 h-24 rounded-xl object-cover" alt="" />
+                          <img src={mainImage} className="w-24 h-24 rounded-xl object-cover" alt="" loading="lazy" decoding="async" />
                           <button 
                             type="button"
                             onClick={() => setMainImage('')}
@@ -2932,7 +2939,7 @@ export const Admin = () => {
                     <div className="grid grid-cols-4 gap-2">
                       {galleryImages.map((img, idx) => (
                         <div key={idx} className="relative group aspect-square">
-                          <img src={img} className="w-full h-full rounded-lg object-cover" alt="" />
+                          <img src={img} className="w-full h-full rounded-lg object-cover" alt="" loading="lazy" decoding="async" />
                           <button 
                             type="button"
                             onClick={() => setGalleryImages(prev => prev.filter((_, i) => i !== idx))}
@@ -3106,7 +3113,7 @@ export const Admin = () => {
                                 return (
                                   <div key={id} className="flex items-center justify-between bg-white p-2 rounded-lg border border-slate-100">
                                     <div className="flex items-center gap-2">
-                                      <img src={p?.image} className="w-8 h-8 rounded object-cover" alt="" />
+                                      <img src={p?.image} className="w-8 h-8 rounded object-cover" alt="" loading="lazy" decoding="async" />
                                       <span className="text-xs font-medium truncate max-w-[150px]">{p?.name || 'Невідомий товар'}</span>
                                     </div>
                                     <button 
@@ -3208,7 +3215,7 @@ export const Admin = () => {
                   <label className="text-xs font-bold text-slate-400 uppercase">Зображення</label>
                   <div className="flex gap-4 items-center">
                     {categoryImage && (
-                      <img src={categoryImage} alt="Preview" className="w-16 h-16 rounded-xl object-cover" />
+                      <img src={categoryImage} alt="Preview" className="w-16 h-16 rounded-xl object-cover" loading="lazy" decoding="async" />
                     )}
                     <div className="flex-1 space-y-2">
                       <input 
@@ -3348,7 +3355,7 @@ export const Admin = () => {
                       {editingOrder.items?.map((item: any, idx: number) => (
                         <div key={idx} className="flex items-center justify-between bg-white border border-slate-100 p-4 rounded-2xl">
                           <div className="flex items-center gap-4">
-                            <img src={item.image} className="w-12 h-12 rounded-xl object-cover" alt="" referrerPolicy="no-referrer" />
+                            <img src={item.image} className="w-12 h-12 rounded-xl object-cover" alt="" loading="lazy" decoding="async" referrerPolicy="no-referrer" />
                             <div>
                               <div className="font-bold">{item.name}</div>
                               <div className="text-xs text-slate-400">{item.price} грн × {item.quantity}</div>
@@ -3436,7 +3443,7 @@ export const Admin = () => {
                         {manualOrderItems.map((item, idx) => (
                           <div key={idx} className="flex items-center justify-between bg-slate-50 p-4 rounded-xl">
                             <div className="flex items-center gap-4">
-                              <img src={item.image} className="w-10 h-10 rounded-lg object-cover" alt="" referrerPolicy="no-referrer" />
+                              <img src={item.image} className="w-10 h-10 rounded-lg object-cover" alt="" loading="lazy" decoding="async" referrerPolicy="no-referrer" />
                               <div>
                                 <div className="font-bold text-sm">{item.name}</div>
                                 <div className="text-xs text-slate-400">{item.price} грн</div>
