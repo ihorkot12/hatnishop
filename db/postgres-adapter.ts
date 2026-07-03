@@ -268,10 +268,14 @@ export class PostgresAdapter implements DatabaseAdapter {
   async getProductsSummary(): Promise<Partial<Product>[]> {
     const { rows } = await sql`
       SELECT id, name, category, price, description, material, brand, "isPopular", "isBundle", stock, rating, review_count, bonus_points, bundle_items,
-        CASE WHEN image IS NOT NULL AND image <> '' THEN true ELSE false END AS has_image,
-        CASE WHEN image LIKE 'data:image/jpeg%' OR image LIKE 'data:image/png%' OR image LIKE 'data:image/webp%' THEN true ELSE false END AS image_is_generated,
-        CASE WHEN image IS NULL OR image = '' OR image ILIKE '%images.unsplash.com%' OR image ILIKE '%placeholder%' OR image ILIKE '%placehold.co%' OR image ILIKE '%picsum.photos%' OR image LIKE 'data:image/svg%' THEN true ELSE false END AS image_is_placeholder
-      FROM products 
+        CASE WHEN image_prefix <> '' THEN true ELSE false END AS has_image,
+        CASE WHEN image_prefix LIKE 'data:image/jpeg%' OR image_prefix LIKE 'data:image/png%' OR image_prefix LIKE 'data:image/webp%' THEN true ELSE false END AS image_is_generated,
+        CASE WHEN image_prefix = '' OR image_prefix ILIKE '%images.unsplash.com%' OR image_prefix ILIKE '%placeholder%' OR image_prefix ILIKE '%placehold.co%' OR image_prefix ILIKE '%picsum.photos%' OR image_prefix LIKE 'data:image/svg%' THEN true ELSE false END AS image_is_placeholder
+      FROM (
+        SELECT id, name, category, price, description, material, brand, "isPopular", "isBundle", stock, rating, review_count, bonus_points, bundle_items,
+          LEFT(COALESCE(image, ''), 160) AS image_prefix
+        FROM products
+      ) product_summary
       ORDER BY name ASC
     `;
     return rows as Partial<Product>[];
