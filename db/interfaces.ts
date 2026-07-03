@@ -30,6 +30,12 @@ export interface Product {
   cost_price?: number;
 }
 
+export interface ProductImageData {
+  id: string;
+  image?: string | null;
+  images?: string | null;
+}
+
 export interface Order {
   id: string;
   user_id?: string;
@@ -105,6 +111,7 @@ export interface DatabaseAdapter {
   getProducts(): Promise<Product[]>;
   getProductsSummary(): Promise<Partial<Product>[]>;
   getProductById(id: string): Promise<Product | null>;
+  getProductImageById(id: string): Promise<ProductImageData | null>;
   updateProductPrice(id: string, price: number): Promise<void>;
   updateProductStock(id: string, quantity: number): Promise<void>;
   updateProductAiDescription(id: string, description: string): Promise<void>;

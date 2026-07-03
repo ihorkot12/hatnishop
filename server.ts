@@ -618,6 +618,10 @@ let productsCache: { data: any, timestamp: number } | null = null;
 let categoriesCache: { data: any, timestamp: number } | null = null;
 let productsSummaryCache: { data: any, timestamp: number } | null = null;
 let siteSettingsCache: { data: any, timestamp: number } | null = null;
+const PRODUCT_IMAGE_CACHE_TTL = 6 * 60 * 60 * 1000; // 6 hours
+const PRODUCT_IMAGE_MISS_TTL = 30 * 60 * 1000; // 30 minutes
+const PRODUCT_IMAGE_CACHE_LIMIT = 120;
+const productImageCache = new Map<string, { data: any | null, timestamp: number }>();
 
 // Load persistent cache from file on startup
 try {
@@ -700,6 +704,7 @@ const clearCache = () => {
   categoriesCache = null;
   productsSummaryCache = null;
   siteSettingsCache = null;
+  productImageCache.clear();
   if (fs.existsSync(CACHE_FILE)) {
     try {
       fs.unlinkSync(CACHE_FILE);
@@ -838,6 +843,35 @@ const mergeImageList = (...lists: any[]) => {
 
   return merged;
 };
+
+const rememberProductImageData = (id: string, data: any | null) => {
+  productImageCache.set(id, { data, timestamp: Date.now() });
+  while (productImageCache.size > PRODUCT_IMAGE_CACHE_LIMIT) {
+    const oldestKey = productImageCache.keys().next().value;
+    if (!oldestKey) break;
+    productImageCache.delete(oldestKey);
+  }
+};
+
+const getProductImageData = async (id: string) => {
+  const now = Date.now();
+  const cached = productImageCache.get(id);
+  if (cached) {
+    const ttl = cached.data ? PRODUCT_IMAGE_CACHE_TTL : PRODUCT_IMAGE_MISS_TTL;
+    if (now - cached.timestamp < ttl) return cached.data;
+  }
+
+  try {
+    const product = await db.getProductImageById(id);
+    rememberProductImageData(id, product || null);
+    return product || null;
+  } catch (error) {
+    if (cached) return cached.data;
+    throw error;
+  }
+};
+
+const getCachedProductSummaries = () => productsSummaryCache?.data || productsCache?.data || FALLBACK_PRODUCTS;
 
 const buildProductUpdatePayload = (product: any, overrides: any = {}) => {
   const normalized = normalizeProductForApi(product);
@@ -1636,7 +1670,7 @@ app.post("/api/auth/register", asyncHandler(async (req: any, res: any) => {
   app.get("/api/product-images/:id/:slot", asyncHandler(async (req: any, res: any) => {
     setImageCache(res);
     try {
-      const product = await db.getProductById(req.params.id);
+      const product = await getProductImageData(req.params.id);
       if (!product) return res.status(404).send("Image not found");
 
       const normalized = normalizeProductForApi(product);
@@ -1738,17 +1772,18 @@ app.post("/api/auth/register", asyncHandler(async (req: any, res: any) => {
       }
 
       const products = await db.getProductsSummary();
-      const formattedProducts = products.map((product) => buildPublicProduct(product));
-      productsSummaryCache = { data: formattedProducts, timestamp: Date.now() };
+      productsSummaryCache = { data: products, timestamp: Date.now() };
       savePersistentCache();
-      res.json(formattedProducts);
+      res.json(products.map((product) => buildPublicProduct(product)));
     } catch (error: any) {
       const { isQuota, isFirst } = recordDbError(error);
       const errMsg = error?.message || (typeof error === 'string' ? error : JSON.stringify(error));
       if (isFirst && !isQuota) {
         console.warn("Error fetching products summary, using cache or fallback:", errMsg);
       }
-      if (productsSummaryCache) return res.json(productsSummaryCache.data);
+      if (productsSummaryCache) {
+        return res.json(productsSummaryCache.data.map((product: any) => buildPublicProduct(product)));
+      }
       res.json(FALLBACK_PRODUCTS.map(p => ({
         id: p.id,
         name: p.name,
@@ -1767,10 +1802,19 @@ app.post("/api/auth/register", asyncHandler(async (req: any, res: any) => {
 
   app.get("/api/products", asyncHandler(async (req: any, res: any) => {
     setNoStore(res);
+    const includeFullPayload = req.query?.full === "1";
     try {
-      const products = await db.getProducts();
-      const formattedProducts = products.map(normalizeProductForApi);
-      productsCache = { data: formattedProducts, timestamp: Date.now() };
+      const products = includeFullPayload
+        ? await db.getProducts()
+        : await db.getProductsSummary();
+      const formattedProducts = includeFullPayload
+        ? products.map(normalizeProductForApi)
+        : products.map((product) => buildPublicProduct(product));
+      if (includeFullPayload) {
+        productsCache = { data: formattedProducts, timestamp: Date.now() };
+      } else {
+        productsSummaryCache = { data: products, timestamp: Date.now() };
+      }
       savePersistentCache();
       res.json(formattedProducts);
     } catch (error: any) {
@@ -1779,8 +1823,11 @@ app.post("/api/auth/register", asyncHandler(async (req: any, res: any) => {
       if (isFirst && !isQuota) {
         console.warn("Error fetching products, using cache or fallback:", errMsg);
       }
-      if (productsCache) return res.json(productsCache.data);
-      res.json(FALLBACK_PRODUCTS);
+      if (includeFullPayload && productsCache) return res.json(productsCache.data);
+      if (productsSummaryCache) {
+        return res.json(productsSummaryCache.data.map((product: any) => buildPublicProduct(product)));
+      }
+      res.json(FALLBACK_PRODUCTS.map((product) => buildPublicProduct(product)));
     }
   }));
 
@@ -1818,14 +1865,16 @@ app.post("/api/auth/register", asyncHandler(async (req: any, res: any) => {
       }
 
       const products = await db.getProductsSummary();
+      productsSummaryCache = { data: products, timestamp: Date.now() };
+      savePersistentCache();
       res.json(products.map(buildAdminProductSummary));
     } catch (error: any) {
       const { isQuota, isFirst } = recordDbError(error);
       if (isFirst && !isQuota) {
         console.warn("Error fetching admin products, using cache or fallback:", error.message);
       }
-      if (productsSummaryCache?.data) return res.json(productsSummaryCache.data.map(buildAdminProductSummary));
-      res.status(isQuota ? 503 : 500).json({ error: "Service unavailable" });
+      const fallbackProducts = getCachedProductSummaries();
+      res.json(fallbackProducts.map((product: any) => buildAdminProductSummary(product)));
     }
   }));
 

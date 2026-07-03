@@ -1,5 +1,5 @@
 import { neon } from '@neondatabase/serverless';
-import { DatabaseAdapter, User, Product, Order, OrderItem, Review, PriceSubscription, Notification, Category } from "./interfaces.js";
+import { DatabaseAdapter, User, Product, ProductImageData, Order, OrderItem, Review, PriceSubscription, Notification, Category } from "./interfaces.js";
 
 export class NeonAdapter implements DatabaseAdapter {
   private sql: any;
@@ -332,6 +332,11 @@ export class NeonAdapter implements DatabaseAdapter {
   async getProductById(id: string): Promise<Product | null> {
     const rows = await this.sql`SELECT * FROM products WHERE id = ${id}`;
     return rows[0] as Product | null;
+  }
+
+  async getProductImageById(id: string): Promise<ProductImageData | null> {
+    const rows = await this.sql`SELECT id, image, images FROM products WHERE id = ${id}`;
+    return rows[0] as ProductImageData | null;
   }
 
   async updateProductPrice(id: string, price: number): Promise<void> {

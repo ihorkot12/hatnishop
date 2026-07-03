@@ -1,7 +1,7 @@
 import Database from "better-sqlite3";
 import path from "path";
 import { fileURLToPath } from "url";
-import { DatabaseAdapter, User, Product, Order, OrderItem, Review, PriceSubscription, Notification, Category } from "./interfaces.js";
+import { DatabaseAdapter, User, Product, ProductImageData, Order, OrderItem, Review, PriceSubscription, Notification, Category } from "./interfaces.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -234,6 +234,10 @@ export class SqliteAdapter implements DatabaseAdapter {
 
   async getProductById(id: string): Promise<Product | null> {
     return this.db.prepare("SELECT * FROM products WHERE id = ?").get(id) as Product | null;
+  }
+
+  async getProductImageById(id: string): Promise<ProductImageData | null> {
+    return this.db.prepare("SELECT id, image, images FROM products WHERE id = ?").get(id) as ProductImageData | null;
   }
 
   async updateProductPrice(id: string, price: number): Promise<void> {
