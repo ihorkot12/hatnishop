@@ -2267,7 +2267,9 @@ export const Admin = () => {
                     <div>
                       <div className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400">Контроль якості</div>
                       <div className="mt-1 text-sm font-semibold text-slate-600">
-                        Показано {visibleProducts.length} з {productQualityCounts.total}. Швидко відловлюємо товари без фото, опису, собівартості або з ризиковою маржею.
+                        {isProductLoading
+                          ? 'Завантажуємо товари та перевіряємо якість карток.'
+                          : `Показано ${visibleProducts.length} з ${productQualityCounts.total}. Швидко відловлюємо товари без фото, опису, собівартості або з ризиковою маржею.`}
                       </div>
                     </div>
                     {productQualityFilter !== 'all' && (
@@ -2647,7 +2649,13 @@ export const Admin = () => {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-50">
-                      {visibleProducts.length === 0 ? (
+                      {isProductLoading ? (
+                        <tr>
+                          <td colSpan={5} className="px-8 py-12 text-center text-sm font-bold text-slate-400">
+                            Завантаження товарів...
+                          </td>
+                        </tr>
+                      ) : visibleProducts.length === 0 ? (
                         <tr>
                           <td colSpan={5} className="px-8 py-12 text-center text-sm font-bold text-slate-400">
                             У цьому фільтрі товарів немає
