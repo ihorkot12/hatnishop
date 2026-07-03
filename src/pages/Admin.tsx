@@ -149,7 +149,7 @@ export const Admin = () => {
   const [isGeneratingGallery, setIsGeneratingGallery] = useState(false);
   const [isSearchingWebImage, setIsSearchingWebImage] = useState(false);
   const [bulkImageJob, setBulkImageJob] = useState<{ type: 'ai' | 'web'; done: number; total: number } | null>(null);
-  const [productImageFilter, setProductImageFilter] = useState<ProductImageFilter>('needs-ai');
+  const [productImageFilter, setProductImageFilter] = useState<ProductImageFilter>('all');
   const [productQualityFilter, setProductQualityFilter] = useState<ProductQualityFilter>('all');
   const [selectedProductIds, setSelectedProductIds] = useState<string[]>([]);
   const [bulkCategory, setBulkCategory] = useState('');

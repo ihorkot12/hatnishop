@@ -1705,7 +1705,7 @@ app.post("/api/auth/register", asyncHandler(async (req: any, res: any) => {
   }));
 
   app.get("/api/categories/catalog", asyncHandler(async (req: any, res: any) => {
-    setPublicApiCache(res, 300);
+    setNoStore(res);
     const now = Date.now();
     if (categoriesCache && (now - categoriesCache.timestamp < CACHE_TTL)) {
       return res.json(categoriesCache.data.map(buildPublicCategory));
