@@ -2,7 +2,10 @@ import { spawn } from 'node:child_process';
 
 const base = 'http://127.0.0.1:3000';
 const stamp = Date.now();
-const admin = { email: 'ihorkot12@gmail.com', password: '4756500' };
+const admin = {
+  email: process.env.ADMIN_EMAIL || 'smoke-admin@hatni.test',
+  password: process.env.ADMIN_PASSWORD || 'smoke-test-secret',
+};
 const user = { email: `client-${stamp}@hatni.test`, password: 'testpass123', name: 'Test Client' };
 
 const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
@@ -50,7 +53,7 @@ const waitForServer = async () => {
 
 const server = spawn(process.execPath, ['--import', 'tsx', 'server.ts'], {
   cwd: process.cwd(),
-  env: { ...process.env, JWT_SECRET: 'local-test-secret' },
+  env: { ...process.env, JWT_SECRET: 'local-test-secret', ADMIN_EMAIL: admin.email, ADMIN_PASSWORD: admin.password },
   stdio: ['ignore', 'pipe', 'pipe'],
 });
 
