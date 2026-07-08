@@ -106,7 +106,7 @@ export const Hero = ({ title, subtitle, badge, featuredProduct: propProduct, loa
               <div className="relative aspect-[4/5] bg-slate-100">
                 {featuredProduct ? (
                   <img
-                    src={featuredProduct.image}
+                    src={featuredProduct.image || undefined}
                     alt={featuredProduct.name}
                     loading="eager"
                     decoding="async"

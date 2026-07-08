@@ -57,7 +57,7 @@ export const CategoryGrid = () => {
               >
                 <div className="relative aspect-[5/6] overflow-hidden bg-[#f4f0ea]">
                   <img
-                    src={category.image}
+                    src={category.image || undefined}
                     alt={category.name}
                     loading="lazy"
                     decoding="async"
