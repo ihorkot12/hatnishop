@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+﻿import React, { useEffect, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { ArrowRight, Check, Gift, ShoppingBag, Sparkles, Tag, X } from 'lucide-react';
 import { Link } from 'react-router-dom';
@@ -52,11 +52,11 @@ export const SpecialOffers = () => {
         whileHover={{ y: -2 }}
         whileTap={{ scale: 0.96 }}
         onClick={() => setIsOpen(true)}
-        aria-label="Відкрити акції та набори"
+        aria-label="Р’С–РґРєСЂРёС‚Рё Р°РєС†С–С— С‚Р° РЅР°Р±РѕСЂРё"
         className="fixed right-3 top-36 z-40 flex h-11 w-11 items-center justify-center rounded-lg bg-slate-950 text-sm font-bold text-white shadow-xl shadow-slate-950/20 transition-colors hover:bg-tiffany sm:bottom-6 sm:left-6 sm:right-auto sm:top-auto sm:h-12 sm:w-auto sm:gap-2 sm:px-4"
       >
         <Gift size={18} />
-        <span className="hidden sm:inline">Акції</span>
+        <span className="hidden sm:inline">РђРєС†С–С—</span>
       </motion.button>
 
       <AnimatePresence>
@@ -80,14 +80,14 @@ export const SpecialOffers = () => {
                 <div>
                   <h2 className="flex items-center gap-2 text-2xl font-bold text-slate-950">
                     <Sparkles className="text-tiffany" size={22} />
-                    Акції та набори
+                    РђРєС†С–С— С‚Р° РЅР°Р±РѕСЂРё
                   </h2>
-                  <p className="mt-1 text-sm text-slate-500">Промокоди, добірки й бонусна програма в одному місці.</p>
+                  <p className="mt-1 text-sm text-slate-500">РџСЂРѕРјРѕРєРѕРґРё, РґРѕР±С–СЂРєРё Р№ Р±РѕРЅСѓСЃРЅР° РїСЂРѕРіСЂР°РјР° РІ РѕРґРЅРѕРјСѓ РјС–СЃС†С–.</p>
                 </div>
                 <button
                   type="button"
                   onClick={() => setIsOpen(false)}
-                  aria-label="Закрити акції"
+                  aria-label="Р—Р°РєСЂРёС‚Рё Р°РєС†С–С—"
                   className="rounded-lg p-2 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-950"
                 >
                   <X size={22} />
@@ -98,7 +98,7 @@ export const SpecialOffers = () => {
                 {offers.length > 0 && (
                   <section className="mb-8">
                     <h3 className="mb-3 flex items-center gap-2 text-xs font-bold uppercase text-slate-500">
-                      <Sparkles size={14} /> Спеціальні пропозиції
+                      <Sparkles size={14} /> РЎРїРµС†С–Р°Р»СЊРЅС– РїСЂРѕРїРѕР·РёС†С–С—
                     </h3>
                     <div className="space-y-3">
                       {offers.map((offer, index) => (
@@ -113,14 +113,14 @@ export const SpecialOffers = () => {
 
                 <section className="mb-8">
                   <h3 className="mb-3 flex items-center gap-2 text-xs font-bold uppercase text-slate-500">
-                    <Tag size={14} /> Промокоди
+                    <Tag size={14} /> РџСЂРѕРјРѕРєРѕРґРё
                   </h3>
                   <div className="space-y-3">
                     {promos.map((promo, index) => (
                       <div key={`${promo.id || promo.code}-${index}`} className="grid grid-cols-[1fr_auto] gap-3 rounded-lg border border-slate-200 bg-white p-4">
                         <div className="min-w-0">
                           <div className="text-xs font-bold uppercase text-tiffany">{promo.code}</div>
-                          <div className="mt-1 font-bold text-slate-950">{promo.title || 'Промокод на знижку'}</div>
+                          <div className="mt-1 font-bold text-slate-950">{promo.title || 'РџСЂРѕРјРѕРєРѕРґ РЅР° Р·РЅРёР¶РєСѓ'}</div>
                           <p className="mt-1 text-sm leading-5 text-slate-500">{promo.description}</p>
                         </div>
                         <button
@@ -128,13 +128,13 @@ export const SpecialOffers = () => {
                           onClick={() => copyCode(promo.code)}
                           className="h-10 rounded-lg border border-slate-200 px-3 text-xs font-bold uppercase text-slate-600 transition-colors hover:border-tiffany hover:text-tiffany"
                         >
-                          {copiedCode === promo.code ? <Check size={16} /> : 'Копіювати'}
+                          {copiedCode === promo.code ? <Check size={16} /> : 'РљРѕРїС–СЋРІР°С‚Рё'}
                         </button>
                       </div>
                     ))}
                     {promos.length === 0 && (
                       <div className="rounded-lg border border-dashed border-slate-200 bg-white p-6 text-center text-sm text-slate-500">
-                        Активних промокодів зараз немає.
+                        РђРєС‚РёРІРЅРёС… РїСЂРѕРјРѕРєРѕРґС–РІ Р·Р°СЂР°Р· РЅРµРјР°С”.
                       </div>
                     )}
                   </div>
@@ -143,16 +143,16 @@ export const SpecialOffers = () => {
                 {bundles.length > 0 && (
                   <section className="mb-8">
                     <h3 className="mb-3 flex items-center gap-2 text-xs font-bold uppercase text-slate-500">
-                      <ShoppingBag size={14} /> Готові набори
+                      <ShoppingBag size={14} /> Р“РѕС‚РѕРІС– РЅР°Р±РѕСЂРё
                     </h3>
                     <div className="space-y-4">
                       {bundles.map((bundle) => (
                         <div key={bundle.id} className="rounded-lg border border-slate-200 bg-white p-4">
                           <div className="grid grid-cols-[88px_1fr] gap-4">
-                            <img src={bundle.image} alt={bundle.name} loading="lazy" decoding="async" className="h-[88px] w-[88px] rounded-lg object-cover" referrerPolicy="no-referrer" />
+                            <img src={bundle.image || undefined} alt={bundle.name} loading="lazy" decoding="async" className="h-[88px] w-[88px] rounded-lg object-cover" referrerPolicy="no-referrer" />
                             <div className="min-w-0">
                               <h4 className="line-clamp-2 font-bold text-slate-950">{bundle.name}</h4>
-                              <div className="mt-2 font-bold text-tiffany">{bundle.price} грн</div>
+                              <div className="mt-2 font-bold text-tiffany">{bundle.price} РіСЂРЅ</div>
                             </div>
                           </div>
                           <div className="mt-4 grid grid-cols-2 gap-2">
@@ -161,14 +161,14 @@ export const SpecialOffers = () => {
                               onClick={() => setIsOpen(false)}
                               className="rounded-lg bg-slate-100 py-3 text-center text-sm font-bold text-slate-700 transition-colors hover:bg-slate-200 hover:no-underline"
                             >
-                              Детальніше
+                              Р”РµС‚Р°Р»СЊРЅС–С€Рµ
                             </Link>
                             <button
                               type="button"
                               onClick={() => addToCart(bundle)}
                               className="inline-flex items-center justify-center gap-2 rounded-lg bg-slate-950 py-3 text-sm font-bold text-white transition-colors hover:bg-tiffany"
                             >
-                              В кошик <ArrowRight size={16} />
+                              Р’ РєРѕС€РёРє <ArrowRight size={16} />
                             </button>
                           </div>
                         </div>
@@ -178,16 +178,16 @@ export const SpecialOffers = () => {
                 )}
 
                 <div className="rounded-lg bg-slate-950 p-5 text-white">
-                  <h4 className="text-xl font-bold">Бонусна програма</h4>
+                  <h4 className="text-xl font-bold">Р‘РѕРЅСѓСЃРЅР° РїСЂРѕРіСЂР°РјР°</h4>
                   <p className="mt-2 text-sm leading-6 text-white/70">
-                    Накопичуйте бонуси за покупки та використовуйте їх для наступних замовлень після підтвердження оплати.
+                    РќР°РєРѕРїРёС‡СѓР№С‚Рµ Р±РѕРЅСѓСЃРё Р·Р° РїРѕРєСѓРїРєРё С‚Р° РІРёРєРѕСЂРёСЃС‚РѕРІСѓР№С‚Рµ С—С… РґР»СЏ РЅР°СЃС‚СѓРїРЅРёС… Р·Р°РјРѕРІР»РµРЅСЊ РїС–СЃР»СЏ РїС–РґС‚РІРµСЂРґР¶РµРЅРЅСЏ РѕРїР»Р°С‚Рё.
                   </p>
                   <Link
                     to="/catalog"
                     onClick={() => setIsOpen(false)}
                     className="mt-4 inline-flex items-center gap-2 text-sm font-bold text-tiffany hover:no-underline"
                   >
-                    Перейти до каталогу <ArrowRight size={16} />
+                    РџРµСЂРµР№С‚Рё РґРѕ РєР°С‚Р°Р»РѕРіСѓ <ArrowRight size={16} />
                   </Link>
                 </div>
               </div>

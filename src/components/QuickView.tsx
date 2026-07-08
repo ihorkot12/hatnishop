@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, ShoppingCart, Star, ShieldCheck, Truck, Bell, Heart, ArrowRight, Gift } from 'lucide-react';
 import { Link } from 'react-router-dom';
@@ -101,7 +101,7 @@ export const QuickView: React.FC<QuickViewProps> = ({ product, onClose }) => {
                 onClick={() => setSelectedImage(product.image)}
                 className={`w-16 h-16 rounded-lg overflow-hidden border-2 cursor-pointer shrink-0 ${selectedImage === product.image ? 'border-tiffany' : 'border-transparent'}`}
               >
-                <img src={product.image} className="w-full h-full object-cover" alt="" />
+                <img src={product.image || undefined} className="w-full h-full object-cover" alt="" />
               </div>
               {product.images && product.images.map((img, i) => (
                 <div 
@@ -109,7 +109,7 @@ export const QuickView: React.FC<QuickViewProps> = ({ product, onClose }) => {
                   onClick={() => setSelectedImage(img)}
                   className={`w-16 h-16 rounded-lg overflow-hidden border-2 cursor-pointer shrink-0 ${selectedImage === img ? 'border-tiffany' : 'border-transparent'}`}
                 >
-                  <img src={img} className="w-full h-full object-cover" alt="" />
+                  <img src={img || undefined} className="w-full h-full object-cover" alt="" />
                 </div>
               ))}
             </div>
@@ -120,7 +120,7 @@ export const QuickView: React.FC<QuickViewProps> = ({ product, onClose }) => {
               <span className="text-tiffany font-bold text-[10px] uppercase tracking-widest">{product.category}</span>
               {isBundle && (
                 <span className="inline-flex items-center gap-1.5 rounded-full bg-tiffany/10 px-3 py-1 text-[10px] font-bold uppercase text-tiffany">
-                  <Gift size={12} /> Набір
+                  <Gift size={12} /> РќР°Р±С–СЂ
                 </span>
               )}
               <div className="flex items-center gap-1 text-gold">
@@ -130,7 +130,7 @@ export const QuickView: React.FC<QuickViewProps> = ({ product, onClose }) => {
             </div>
 
             <h2 className="text-3xl font-serif font-bold text-slate-900 mb-4">{product.name}</h2>
-            <div className="text-2xl font-bold text-slate-900 mb-6">{product.price} грн</div>
+            <div className="text-2xl font-bold text-slate-900 mb-6">{product.price} РіСЂРЅ</div>
             
             <div className="relative mb-8">
               <p className={`text-slate-500 leading-relaxed transition-all duration-300 ${isExpanded ? '' : 'line-clamp-3'}`}>
@@ -141,14 +141,14 @@ export const QuickView: React.FC<QuickViewProps> = ({ product, onClose }) => {
                   onClick={() => setIsExpanded(!isExpanded)}
                   className="text-tiffany font-bold text-[10px] uppercase tracking-wider hover:underline"
                 >
-                  {isExpanded ? 'Згорнути' : 'Читати повністю'}
+                  {isExpanded ? 'Р—РіРѕСЂРЅСѓС‚Рё' : 'Р§РёС‚Р°С‚Рё РїРѕРІРЅС–СЃС‚СЋ'}
                 </button>
                 <Link 
                   to={`/product/${product.id}`}
                   onClick={onClose}
                   className="text-slate-400 font-bold text-[10px] uppercase tracking-wider hover:text-slate-900 flex items-center gap-1"
                 >
-                  Сторінка товару <ArrowRight size={10} />
+                  РЎС‚РѕСЂС–РЅРєР° С‚РѕРІР°СЂСѓ <ArrowRight size={10} />
                 </Link>
               </div>
             </div>
@@ -156,11 +156,11 @@ export const QuickView: React.FC<QuickViewProps> = ({ product, onClose }) => {
             <div className="space-y-4 mb-8">
               <div className="flex items-center gap-3 text-xs text-slate-600">
                 <Truck size={16} className="text-tiffany" />
-                <span>Безкоштовна доставка від 1500 грн</span>
+                <span>Р‘РµР·РєРѕС€С‚РѕРІРЅР° РґРѕСЃС‚Р°РІРєР° РІС–Рґ 1500 РіСЂРЅ</span>
               </div>
               <div className="flex items-center gap-3 text-xs text-slate-600">
                 <ShieldCheck size={16} className="text-tiffany" />
-                <span>Гарантія якості та перевірка перед відправкою</span>
+                <span>Р“Р°СЂР°РЅС‚С–СЏ СЏРєРѕСЃС‚С– С‚Р° РїРµСЂРµРІС–СЂРєР° РїРµСЂРµРґ РІС–РґРїСЂР°РІРєРѕСЋ</span>
               </div>
             </div>
 
@@ -172,7 +172,7 @@ export const QuickView: React.FC<QuickViewProps> = ({ product, onClose }) => {
                 }}
                 className="flex-1 bg-slate-900 text-white h-14 rounded-2xl font-bold flex items-center justify-center gap-3 hover:bg-tiffany transition-all shadow-xl shadow-slate-900/10"
               >
-                <ShoppingCart size={20} /> {isBundle ? 'Додати набір' : 'Додати в кошик'}
+                <ShoppingCart size={20} /> {isBundle ? 'Р”РѕРґР°С‚Рё РЅР°Р±С–СЂ' : 'Р”РѕРґР°С‚Рё РІ РєРѕС€РёРє'}
               </button>
               <button 
                 onClick={() => toggleWishlist(product)}
@@ -184,7 +184,7 @@ export const QuickView: React.FC<QuickViewProps> = ({ product, onClose }) => {
                 onClick={toggleSubscription}
                 disabled={subscribing}
                 className={`w-14 h-14 border rounded-2xl flex items-center justify-center transition-all ${isSubscribed ? 'bg-tiffany/10 text-tiffany border-tiffany/20' : 'border-slate-200 text-slate-400 hover:text-tiffany hover:border-tiffany'}`}
-                title={isSubscribed ? "Скасувати сповіщення" : "Сповістити про зниження ціни"}
+                title={isSubscribed ? "РЎРєР°СЃСѓРІР°С‚Рё СЃРїРѕРІС–С‰РµРЅРЅСЏ" : "РЎРїРѕРІС–СЃС‚РёС‚Рё РїСЂРѕ Р·РЅРёР¶РµРЅРЅСЏ С†С–РЅРё"}
               >
                 <Bell size={20} fill={isSubscribed ? "currentColor" : "none"} />
               </button>
