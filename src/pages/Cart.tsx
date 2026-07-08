@@ -347,7 +347,7 @@ export const Cart = () => {
                     className="bg-white p-6 rounded-3xl border border-slate-100 flex items-center gap-6 shadow-sm"
                   >
                     <div className="w-20 h-20 rounded-2xl overflow-hidden flex-shrink-0">
-                      <img src={item.image} alt={item.name} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                      <img src={item.image || undefined} alt={item.name} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
                     </div>
                     <div className="flex-1">
                       <h3 className="font-bold text-slate-900 text-lg mb-1">{item.name}</h3>
