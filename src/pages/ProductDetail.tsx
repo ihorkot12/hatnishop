@@ -11,6 +11,7 @@ import { generateStylingTip } from '../services/aiService';
 import { Review, Product } from '../types';
 import { suggestBundleItemsLocally } from '../utils/bundleRecommendations';
 import { isBundleProduct as hasBundleFlag } from '../utils/productFlags';
+import { fetchJsonCachedOr } from '../utils/apiCache';
 
 export const ProductDetail = () => {
   const { id } = useParams();
@@ -37,13 +38,12 @@ export const ProductDetail = () => {
   useEffect(() => {
     const fetchProduct = async () => {
       try {
-        const [prodRes, allRes] = await Promise.all([
+        const [prodRes, allProducts] = await Promise.all([
           fetch(`/api/products/${id}`, { cache: 'no-store' }),
-          fetch('/api/products/catalog', { cache: 'no-store' })
+          fetchJsonCachedOr<Product[]>('/api/products/catalog', [])
         ]);
-        
+
         const found = prodRes.ok ? await prodRes.json() : null;
-        const allProducts = allRes.ok ? await allRes.json() : [];
 
         if (found && !found.error) {
           setProduct(found);

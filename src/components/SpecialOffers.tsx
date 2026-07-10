@@ -4,6 +4,7 @@ import { ArrowRight, Check, Gift, ShoppingBag, Sparkles, Tag, X } from 'lucide-r
 import { Link } from 'react-router-dom';
 import { useCart } from '../store/CartContext';
 import { isBundleProduct } from '../utils/productFlags';
+import { fetchJsonCachedOr } from '../utils/apiCache';
 
 export const SpecialOffers = () => {
   const [isOpen, setIsOpen] = useState(false);
@@ -14,8 +15,7 @@ export const SpecialOffers = () => {
   const { addToCart } = useCart();
 
   useEffect(() => {
-    fetch('/api/bonus-codes')
-      .then((res) => (res.ok ? res.json() : []))
+    fetchJsonCachedOr<any[]>('/api/bonus-codes', [])
       .then((data) => {
         if (!Array.isArray(data)) return;
         setPromos(data.filter((code) => code.is_active && code.type === 'promo' && code.show_in_site));
@@ -23,8 +23,7 @@ export const SpecialOffers = () => {
       })
       .catch((error) => console.error(error));
 
-    fetch('/api/products/catalog', { cache: 'no-store' })
-      .then((res) => (res.ok ? res.json() : []))
+    fetchJsonCachedOr<any[]>('/api/products/catalog', [])
       .then((data) => {
         if (Array.isArray(data)) {
           setBundles(data.filter((product) => isBundleProduct(product)).slice(0, 4));

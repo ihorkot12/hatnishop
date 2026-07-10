@@ -10,6 +10,7 @@ import { ReadySolutions } from '../components/ReadySolutions';
 import { BonusSystem } from '../components/BonusSystem';
 import { Newsletter } from '../components/Newsletter';
 import { Product } from '../types';
+import { fetchJsonCachedOr } from '../utils/apiCache';
 
 const FALLBACK_HEADING = 'Популярні речі для оселі з характером';
 const FALLBACK_SUBTITLE = 'Кераміка, текстиль і декор, які виглядають зібраними, а не випадково доданими в кошик.';
@@ -42,8 +43,8 @@ export const Home = () => {
     document.title = 'Хатні Штучки - естетичний посуд, декор і текстиль для дому';
 
     Promise.all([
-      fetch('/api/products/catalog', { cache: 'no-store' }).then((res) => (res.ok ? res.json() : [])),
-      fetch('/api/site-settings').then((res) => (res.ok ? res.json() : null)),
+      fetchJsonCachedOr<Product[]>('/api/products/catalog', []),
+      fetchJsonCachedOr('/api/site-settings', null),
     ])
       .then(([productsData, settingsData]) => {
         setProducts(Array.isArray(productsData) ? productsData : []);

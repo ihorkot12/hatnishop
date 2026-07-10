@@ -3,14 +3,14 @@ import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { ArrowRight } from 'lucide-react';
 import { Category } from '../types';
+import { fetchJsonCachedOr } from '../utils/apiCache';
 
 export const CategoryGrid = () => {
   const [categories, setCategories] = useState<Category[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    fetch('/api/categories/catalog')
-      .then((res) => (res.ok ? res.json() : []))
+    fetchJsonCachedOr<Category[]>('/api/categories/catalog', [])
       .then((data) => {
         setCategories(Array.isArray(data) ? data.filter((category: Category) => !category.parent_id) : []);
         setIsLoading(false);

@@ -6,6 +6,7 @@ import { Product } from '../types';
 import { useCart } from '../store/CartContext';
 import { calculateBundlePrice, suggestBundleItemsLocally } from '../utils/bundleRecommendations';
 import { isBundleProduct } from '../utils/productFlags';
+import { fetchJsonCachedOr } from '../utils/apiCache';
 
 const MIN_BUNDLE_ITEMS = 2;
 const MAX_BUNDLE_ITEMS = 6;
@@ -72,13 +73,9 @@ export const BundleBuilder = () => {
     const loadData = async () => {
       setIsLoading(true);
       try {
-        const [productsRes, categoriesRes] = await Promise.all([
-          fetch('/api/products/catalog', { cache: 'no-store' }),
-          fetch('/api/categories/catalog', { cache: 'no-store' }),
-        ]);
         const [productsData, categoriesData] = await Promise.all([
-          productsRes.ok ? productsRes.json() : [],
-          categoriesRes.ok ? categoriesRes.json() : [],
+          fetchJsonCachedOr<Product[]>('/api/products/catalog', []),
+          fetchJsonCachedOr<any[]>('/api/categories/catalog', []),
         ]);
         if (cancelled) return;
         setProducts(Array.isArray(productsData) ? productsData : []);

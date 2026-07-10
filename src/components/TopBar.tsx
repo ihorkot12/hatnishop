@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Truck, RotateCcw, ShieldCheck, Gift } from 'lucide-react';
+import { fetchJsonCachedOr } from '../utils/apiCache';
 
 export const TopBar = () => {
   const [settings, setSettings] = useState({
@@ -9,10 +10,9 @@ export const TopBar = () => {
   });
 
   useEffect(() => {
-    fetch('/api/site-settings')
-      .then(res => res.ok ? res.json() : null)
+    fetchJsonCachedOr('/api/site-settings', null)
       .then(data => {
-        if (data) setSettings(data);
+        if (data) setSettings(data as typeof settings);
       })
       .catch(err => console.error(err));
   }, []);

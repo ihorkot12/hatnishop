@@ -6,6 +6,7 @@ import { ProductCard } from '../components/ProductCard';
 import { QuickView } from '../components/QuickView';
 import { Product } from '../types';
 import { isBundleProduct } from '../utils/productFlags';
+import { fetchJsonCachedOr } from '../utils/apiCache';
 
 export const Catalog = () => {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -49,14 +50,11 @@ export const Catalog = () => {
     const fetchData = async () => {
       setIsLoading(true);
       try {
-        const [prodRes, catRes] = await Promise.all([
-          fetch('/api/products/catalog', { cache: 'no-store' }),
-          fetch('/api/categories/catalog')
+        const [prodData, catData] = await Promise.all([
+          fetchJsonCachedOr<Product[]>('/api/products/catalog', []),
+          fetchJsonCachedOr<any[]>('/api/categories/catalog', [])
         ]);
-        
-        const prodData = prodRes.ok ? await prodRes.json() : [];
-        const catData = catRes.ok ? await catRes.json() : [];
-        
+
         setProducts(Array.isArray(prodData) ? prodData : []);
         setCategories(Array.isArray(catData) ? catData : []);
       } catch (err) {

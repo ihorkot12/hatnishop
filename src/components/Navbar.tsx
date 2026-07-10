@@ -7,6 +7,7 @@ import { useAuth } from '../store/AuthContext';
 import { useWishlist } from '../store/WishlistContext';
 import { useNotifications } from '../store/NotificationContext';
 import { TopBar } from './TopBar';
+import { fetchJsonCachedOr } from '../utils/apiCache';
 
 export const Navbar = () => {
   const navigate = useNavigate();
@@ -24,8 +25,7 @@ export const Navbar = () => {
   const userMenuRef = useRef<HTMLDivElement>(null);
 
   React.useEffect(() => {
-    fetch('/api/categories/catalog')
-      .then(res => res.ok ? res.json() : [])
+    fetchJsonCachedOr<any[]>('/api/categories/catalog', [])
       .then(data => {
         if (Array.isArray(data)) {
           setCategories(data);
