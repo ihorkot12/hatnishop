@@ -974,11 +974,15 @@ async function ensureDb() {
     // Initialize DB Schema
     await db.init();
 
-    // Seed Admins
-    const admins = [
-      { email: "admin@homecraft.com", pass: "admin123", name: "Адміністратор", id: "admin-1" },
-      { email: "ihorkot12@gmail.com", pass: "4756500", name: "Ihor Kot", id: "admin-2" }
-    ];
+    // Seed Admin — credentials come from environment, never hardcoded.
+    const seedEmail = process.env.ADMIN_EMAIL?.trim();
+    const seedPass = process.env.ADMIN_PASSWORD;
+    const admins = seedEmail && seedPass
+      ? [{ email: seedEmail, pass: seedPass, name: process.env.ADMIN_NAME?.trim() || "Administrator", id: "admin-1" }]
+      : [];
+    if (admins.length === 0) {
+      console.warn("Admin seeding skipped: set ADMIN_EMAIL and ADMIN_PASSWORD to create the initial admin.");
+    }
 
     for (const admin of admins) {
       try {

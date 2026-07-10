@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import ExcelJS from 'exceljs';
 import { generateDescription as aiGenerateDescription, generateProductImage as aiGenerateProductImage } from '../services/aiService';
 import { fileToBase64 } from '../utils/imageUtils';
 import { Upload, FileText, Check, X, Sparkles, Image as ImageIcon, Loader2, Save, AlertTriangle } from 'lucide-react';
@@ -112,6 +111,7 @@ export const ProductImporter = ({ onComplete, categories }: { onComplete: () => 
       if (file.name.toLowerCase().endsWith('.csv')) {
         buildDrafts(parseCsv(await file.text()));
       } else {
+        const { default: ExcelJS } = await import('exceljs');
         const workbook = new ExcelJS.Workbook();
         await workbook.xlsx.load(await file.arrayBuffer());
         const worksheet = workbook.worksheets[0];

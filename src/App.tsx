@@ -6,18 +6,24 @@ import { WishlistProvider } from './store/WishlistContext';
 import { NotificationProvider } from './store/NotificationContext';
 import { Navbar } from './components/Navbar';
 import { Home } from './pages/Home';
-import { Catalog } from './pages/Catalog';
-import { ProductDetail } from './pages/ProductDetail';
-import { Cart } from './pages/Cart';
-import { BundleBuilder } from './pages/BundleBuilder';
-import { Wishlist } from './pages/Wishlist';
-import { Login } from './pages/Login';
-import { Profile } from './pages/Profile';
-import { AboutUs } from './pages/AboutUs';
-import { FAQ } from './pages/FAQ';
 import { SpecialOffers } from './components/SpecialOffers';
 
+// Home is kept eager (it's the landing route); every other route is
+// code-split so the initial bundle only ships what the entry page needs.
+const Catalog = lazy(() => import('./pages/Catalog').then((module) => ({ default: module.Catalog })));
+const ProductDetail = lazy(() => import('./pages/ProductDetail').then((module) => ({ default: module.ProductDetail })));
+const Cart = lazy(() => import('./pages/Cart').then((module) => ({ default: module.Cart })));
+const BundleBuilder = lazy(() => import('./pages/BundleBuilder').then((module) => ({ default: module.BundleBuilder })));
+const Wishlist = lazy(() => import('./pages/Wishlist').then((module) => ({ default: module.Wishlist })));
+const Login = lazy(() => import('./pages/Login').then((module) => ({ default: module.Login })));
+const Profile = lazy(() => import('./pages/Profile').then((module) => ({ default: module.Profile })));
+const AboutUs = lazy(() => import('./pages/AboutUs').then((module) => ({ default: module.AboutUs })));
+const FAQ = lazy(() => import('./pages/FAQ').then((module) => ({ default: module.FAQ })));
 const Admin = lazy(() => import('./pages/Admin').then((module) => ({ default: module.Admin })));
+
+const RouteFallback = () => (
+  <div className="flex min-h-[60vh] items-center justify-center font-bold text-slate-400">Завантаження...</div>
+);
 
 export default function App() {
   return (
@@ -29,26 +35,21 @@ export default function App() {
               <div className="flex min-h-screen flex-col">
                 <Navbar />
                 <main className="flex-grow">
-                  <Routes>
-                    <Route path="/" element={<Home />} />
-                    <Route path="/catalog" element={<Catalog />} />
-                    <Route path="/bundle-builder" element={<BundleBuilder />} />
-                    <Route path="/product/:id" element={<ProductDetail />} />
-                    <Route path="/cart" element={<Cart />} />
-                    <Route path="/wishlist" element={<Wishlist />} />
-                    <Route path="/profile" element={<Profile />} />
-                    <Route
-                      path="/admin"
-                      element={
-                        <Suspense fallback={<div className="flex min-h-[60vh] items-center justify-center font-bold text-slate-400">Завантаження...</div>}>
-                          <Admin />
-                        </Suspense>
-                      }
-                    />
-                    <Route path="/login" element={<Login />} />
-                    <Route path="/about" element={<AboutUs />} />
-                    <Route path="/faq" element={<FAQ />} />
-                  </Routes>
+                  <Suspense fallback={<RouteFallback />}>
+                    <Routes>
+                      <Route path="/" element={<Home />} />
+                      <Route path="/catalog" element={<Catalog />} />
+                      <Route path="/bundle-builder" element={<BundleBuilder />} />
+                      <Route path="/product/:id" element={<ProductDetail />} />
+                      <Route path="/cart" element={<Cart />} />
+                      <Route path="/wishlist" element={<Wishlist />} />
+                      <Route path="/profile" element={<Profile />} />
+                      <Route path="/admin" element={<Admin />} />
+                      <Route path="/login" element={<Login />} />
+                      <Route path="/about" element={<AboutUs />} />
+                      <Route path="/faq" element={<FAQ />} />
+                    </Routes>
+                  </Suspense>
                 </main>
 
                 <SpecialOffers />
