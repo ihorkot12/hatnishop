@@ -35,7 +35,7 @@ export const TopBar = () => {
         
         {settings.cashback_percent > 0 && (
           <div className="flex items-center gap-2 mx-auto md:mx-0">
-            <Gift size={14} className="text-tiffany animate-pulse" />
+            <Gift size={14} className="text-tiffany" />
             <span>{settings.cashback_percent}% кешбек на кожну покупку</span>
           </div>
         )}

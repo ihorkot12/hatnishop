@@ -353,22 +353,25 @@ export const Cart = () => {
                       <h3 className="font-bold text-slate-900 text-lg mb-1">{item.name}</h3>
                       <div className="flex items-center gap-4">
                         <div className="flex items-center border border-slate-200 rounded-xl overflow-hidden">
-                          <button 
+                          <button
                             onClick={() => updateQuantity(item.id, item.quantity - 1)}
+                            aria-label={`Зменшити кількість «${item.name}»`}
                             className="p-2 hover:bg-slate-50 text-slate-500"
                           >
                             <Minus size={14} />
                           </button>
                           <span className="w-8 text-center font-bold text-sm">{item.quantity}</span>
-                          <button 
+                          <button
                             onClick={() => updateQuantity(item.id, item.quantity + 1)}
+                            aria-label={`Збільшити кількість «${item.name}»`}
                             className="p-2 hover:bg-slate-50 text-slate-500"
                           >
                             <Plus size={14} />
                           </button>
                         </div>
-                        <button 
+                        <button
                           onClick={() => removeFromCart(item.id)}
+                          aria-label={`Прибрати «${item.name}» з кошика`}
                           className="text-slate-300 hover:text-red-500 transition-colors"
                         >
                           <Trash2 size={18} />

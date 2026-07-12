@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { ArrowRight, ShieldCheck, ShoppingCart, Sparkles, Star } from 'lucide-react';
+import { ArrowRight, ShieldCheck, ShoppingCart, Sparkles } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useCart } from '../store/CartContext';
 
@@ -25,7 +25,7 @@ const renderTitle = (value?: string) => {
   return (
     <>
       {text.slice(0, index)}
-      <span className="italic text-tiffany">{text.slice(index, index + HIGHLIGHT.length)}</span>
+      <span className="italic text-tiffany-deep">{text.slice(index, index + HIGHLIGHT.length)}</span>
       {text.slice(index + HIGHLIGHT.length)}
     </>
   );
@@ -36,22 +36,21 @@ export const Hero = ({ title, subtitle, badge, featuredProduct: propProduct, loa
   const featuredProduct = propProduct || null;
 
   return (
-    <section className="relative overflow-hidden bg-[#f8f4ef]">
-      <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(255,255,255,0.72)_0%,rgba(255,255,255,0)_58%)]" />
-      <div className="relative mx-auto max-w-7xl px-4 py-14 sm:px-6 lg:px-8 lg:py-20">
-        <div className="grid min-h-[calc(100vh-150px)] grid-cols-1 items-center gap-10 lg:grid-cols-[1fr_0.92fr] lg:gap-16">
+    <section className="relative overflow-hidden bg-cream">
+      <div className="relative mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8 lg:py-24">
+        <div className="grid min-h-[calc(100vh-190px)] grid-cols-1 items-center gap-12 lg:grid-cols-[1.05fr_0.85fr] lg:gap-20">
           <motion.div
             initial={{ opacity: 0, y: 24 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.7, ease: 'easeOut' }}
             className="max-w-3xl"
           >
-            <div className="inline-flex items-center gap-2 rounded-lg border border-tiffany/20 bg-white/75 px-4 py-2 text-[11px] font-bold uppercase text-tiffany">
-              <Star size={14} fill="currentColor" />
+            <div className="flex items-center gap-4 text-[11px] font-bold uppercase tracking-[0.3em] text-slate-500">
+              <span aria-hidden="true" className="h-px w-12 bg-gold" />
               <span>{badge || (loading ? 'Завантаження...' : 'Бестселер сезону')}</span>
             </div>
 
-            <h1 className="mt-8 text-5xl font-serif font-bold leading-none tracking-normal text-slate-950 sm:text-6xl lg:text-7xl">
+            <h1 className="mt-9 font-serif text-5xl font-bold leading-[0.98] tracking-tight text-slate-950 sm:text-7xl lg:text-[5.5rem]">
               {loading ? (
                 <span className="block h-32 max-w-xl animate-pulse rounded-lg bg-white/70" />
               ) : (
@@ -59,7 +58,7 @@ export const Hero = ({ title, subtitle, badge, featuredProduct: propProduct, loa
               )}
             </h1>
 
-            <div className="mt-7 max-w-2xl text-lg leading-8 text-slate-600 sm:text-xl">
+            <div className="mt-8 max-w-xl text-lg leading-8 text-slate-600">
               {loading ? (
                 <div className="space-y-3">
                   <div className="h-4 w-full animate-pulse rounded bg-white/80" />
@@ -70,25 +69,25 @@ export const Hero = ({ title, subtitle, badge, featuredProduct: propProduct, loa
               )}
             </div>
 
-            <div className="mt-10 flex flex-col gap-3 sm:flex-row">
+            <div className="mt-11 flex flex-wrap items-center gap-7">
               <Link
                 to="/catalog"
-                className="inline-flex items-center justify-center gap-3 rounded-lg bg-slate-950 px-7 py-4 font-bold text-white shadow-lg shadow-slate-950/15 transition-colors hover:bg-tiffany hover:no-underline"
+                className="group inline-flex items-center justify-center gap-3 rounded-lg bg-slate-950 px-9 py-4 font-bold text-white transition-colors hover:bg-slate-800 hover:no-underline"
               >
-                До каталогу <ArrowRight size={20} />
+                До каталогу <ArrowRight size={19} className="transition-transform group-hover:translate-x-1" />
               </Link>
               <Link
                 to={featuredProduct ? `/product/${featuredProduct.id}#ai-bundle` : '/catalog'}
-                className="inline-flex items-center justify-center gap-3 rounded-lg border border-slate-200 bg-white px-7 py-4 font-bold text-slate-950 transition-colors hover:border-tiffany hover:text-tiffany hover:no-underline"
+                className="group inline-flex items-center gap-2 border-b border-slate-300 pb-1 text-sm font-bold uppercase tracking-widest text-slate-700 transition-colors hover:border-gold hover:text-slate-950 hover:no-underline"
               >
-                AI-бандл дня <Sparkles size={18} />
+                Набір до товару дня <Sparkles size={15} className="text-gold" />
               </Link>
             </div>
 
-            <div className="mt-10 grid grid-cols-1 gap-3 text-sm text-slate-600 sm:grid-cols-3">
+            <div className="mt-14 flex flex-col gap-4 border-t border-slate-900/10 pt-7 text-sm text-slate-600 sm:flex-row sm:items-center sm:gap-10">
               {['Відправка по Україні', 'Бонуси за покупки', 'Живі фото товарів'].map((item) => (
-                <div key={item} className="flex min-h-16 items-center gap-2 rounded-lg border border-white/80 bg-white/60 px-4 py-3">
-                  <ShieldCheck size={16} className="shrink-0 text-tiffany" />
+                <div key={item} className="flex items-center gap-2.5">
+                  <ShieldCheck size={15} className="shrink-0 text-tiffany-deep" />
                   <span>{item}</span>
                 </div>
               ))}
@@ -101,8 +100,8 @@ export const Hero = ({ title, subtitle, badge, featuredProduct: propProduct, loa
             transition={{ duration: 0.8, ease: 'easeOut', delay: 0.1 }}
             className="relative"
           >
-            <div className="absolute -left-5 top-8 hidden h-[72%] w-px bg-slate-300/60 lg:block" />
-            <div className="overflow-hidden rounded-lg border border-white/85 bg-white shadow-2xl shadow-slate-900/10">
+            <div className="absolute -left-6 top-10 hidden h-[70%] w-px bg-slate-900/10 lg:block" />
+            <div className="overflow-hidden rounded-lg border border-slate-900/10 bg-white shadow-xl shadow-slate-950/5">
               <div className="relative aspect-[4/5] bg-slate-100">
                 {featuredProduct ? (
                   <img
@@ -114,18 +113,24 @@ export const Hero = ({ title, subtitle, badge, featuredProduct: propProduct, loa
                     className="h-full w-full object-cover object-[center_bottom]"
                     referrerPolicy="no-referrer"
                   />
-                ) : (
+                ) : loading ? (
                   <div className="h-full w-full animate-pulse bg-slate-200" />
+                ) : (
+                  <div className="flex h-full w-full items-center justify-center bg-cream-dark">
+                    <span className="font-serif text-5xl font-bold uppercase text-slate-300">Hatni</span>
+                  </div>
                 )}
               </div>
 
               <div className="grid grid-cols-[1fr_auto] gap-4 p-5 sm:p-6">
                 <div className="min-w-0">
-                  <p className="text-[11px] font-bold uppercase text-slate-400">Товар дня</p>
-                  <h2 className="mt-1 truncate text-lg font-bold text-slate-950">
+                  <p className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.2em] text-slate-500">
+                    <span aria-hidden="true" className="h-px w-5 bg-gold" /> Товар дня
+                  </p>
+                  <h2 className="mt-2 truncate font-serif text-xl font-bold text-slate-950">
                     {featuredProduct?.name || 'Добірка для затишної кухні'}
                   </h2>
-                  <div className="mt-2 text-2xl font-bold text-tiffany">
+                  <div className="mt-2 text-2xl font-bold text-slate-950">
                     {featuredProduct?.price || 0} <span className="text-sm font-medium text-slate-400">грн</span>
                   </div>
                 </div>

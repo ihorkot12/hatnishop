@@ -150,20 +150,22 @@ export const Catalog = () => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex flex-col md:flex-row md:items-end justify-between gap-8">
             <div className="max-w-2xl">
-              <div className="text-tiffany font-bold text-[10px] uppercase tracking-[0.3em] mb-4">Колекція 2026</div>
+              <div className="mb-4 flex items-center gap-3 text-[11px] font-bold uppercase tracking-[0.3em] text-tiffany-deep">
+                <span aria-hidden="true" className="h-px w-10 bg-gold" /> Колекція 2026
+              </div>
               <h1 className="text-5xl md:text-7xl font-serif font-bold text-slate-900 mb-6 leading-tight">
                 {isBundleRoute ? 'Готові набори' : categoryFilter ? categories.find(c => c.slug === categoryFilter)?.name : 'Каталог товарів для дому'}
               </h1>
               <p className="text-slate-500 text-lg leading-relaxed">
                 {isBundleRoute
                   ? 'Зібрані комплекти з реальних товарів каталогу: для кави, сервірування, зберігання та кухні.'
-                  : 'Найкращий вибір естетичного посуду, декору та текстилю в Україні. Обирайте предмети, що створюють настрій та затишок у вашій оселі.'}
+                  : 'Естетичний посуд, декор і текстиль, відібрані вручну. Обирайте предмети, що створюють настрій та затишок у вашій оселі.'}
               </p>
             </div>
             <div className="flex flex-wrap items-center gap-4">
               <Link
                 to="/bundle-builder"
-                className="inline-flex min-h-12 items-center justify-center rounded-2xl bg-slate-950 px-6 py-4 text-xs font-bold uppercase tracking-widest text-white shadow-xl shadow-slate-950/10 hover:bg-tiffany hover:no-underline"
+                className="inline-flex min-h-12 items-center justify-center rounded-lg bg-slate-950 px-6 py-4 text-xs font-bold uppercase tracking-widest text-white shadow-xl shadow-slate-950/10 hover:bg-tiffany hover:no-underline"
               >
                 Зібрати набір
               </Link>
@@ -174,7 +176,7 @@ export const Catalog = () => {
                   placeholder="Пошук товарів..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="bg-slate-50 border-none rounded-2xl pl-12 pr-6 py-4 w-64 focus:ring-2 focus:ring-tiffany transition-all"
+                  className="bg-slate-50 border-none rounded-lg pl-12 pr-6 py-4 w-64 focus:ring-2 focus:ring-tiffany transition-all"
                 />
               </div>
             </div>
@@ -226,7 +228,7 @@ export const Catalog = () => {
               key={option.value}
               type="button"
               onClick={() => setBudgetPreset(option.value)}
-              className={`rounded-2xl px-5 py-4 text-left transition-all ${
+              className={`rounded-lg px-5 py-4 text-left transition-all ${
                 budgetPreset === option.value
                   ? 'bg-slate-950 text-white shadow-lg shadow-slate-950/10'
                   : 'bg-slate-50 text-slate-600 hover:bg-slate-100'
@@ -242,7 +244,7 @@ export const Catalog = () => {
           <select
             value={availabilityFilter}
             onChange={(event) => setAvailabilityFilter(event.target.value as 'all' | 'available' | 'low' | 'out')}
-            className="rounded-2xl border-none bg-slate-50 px-5 py-4 text-sm font-bold text-slate-600 focus:ring-2 focus:ring-tiffany"
+            className="rounded-lg border-none bg-slate-50 px-5 py-4 text-sm font-bold text-slate-600 focus:ring-2 focus:ring-tiffany"
           >
             <option value="all">Уся наявність</option>
             <option value="available">В наявності</option>
@@ -252,7 +254,7 @@ export const Catalog = () => {
           <select
             value={selectedMaterial}
             onChange={(event) => setSelectedMaterial(event.target.value)}
-            className="rounded-2xl border-none bg-slate-50 px-5 py-4 text-sm font-bold text-slate-600 focus:ring-2 focus:ring-tiffany"
+            className="rounded-lg border-none bg-slate-50 px-5 py-4 text-sm font-bold text-slate-600 focus:ring-2 focus:ring-tiffany"
           >
             <option value="all">Усі матеріали</option>
             {filterOptions.materials.map(material => (
@@ -262,7 +264,7 @@ export const Catalog = () => {
           <select
             value={selectedBrand}
             onChange={(event) => setSelectedBrand(event.target.value)}
-            className="rounded-2xl border-none bg-slate-50 px-5 py-4 text-sm font-bold text-slate-600 focus:ring-2 focus:ring-tiffany"
+            className="rounded-lg border-none bg-slate-50 px-5 py-4 text-sm font-bold text-slate-600 focus:ring-2 focus:ring-tiffany"
           >
             <option value="all">Усі бренди</option>
             {filterOptions.brands.map(brand => (
@@ -272,7 +274,7 @@ export const Catalog = () => {
           <button
             type="button"
             onClick={resetCatalogFilters}
-            className="rounded-2xl bg-slate-950 px-5 py-4 text-sm font-bold text-white transition-all hover:bg-tiffany"
+            className="rounded-lg bg-slate-950 px-5 py-4 text-sm font-bold text-white transition-all hover:bg-tiffany"
           >
             Скинути фільтри{activeFilterCount > 0 ? ` (${activeFilterCount})` : ''}
           </button>
@@ -282,7 +284,20 @@ export const Catalog = () => {
           {/* Main Grid */}
           <div className="lg:col-span-12">
             <AnimatePresence mode="popLayout">
-              {filteredProducts.length > 0 ? (
+              {isLoading ? (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
+                  {[...Array(8)].map((_, index) => (
+                    <div key={index} className="overflow-hidden rounded-lg border border-slate-200 bg-white">
+                      <div className="aspect-[4/5] animate-pulse bg-cream-dark" />
+                      <div className="space-y-3 p-5">
+                        <div className="h-3 w-1/3 animate-pulse rounded bg-slate-100" />
+                        <div className="h-5 w-4/5 animate-pulse rounded bg-slate-100" />
+                        <div className="h-5 w-1/2 animate-pulse rounded bg-slate-100" />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : filteredProducts.length > 0 ? (
                 <motion.div 
                   layout
                   className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8"
@@ -299,7 +314,7 @@ export const Catalog = () => {
                 <motion.div 
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
-                  className="text-center py-32 bg-white rounded-[3rem] border border-dashed border-slate-200"
+                  className="text-center py-32 bg-white rounded-lg border border-dashed border-slate-200"
                 >
                   <div className="w-20 h-20 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-6 text-slate-300">
                     <Search size={40} />
@@ -308,7 +323,7 @@ export const Catalog = () => {
                   <p className="text-slate-500 mb-8">Спробуйте змінити параметри фільтрації або пошуковий запит.</p>
                   <button 
                     onClick={() => {setSearchParams({}); setMinPrice(0); setMaxPrice(5000); setPopularOnly(false); setBundleOnly(false); setSearchQuery('');}}
-                    className="bg-slate-900 text-white px-8 py-4 rounded-2xl font-bold hover:bg-tiffany transition-all"
+                    className="bg-slate-900 text-white px-8 py-4 rounded-lg font-bold hover:bg-tiffany transition-all"
                   >
                     Скинути все
                   </button>
@@ -352,7 +367,7 @@ export const Catalog = () => {
                   <div className="grid grid-cols-1 gap-2">
                     <button 
                       onClick={() => setSearchParams({})}
-                      className={`text-left px-6 py-4 rounded-2xl font-bold transition-all ${!categoryFilter ? 'bg-slate-900 text-white' : 'bg-slate-50 text-slate-600 hover:bg-slate-100'}`}
+                      className={`text-left px-6 py-4 rounded-lg font-bold transition-all ${!categoryFilter ? 'bg-slate-900 text-white' : 'bg-slate-50 text-slate-600 hover:bg-slate-100'}`}
                     >
                       Всі товари
                     </button>
@@ -360,7 +375,7 @@ export const Catalog = () => {
                       <div key={parent.id} className="space-y-1">
                         <button 
                           onClick={() => setSearchParams({ category: parent.slug })}
-                          className={`w-full text-left px-6 py-4 rounded-2xl font-bold transition-all ${categoryFilter === parent.slug ? 'bg-slate-900 text-white' : 'bg-slate-50 text-slate-600 hover:bg-slate-100'}`}
+                          className={`w-full text-left px-6 py-4 rounded-lg font-bold transition-all ${categoryFilter === parent.slug ? 'bg-slate-900 text-white' : 'bg-slate-50 text-slate-600 hover:bg-slate-100'}`}
                         >
                           {parent.name}
                         </button>
@@ -451,7 +466,7 @@ export const Catalog = () => {
               <div className="mt-12 pt-12 border-t border-slate-100">
                 <button 
                   onClick={() => setShowFilters(false)}
-                  className="w-full bg-slate-900 text-white py-5 rounded-2xl font-bold text-lg hover:bg-tiffany transition-all shadow-xl shadow-slate-900/10"
+                  className="w-full bg-slate-900 text-white py-5 rounded-lg font-bold text-lg hover:bg-tiffany transition-all shadow-xl shadow-slate-900/10"
                 >
                   Показати результати
                 </button>
@@ -490,7 +505,7 @@ export const Catalog = () => {
                 </p>
                 <button 
                   onClick={() => setShowPromo(false)}
-                  className="w-full bg-tiffany text-white py-4 rounded-2xl font-bold hover:bg-white hover:text-tiffany transition-all"
+                  className="w-full bg-tiffany text-white py-4 rounded-lg font-bold hover:bg-white hover:text-tiffany transition-all"
                 >
                   Зрозуміло, дякую!
                 </button>

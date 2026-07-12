@@ -11,6 +11,7 @@ import { generateStylingTip } from '../services/aiService';
 import { Review, Product } from '../types';
 import { suggestBundleItemsLocally } from '../utils/bundleRecommendations';
 import { isBundleProduct as hasBundleFlag } from '../utils/productFlags';
+import { useCategoryLabel } from '../utils/categoryNames';
 import { fetchJsonCachedOr } from '../utils/apiCache';
 
 export const ProductDetail = () => {
@@ -73,12 +74,11 @@ export const ProductDetail = () => {
   }, [id]);
 
   const isWishlisted = product ? isInWishlist(product.id) : false;
+  const categoryLabel = useCategoryLabel(product?.category);
   const isBundleProduct = hasBundleFlag(product);
   const smartBundleProducts = product && !isBundleProduct ? relatedProducts.slice(0, 4) : [];
   const smartBundleItems = product ? [product, ...smartBundleProducts] : [];
   const smartBundleTotal = smartBundleItems.reduce((sum, item) => sum + Number(item?.price || 0), 0);
-  const smartBundlePrice = Math.max(0, Math.round(smartBundleTotal * 0.85));
-  const smartBundleSavings = Math.max(0, smartBundleTotal - smartBundlePrice);
 
   const addSmartBundleToCart = () => {
     if (!product || smartBundleProducts.length === 0) return;
@@ -151,8 +151,8 @@ export const ProductDetail = () => {
 
   useEffect(() => {
     if (product) {
-      document.title = `${product.name} вЂ” РљСѓРїРёС‚Рё РІ РҐР°С‚РЅС– РЁС‚СѓС‡РєРё | Р¦С–РЅР° ${product.price} РіСЂРЅ`;
-      document.title = `${product.name} - РєСѓРїРёС‚Рё РІ РҐР°С‚РЅС– РЁС‚СѓС‡РєРё | ${product.price} РіСЂРЅ`;
+      document.title = `${product.name} — Купити в Хатні Штучки | Ціна ${product.price} грн`;
+      document.title = `${product.name} - купити в Хатні Штучки | ${product.price} грн`;
       if (product.aiDescription) {
         setStylingTip(product.aiDescription);
         setLoadingAi(false);
@@ -234,14 +234,14 @@ export const ProductDetail = () => {
       const data = await res.json();
       if (res.ok) {
         setNewReview({ rating: 5, comment: '' });
-        setReviewMessage(data.message || "Р’С–РґРіСѓРє РЅР°РґС–СЃР»Р°РЅРѕ РЅР° РјРѕРґРµСЂР°С†С–СЋ");
+        setReviewMessage(data.message || "Відгук надіслано на модерацію");
         fetchReviews();
       } else {
-        setReviewMessage(data.error || "РџРѕРјРёР»РєР° РїСЂРё РІС–РґРїСЂР°РІС†С– РІС–РґРіСѓРєСѓ");
+        setReviewMessage(data.error || "Помилка при відправці відгуку");
       }
     } catch (err) {
       console.error(err);
-      setReviewMessage("РџРѕРјРёР»РєР° РїСЂРё Р·'С”РґРЅР°РЅРЅС– Р· СЃРµСЂРІРµСЂРѕРј");
+      setReviewMessage("Помилка при з'єднанні з сервером");
     } finally {
       setSubmittingReview(false);
     }
@@ -258,15 +258,15 @@ export const ProductDetail = () => {
         <div className="w-24 h-24 bg-white rounded-full flex items-center justify-center mx-auto mb-8 shadow-xl border border-slate-100">
           <ShoppingCart size={40} className="text-slate-300" />
         </div>
-        <h1 className="text-4xl font-serif font-bold text-slate-900 mb-4">РўРѕРІР°СЂ РЅРµ Р·РЅР°Р№РґРµРЅРѕ</h1>
+        <h1 className="text-4xl font-serif font-bold text-slate-900 mb-4">Товар не знайдено</h1>
         <p className="text-slate-500 mb-10 leading-relaxed">
-          РќР° Р¶Р°Р»СЊ, РјРё РЅРµ Р·РјРѕРіР»Рё Р·РЅР°Р№С‚Рё С‚РѕРІР°СЂ, СЏРєРёР№ РІРё С€СѓРєР°С”С‚Рµ. РњРѕР¶Р»РёРІРѕ, РІС–РЅ Р±СѓРІ РІРёРґР°Р»РµРЅРёР№ Р°Р±Рѕ РїРѕСЃРёР»Р°РЅРЅСЏ Р·Р°СЃС‚Р°СЂС–Р»Рѕ.
+          На жаль, ми не змогли знайти товар, який ви шукаєте. Можливо, він був видалений або посилання застаріло.
         </p>
         <Link 
           to="/catalog" 
-          className="inline-flex items-center gap-3 bg-slate-900 text-white px-10 py-5 rounded-2xl font-bold hover:bg-tiffany transition-all shadow-xl shadow-slate-900/10"
+          className="inline-flex items-center gap-3 bg-slate-900 text-white px-10 py-5 rounded-lg font-bold hover:bg-tiffany transition-all shadow-xl shadow-slate-900/10"
         >
-          РџРѕРІРµСЂРЅСѓС‚РёСЃСЊ РґРѕ РєР°С‚Р°Р»РѕРіСѓ <ArrowRight size={20} />
+          Повернутись до каталогу <ArrowRight size={20} />
         </Link>
       </div>
     </div>
@@ -282,9 +282,9 @@ export const ProductDetail = () => {
     <div className="max-w-7xl mx-auto px-4 pb-24 pt-6 sm:px-6 sm:py-8 lg:px-8 lg:py-10">
       {/* Breadcrumbs */}
       <nav className="mb-6 flex min-w-0 items-center gap-2 overflow-hidden text-[10px] font-bold uppercase tracking-widest text-slate-400 sm:text-xs">
-        <Link to="/" className="shrink-0 transition-colors hover:text-tiffany">Р“РѕР»РѕРІРЅР°</Link>
+        <Link to="/" className="shrink-0 transition-colors hover:text-tiffany">Головна</Link>
         <span>/</span>
-        <Link to={`/catalog?category=${product.category}`} className="min-w-0 max-w-[12rem] truncate transition-colors hover:text-tiffany sm:max-w-none">{product.category}</Link>
+        <Link to={`/catalog?category=${product.category}`} className="min-w-0 max-w-[12rem] truncate transition-colors hover:text-tiffany sm:max-w-none">{categoryLabel}</Link>
         <span className="hidden sm:inline">/</span>
         <span className="hidden min-w-0 truncate text-slate-900 sm:inline">{product.name}</span>
       </nav>
@@ -295,7 +295,7 @@ export const ProductDetail = () => {
           <motion.div 
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
-            className="aspect-[4/3] overflow-hidden rounded-[1.75rem] border border-slate-100 bg-white shadow-lg sm:aspect-square sm:rounded-[2.5rem]"
+            className="aspect-[4/3] overflow-hidden rounded-lg border border-slate-100 bg-white shadow-lg sm:aspect-square sm:rounded-lg"
           >
             {activeImage ? (
               <img
@@ -308,7 +308,7 @@ export const ProductDetail = () => {
                 referrerPolicy="no-referrer"
               />
             ) : (
-              <div className="flex h-full w-full items-center justify-center bg-[#f4f0ea]">
+              <div className="flex h-full w-full items-center justify-center bg-cream-dark">
                 <span className="font-serif text-5xl font-bold uppercase text-slate-300">Hatni</span>
               </div>
             )}
@@ -317,7 +317,7 @@ export const ProductDetail = () => {
             {product.image && (
               <div
                 onClick={() => setSelectedImage(product.image)}
-                className={`aspect-square cursor-pointer overflow-hidden rounded-xl border transition-all duration-300 sm:rounded-2xl ${selectedImage === product.image ? 'border-tiffany ring-2 ring-tiffany/20' : 'border-slate-200 hover:border-tiffany'}`}
+                className={`aspect-square cursor-pointer overflow-hidden rounded-xl border transition-all duration-300 sm:rounded-lg ${selectedImage === product.image ? 'border-tiffany ring-2 ring-tiffany/20' : 'border-slate-200 hover:border-tiffany'}`}
               >
                 <img src={product.image || undefined} alt="" loading="lazy" decoding="async" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
               </div>
@@ -326,7 +326,7 @@ export const ProductDetail = () => {
               <div 
                 key={i} 
                 onClick={() => setSelectedImage(img)}
-                className={`aspect-square cursor-pointer overflow-hidden rounded-xl border transition-all duration-300 sm:rounded-2xl ${selectedImage === img ? 'border-tiffany ring-2 ring-tiffany/20' : 'border-slate-200 hover:border-tiffany'}`}
+                className={`aspect-square cursor-pointer overflow-hidden rounded-xl border transition-all duration-300 sm:rounded-lg ${selectedImage === img ? 'border-tiffany ring-2 ring-tiffany/20' : 'border-slate-200 hover:border-tiffany'}`}
               >
                 <img src={img || undefined} alt="" loading="lazy" decoding="async" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
               </div>
@@ -338,19 +338,23 @@ export const ProductDetail = () => {
         <div className="order-1 flex flex-col lg:order-2">
           <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
             <div className="flex min-w-0 flex-wrap items-center gap-3">
-              <span className="max-w-[12rem] truncate rounded-full bg-tiffany/10 px-4 py-1.5 text-[10px] font-bold uppercase tracking-widest text-tiffany sm:max-w-none">
-                {product.category}
+              <span className="max-w-[12rem] truncate rounded-full bg-tiffany/10 px-4 py-1.5 text-[10px] font-bold uppercase tracking-widest text-tiffany-deep sm:max-w-none">
+                {categoryLabel}
               </span>
-              <div className="flex items-center gap-1 text-gold">
-                <Star size={14} fill="currentColor" />
-                <span className="text-slate-900 font-bold ml-1">{averageRating}</span>
-                <span className="text-slate-400 text-xs ml-2">({reviews.length} РІС–РґРіСѓРєС–РІ)</span>
-              </div>
+              {reviews.length > 0 ? (
+                <div className="flex items-center gap-1 text-gold">
+                  <Star size={14} fill="currentColor" />
+                  <span className="text-slate-900 font-bold ml-1">{averageRating}</span>
+                  <span className="text-slate-400 text-xs ml-2">({reviews.length} відгуків)</span>
+                </div>
+              ) : (
+                <span className="text-slate-400 text-xs">Ще немає відгуків</span>
+              )}
             </div>
             {product.isPopular && (
               <div className="bg-slate-900 text-white px-4 py-1.5 rounded-full text-[10px] font-bold uppercase tracking-widest flex items-center gap-2">
                 <Sparkles size={12} className="text-tiffany" />
-                Р‘РµСЃС‚СЃРµР»РµСЂ
+                Бестселер
               </div>
             )}
           </div>
@@ -361,43 +365,43 @@ export const ProductDetail = () => {
           
           <div className="mb-5 flex flex-wrap items-baseline gap-4">
             <div className="text-3xl font-bold text-slate-900 sm:text-4xl">
-              {product.price} <span className="text-lg font-normal text-slate-500">РіСЂРЅ</span>
+              {product.price} <span className="text-lg font-normal text-slate-500">грн</span>
             </div>
             {Number(product.bonusPoints || 0) > 0 && (
               <div className="text-emerald-600 text-sm font-bold bg-emerald-50 px-3 py-1 rounded-lg">
-                +{product.bonusPoints} Р±РѕРЅСѓСЃС–РІ
+                +{product.bonusPoints} бонусів
               </div>
             )}
           </div>
 
-          <div className="mb-5 flex items-center gap-2 rounded-2xl border border-slate-100 bg-slate-50 px-4 py-3">
-            <div className={`h-2.5 w-2.5 shrink-0 rounded-full ${product.stock > 5 ? 'bg-emerald-500' : 'bg-red-500 animate-pulse'}`} />
-            <span className={`text-xs font-bold uppercase leading-5 tracking-widest sm:text-sm ${product.stock > 5 ? 'text-emerald-600' : 'text-red-600'}`}>
-              {product.stock > 5 ? 'Р’ РЅР°СЏРІРЅРѕСЃС‚С– С‚Р° РіРѕС‚РѕРІРёР№ РґРѕ РІС–РґРїСЂР°РІРєРё' : `Р—Р°Р»РёС€РёР»РѕСЃСЊ Р»РёС€Рµ ${product.stock} С€С‚ вЂ” РїРѕСЃРїС–С€Р°Р№С‚Рµ!`}
+          <div className="mb-5 flex items-center gap-2 rounded-lg border border-slate-100 bg-slate-50 px-4 py-3">
+            <div className={`h-2.5 w-2.5 shrink-0 rounded-full ${product.stock > 5 ? 'bg-emerald-500' : 'bg-amber-500'}`} />
+            <span className={`text-xs font-bold uppercase leading-5 tracking-widest sm:text-sm ${product.stock > 5 ? 'text-emerald-600' : 'text-amber-600'}`}>
+              {product.stock > 5 ? 'В наявності та готовий до відправки' : `Залишилось ${product.stock} шт`}
             </span>
           </div>
 
           <div className="mb-8 flex flex-col gap-3 sm:flex-row sm:gap-4">
             <button
               onClick={() => addToCart(product)}
-              className="product-buy-button flex flex-1 items-center justify-center gap-3 rounded-2xl bg-slate-900 px-5 text-base font-bold text-white shadow-xl shadow-slate-900/15 transition-all hover:bg-tiffany active:scale-95 sm:text-lg"
+              className="product-buy-button flex flex-1 items-center justify-center gap-3 rounded-lg bg-slate-900 px-5 text-base font-bold text-white shadow-xl shadow-slate-900/15 transition-all hover:bg-tiffany active:scale-95 sm:text-lg"
             >
-              <ShoppingCart size={22} /> {isBundleProduct ? 'Р”РѕРґР°С‚Рё РЅР°Р±С–СЂ Сѓ РєРѕС€РёРє' : 'Р”РѕРґР°С‚Рё РІ РєРѕС€РёРє'}
+              <ShoppingCart size={22} /> {isBundleProduct ? 'Додати набір у кошик' : 'Додати в кошик'}
             </button>
             <div className="grid grid-cols-2 gap-3 sm:flex sm:gap-4">
               <button
                 onClick={() => product && toggleWishlist(product)}
-                aria-label={isWishlisted ? 'РџСЂРёР±СЂР°С‚Рё Р· РѕР±СЂР°РЅРѕРіРѕ' : 'Р”РѕРґР°С‚Рё РІ РѕР±СЂР°РЅРµ'}
-                className={`product-icon-action flex items-center justify-center rounded-2xl border transition-all active:scale-90 ${isWishlisted ? 'border-pink-200 bg-pink-50 text-pink-500' : 'border-slate-200 text-slate-400 hover:border-pink-200 hover:bg-pink-50/30 hover:text-pink-500'}`}
+                aria-label={isWishlisted ? 'Прибрати з обраного' : 'Додати в обране'}
+                className={`product-icon-action flex items-center justify-center rounded-lg border transition-all active:scale-90 ${isWishlisted ? 'border-pink-200 bg-pink-50 text-pink-500' : 'border-slate-200 text-slate-400 hover:border-pink-200 hover:bg-pink-50/30 hover:text-pink-500'}`}
               >
                 <Heart size={24} fill={isWishlisted ? "currentColor" : "none"} />
               </button>
               <button
                 onClick={toggleSubscription}
                 disabled={subscribing}
-                aria-label={isSubscribed ? 'РЎРєР°СЃСѓРІР°С‚Рё СЃРїРѕРІС–С‰РµРЅРЅСЏ РїСЂРѕ Р·РЅРёР¶РєСѓ' : 'РЎРїРѕРІС–СЃС‚РёС‚Рё РїСЂРѕ Р·РЅРёР¶РєСѓ'}
-                className={`product-icon-action flex items-center justify-center rounded-2xl border transition-all active:scale-90 disabled:cursor-wait ${isSubscribed ? 'border-tiffany/20 bg-tiffany/10 text-tiffany' : 'border-slate-200 text-slate-400 hover:border-tiffany hover:bg-tiffany/5 hover:text-tiffany'}`}
-                title={isSubscribed ? "РЎРєР°СЃСѓРІР°С‚Рё СЃРїРѕРІС–С‰РµРЅРЅСЏ" : "РЎРїРѕРІС–СЃС‚РёС‚Рё РїСЂРѕ Р·РЅРёР¶РєСѓ"}
+                aria-label={isSubscribed ? 'Скасувати сповіщення про знижку' : 'Сповістити про знижку'}
+                className={`product-icon-action flex items-center justify-center rounded-lg border transition-all active:scale-90 disabled:cursor-wait ${isSubscribed ? 'border-tiffany/20 bg-tiffany/10 text-tiffany' : 'border-slate-200 text-slate-400 hover:border-tiffany hover:bg-tiffany/5 hover:text-tiffany'}`}
+                title={isSubscribed ? "Скасувати сповіщення" : "Сповістити про знижку"}
               >
                 <Bell size={24} fill={isSubscribed ? "currentColor" : "none"} />
               </button>
@@ -411,14 +415,14 @@ export const ProductDetail = () => {
 
             {isBundleProduct && bundleProducts.length > 0 && (
               <div className="mt-8 p-6 bg-slate-50 rounded-3xl border border-slate-100">
-                <h3 className="text-sm font-bold uppercase tracking-widest text-slate-900 mb-4">Р”Рѕ С†СЊРѕРіРѕ РЅР°Р±РѕСЂСѓ РІС…РѕРґРёС‚СЊ:</h3>
+                <h3 className="text-sm font-bold uppercase tracking-widest text-slate-900 mb-4">До цього набору входить:</h3>
                 <div className="space-y-3">
                   {bundleProducts.map(p => (
-                    <Link key={p.id} to={`/product/${p.id}`} className="flex items-center gap-4 p-2 hover:bg-white rounded-2xl transition-all group">
+                    <Link key={p.id} to={`/product/${p.id}`} className="flex items-center gap-4 p-2 hover:bg-white rounded-lg transition-all group">
                       <img src={p.image || undefined} alt="" className="w-12 h-12 rounded-xl object-cover" />
                       <div className="flex-1">
                         <div className="text-sm font-bold text-slate-800 group-hover:text-tiffany transition-colors">{p.name}</div>
-                        <div className="text-xs text-slate-400">{p.price} РіСЂРЅ</div>
+                        <div className="text-xs text-slate-400">{p.price} грн</div>
                       </div>
                     </Link>
                   ))}
@@ -439,17 +443,17 @@ export const ProductDetail = () => {
                   <motion.div 
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
-                    className="mt-8 p-8 bg-tiffany/5 rounded-[2.5rem] border border-tiffany/10 italic text-slate-700 relative group"
+                    className="mt-8 p-8 bg-tiffany/5 rounded-lg border border-tiffany/10 italic text-slate-700 relative group"
                   >
                     <div className="flex items-center justify-between mb-4">
                       <div className="flex items-center gap-2">
                         <Sparkles size={16} className="text-tiffany" />
-                        <p className="text-xs font-bold text-tiffany uppercase tracking-widest">РџРѕСЂР°РґР° РІС–Рґ РҐР°С‚РЅС–С… РЁС‚СѓС‡РѕРє (Р›РёС€Рµ РґР»СЏ РђРґРјС–РЅР°):</p>
+                        <p className="text-xs font-bold text-tiffany uppercase tracking-widest">Порада від Хатніх Штучок (Лише для Адміна):</p>
                       </div>
                       <button 
                         onClick={fetchStylingTip}
                         className="opacity-0 group-hover:opacity-100 transition-opacity p-2 hover:bg-tiffany/10 rounded-xl text-tiffany"
-                        title="РћРЅРѕРІРёС‚Рё РїРѕСЂР°РґСѓ"
+                        title="Оновити пораду"
                       >
                         <RotateCcw size={14} />
                       </button>
@@ -459,9 +463,9 @@ export const ProductDetail = () => {
                 ) : (
                   <button
                     onClick={fetchStylingTip}
-                    className="mt-8 inline-flex min-h-12 items-center gap-3 rounded-2xl border border-tiffany/20 bg-tiffany/5 px-5 py-3 text-sm font-bold text-tiffany hover:bg-tiffany/10 transition-colors"
+                    className="mt-8 inline-flex min-h-12 items-center gap-3 rounded-lg border border-tiffany/20 bg-tiffany/5 px-5 py-3 text-sm font-bold text-tiffany hover:bg-tiffany/10 transition-colors"
                   >
-                    <Sparkles size={16} /> Р—РіРµРЅРµСЂСѓРІР°С‚Рё AI-РїРѕСЂР°РґСѓ
+                    <Sparkles size={16} /> Згенерувати AI-пораду
                   </button>
                 )}
               </AnimatePresence>
@@ -470,14 +474,14 @@ export const ProductDetail = () => {
 
           <div className="mb-8 grid grid-cols-2 gap-4 sm:gap-6">
             {product.material && (
-              <div className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm sm:rounded-3xl sm:p-6">
-                <div className="text-[10px] uppercase text-slate-400 font-bold mb-2 tracking-widest">РњР°С‚РµСЂС–Р°Р»</div>
+              <div className="rounded-lg border border-slate-100 bg-white p-5 shadow-sm sm:rounded-3xl sm:p-6">
+                <div className="text-[10px] uppercase text-slate-400 font-bold mb-2 tracking-widest">Матеріал</div>
                 <div className="text-lg font-bold text-slate-800">{product.material}</div>
               </div>
             )}
             {product.brand && (
-              <div className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm sm:rounded-3xl sm:p-6">
-                <div className="text-[10px] uppercase text-slate-400 font-bold mb-2 tracking-widest">Р‘СЂРµРЅРґ</div>
+              <div className="rounded-lg border border-slate-100 bg-white p-5 shadow-sm sm:rounded-3xl sm:p-6">
+                <div className="text-[10px] uppercase text-slate-400 font-bold mb-2 tracking-widest">Бренд</div>
                 <div className="text-lg font-bold text-slate-800">{product.brand}</div>
               </div>
             )}
@@ -485,30 +489,30 @@ export const ProductDetail = () => {
 
           <div className="grid grid-cols-1 gap-4 border-t border-slate-100 pt-8 sm:grid-cols-3 sm:gap-6 sm:pt-10">
             <div className="flex flex-col items-center text-center gap-3">
-              <div className="w-12 h-12 bg-slate-50 rounded-2xl flex items-center justify-center text-slate-900">
+              <div className="w-12 h-12 bg-slate-50 rounded-lg flex items-center justify-center text-slate-900">
                 <Truck size={24} />
               </div>
               <div>
-                <div className="font-bold text-xs uppercase tracking-widest mb-1">Р”РѕСЃС‚Р°РІРєР°</div>
-                <div className="text-[10px] text-slate-500">Р’С–Рґ 1500 РіСЂРЅ Р±РµР·РєРѕС€С‚РѕРІРЅРѕ</div>
+                <div className="font-bold text-xs uppercase tracking-widest mb-1">Доставка</div>
+                <div className="text-[10px] text-slate-500">Від 1500 грн безкоштовно</div>
               </div>
             </div>
             <div className="flex flex-col items-center text-center gap-3">
-              <div className="w-12 h-12 bg-slate-50 rounded-2xl flex items-center justify-center text-slate-900">
+              <div className="w-12 h-12 bg-slate-50 rounded-lg flex items-center justify-center text-slate-900">
                 <ShieldCheck size={24} />
               </div>
               <div>
-                <div className="font-bold text-xs uppercase tracking-widest mb-1">РЇРєС–СЃС‚СЊ</div>
-                <div className="text-[10px] text-slate-500">Р“Р°СЂР°РЅС‚С–СЏ РІС–Рґ РІРёСЂРѕР±РЅРёРєР°</div>
+                <div className="font-bold text-xs uppercase tracking-widest mb-1">Якість</div>
+                <div className="text-[10px] text-slate-500">Гарантія від виробника</div>
               </div>
             </div>
             <div className="flex flex-col items-center text-center gap-3">
-              <div className="w-12 h-12 bg-slate-50 rounded-2xl flex items-center justify-center text-slate-900">
+              <div className="w-12 h-12 bg-slate-50 rounded-lg flex items-center justify-center text-slate-900">
                 <RotateCcw size={24} />
               </div>
               <div>
-                <div className="font-bold text-xs uppercase tracking-widest mb-1">РџРѕРІРµСЂРЅРµРЅРЅСЏ</div>
-                <div className="text-[10px] text-slate-500">14 РґРЅС–РІ РЅР° РѕР±РјС–РЅ</div>
+                <div className="font-bold text-xs uppercase tracking-widest mb-1">Повернення</div>
+                <div className="text-[10px] text-slate-500">14 днів на обмін</div>
               </div>
             </div>
           </div>
@@ -517,14 +521,15 @@ export const ProductDetail = () => {
 
       {/* Buy Together / Bundles */}
       {!isBundleProduct && smartBundleProducts.length > 0 && (
-        <section id="ai-bundle" className="mb-32 bg-slate-900 rounded-[4rem] p-12 md:p-20 text-white overflow-hidden relative scroll-mt-28">
-          <div className="absolute top-0 right-0 w-1/2 h-full bg-tiffany/10 -skew-x-12 translate-x-1/4" />
+        <section id="ai-bundle" className="mb-32 bg-slate-950 rounded-lg p-12 md:p-20 text-white overflow-hidden relative scroll-mt-28">
           <div className="relative z-10 flex flex-col lg:flex-row items-center justify-between gap-16">
             <div className="max-w-xl">
-              <div className="text-tiffany font-bold text-xs uppercase tracking-[0.3em] mb-6">AI-Р±Р°РЅРґР» - РµРєРѕРЅРѕРјС–СЏ {smartBundleSavings} РіСЂРЅ</div>
-              <h2 className="text-4xl md:text-5xl font-serif font-bold mb-8 leading-tight">РџС–РґС–Р±СЂР°Р»Рё С‚РѕРІР°СЂРё, СЏРєС– РїР°СЃСѓСЋС‚СЊ СЂР°Р·РѕРј</h2>
+              <div className="mb-6 flex items-center gap-3 text-xs font-bold uppercase tracking-[0.3em] text-tiffany">
+                <span aria-hidden="true" className="h-px w-8 bg-gold/80" /> Пасують разом
+              </div>
+              <h2 className="text-4xl md:text-5xl font-serif font-bold mb-8 leading-tight">Підібрали товари, які пасують разом</h2>
               <p className="text-white/60 text-lg mb-10 leading-relaxed">
-                РђР»РіРѕСЂРёС‚Рј РґРёРІРёС‚СЊСЃСЏ РЅР° РєР°С‚РµРіРѕСЂС–СЋ, СЃС†РµРЅР°СЂС–Р№ РІРёРєРѕСЂРёСЃС‚Р°РЅРЅСЏ, С†С–РЅСѓ С‚Р° СЃСѓРјС–СЃРЅС–СЃС‚СЊ С‚РѕРІР°СЂС–РІ. РћРґРЅРёРј РєР»С–РєРѕРј РґРѕРґР°С”С‚Рµ РІРµСЃСЊ РЅР°Р±С–СЂ Сѓ РєРѕС€РёРє.
+                Речі з тієї ж категорії та сценарію використання, які добре доповнюють цей товар. Одним кліком додаєте весь набір у кошик.
               </p>
               <div className="flex items-center gap-8">
                 <div className="flex -space-x-6">
@@ -536,10 +541,10 @@ export const ProductDetail = () => {
                 </div>
                 <div>
                   <div className="text-3xl font-bold text-tiffany">
-                    {smartBundlePrice} РіСЂРЅ
+                    {smartBundleTotal} грн
                   </div>
-                  <div className="text-sm text-white/40 line-through">
-                    {smartBundleTotal} РіСЂРЅ
+                  <div className="text-sm text-white/40">
+                    разом за {smartBundleItems.length} {smartBundleItems.length >= 5 ? 'предметів' : 'предмети'}
                   </div>
                 </div>
               </div>
@@ -548,12 +553,12 @@ export const ProductDetail = () => {
                   <Link
                     key={item.id}
                     to={`/product/${item.id}`}
-                    className="flex min-w-0 items-center gap-3 rounded-2xl border border-white/10 bg-white/5 p-3 text-white hover:border-tiffany hover:no-underline"
+                    className="flex min-w-0 items-center gap-3 rounded-lg border border-white/10 bg-white/5 p-3 text-white hover:border-tiffany hover:no-underline"
                   >
                     <img src={item.image || undefined} alt="" className="h-12 w-12 rounded-xl object-cover" referrerPolicy="no-referrer" />
                     <div className="min-w-0">
                       <div className="truncate text-sm font-bold">{item.name}</div>
-                      <div className="text-xs text-white/45">{item.price} РіСЂРЅ</div>
+                      <div className="text-xs text-white/45">{item.price} грн</div>
                     </div>
                   </Link>
                 ))}
@@ -561,10 +566,10 @@ export const ProductDetail = () => {
             </div>
             <button 
               onClick={addSmartBundleToCart}
-              className="px-12 py-6 bg-tiffany text-white rounded-2xl font-bold text-lg hover:bg-white hover:text-tiffany transition-all shadow-2xl shadow-tiffany/20 active:scale-95"
+              className="px-12 py-6 bg-tiffany text-white rounded-lg font-bold text-lg hover:bg-white hover:text-tiffany transition-all shadow-2xl shadow-tiffany/20 active:scale-95"
             >
               <span className="inline-flex items-center gap-3">
-                <Sparkles size={20} /> Р—С–Р±СЂР°С‚Рё AI-Р±Р°РЅРґР» Сѓ РєРѕС€РёРє
+                <Sparkles size={20} /> Додати набір у кошик
               </span>
             </button>
           </div>
@@ -575,27 +580,33 @@ export const ProductDetail = () => {
       <section className="mb-32">
         <div className="flex flex-col lg:flex-row gap-20">
           <div className="lg:w-1/3">
-            <h2 className="text-4xl font-serif font-bold text-slate-900 mb-8">Р’С–РґРіСѓРєРё</h2>
-            <div className="bg-white rounded-[3rem] p-10 border border-slate-100 shadow-xl shadow-slate-200/50">
+            <h2 className="text-4xl font-serif font-bold text-slate-900 mb-8">Відгуки</h2>
+            <div className="bg-white rounded-lg p-10 border border-slate-100 shadow-xl shadow-slate-200/50">
               <div className="text-center mb-10">
-                <div className="text-7xl font-bold text-slate-900 mb-4">{averageRating}</div>
-                <div className="flex justify-center gap-1.5 text-gold mb-4">
-                  {[1, 2, 3, 4, 5].map(i => (
-                    <Star key={i} size={24} fill={i <= Math.round(Number(averageRating)) ? "currentColor" : "none"} />
-                  ))}
-                </div>
-                <div className="text-slate-400 font-bold text-xs uppercase tracking-widest">РќР° РѕСЃРЅРѕРІС– {reviews.length} РІС–РґРіСѓРєС–РІ</div>
+                {reviews.length > 0 ? (
+                  <>
+                    <div className="text-7xl font-bold text-slate-900 mb-4">{averageRating}</div>
+                    <div className="flex justify-center gap-1.5 text-gold mb-4">
+                      {[1, 2, 3, 4, 5].map(i => (
+                        <Star key={i} size={24} fill={i <= Math.round(Number(averageRating)) ? "currentColor" : "none"} />
+                      ))}
+                    </div>
+                    <div className="text-slate-400 font-bold text-xs uppercase tracking-widest">На основі {reviews.length} відгуків</div>
+                  </>
+                ) : (
+                  <div className="text-slate-400 font-bold text-xs uppercase tracking-widest">Ще немає відгуків — станьте першим</div>
+                )}
               </div>
 
               {user ? (
                 canReview ? (
                   <form onSubmit={handleReviewSubmit} className="space-y-6">
-                    <div className="text-xs font-bold text-slate-900 uppercase tracking-widest mb-2">Р’Р°С€ РІС–РґРіСѓРє</div>
+                    <div className="text-xs font-bold text-slate-900 uppercase tracking-widest mb-2">Ваш відгук</div>
                     {reviewMessage && (
                       <motion.div 
                         initial={{ opacity: 0, height: 0 }}
                         animate={{ opacity: 1, height: 'auto' }}
-                        className={`p-4 rounded-2xl text-xs font-bold ${reviewMessage.includes('РџРѕРјРёР»РєР°') ? 'bg-red-50 text-red-500' : 'bg-emerald-50 text-emerald-500'}`}
+                        className={`p-4 rounded-lg text-xs font-bold ${reviewMessage.includes('Помилка') ? 'bg-red-50 text-red-500' : 'bg-emerald-50 text-emerald-500'}`}
                       >
                         {reviewMessage}
                       </motion.div>
@@ -613,7 +624,7 @@ export const ProductDetail = () => {
                       ))}
                     </div>
                     <textarea 
-                      placeholder="РџРѕРґС–Р»С–С‚СЊСЃСЏ РІР°С€РёРјРё РІСЂР°Р¶РµРЅРЅСЏРјРё РїСЂРѕ С‚РѕРІР°СЂ..."
+                      placeholder="Поділіться вашими враженнями про товар..."
                       value={newReview.comment}
                       onChange={(e) => setNewReview({ ...newReview, comment: e.target.value })}
                       className="w-full bg-slate-50 border-none rounded-[1.5rem] p-6 text-sm focus:ring-2 focus:ring-tiffany transition-all min-h-[150px] resize-none"
@@ -622,21 +633,21 @@ export const ProductDetail = () => {
                     <button 
                       type="submit"
                       disabled={submittingReview}
-                      className="w-full bg-slate-900 text-white py-5 rounded-2xl font-bold hover:bg-tiffany transition-all flex items-center justify-center gap-3 shadow-lg"
+                      className="w-full bg-slate-900 text-white py-5 rounded-lg font-bold hover:bg-tiffany transition-all flex items-center justify-center gap-3 shadow-lg"
                     >
                       {submittingReview ? <Loader2 className="animate-spin" size={20} /> : <Send size={20} />}
-                      <span>РќР°РґС–СЃР»Р°С‚Рё РІС–РґРіСѓРє</span>
+                      <span>Надіслати відгук</span>
                     </button>
                   </form>
                 ) : (
                   <div className="text-center p-8 bg-slate-50 rounded-[2rem] border border-dashed border-slate-200">
-                    <p className="text-slate-500 text-sm leading-relaxed">Р’Рё Р·РјРѕР¶РµС‚Рµ Р·Р°Р»РёС€РёС‚Рё РІС–РґРіСѓРє РїС–СЃР»СЏ С‚РѕРіРѕ, СЏРє РѕС‚СЂРёРјР°С”С‚Рµ Р·Р°РјРѕРІР»РµРЅРЅСЏ Р· С†РёРј С‚РѕРІР°СЂРѕРј. Р¦Рµ РіР°СЂР°РЅС‚СѓС” С‡РµСЃРЅС–СЃС‚СЊ РІС–РґРіСѓРєС–РІ.</p>
+                    <p className="text-slate-500 text-sm leading-relaxed">Ви зможете залишити відгук після того, як отримаєте замовлення з цим товаром. Це гарантує чесність відгуків.</p>
                   </div>
                 )
               ) : (
                 <div className="text-center p-8 bg-slate-50 rounded-[2rem] border border-dashed border-slate-200">
-                  <p className="text-slate-500 text-sm mb-6">РЈРІС–Р№РґС–С‚СЊ Сѓ СЃРІС–Р№ Р°РєР°СѓРЅС‚, С‰РѕР± РїРѕРґС–Р»РёС‚РёСЃСЏ РІСЂР°Р¶РµРЅРЅСЏРјРё</p>
-                  <Link to="/login" className="inline-block bg-white text-slate-900 px-8 py-3 rounded-xl font-bold border border-slate-200 hover:bg-tiffany hover:text-white hover:border-tiffany transition-all">РЈРІС–Р№С‚Рё</Link>
+                  <p className="text-slate-500 text-sm mb-6">Увійдіть у свій акаунт, щоб поділитися враженнями</p>
+                  <Link to="/login" className="inline-block bg-white text-slate-900 px-8 py-3 rounded-xl font-bold border border-slate-200 hover:bg-tiffany hover:text-white hover:border-tiffany transition-all">Увійти</Link>
                 </div>
               )}
             </div>
@@ -650,11 +661,11 @@ export const ProductDetail = () => {
                   initial={{ opacity: 0, x: 20 }}
                   whileInView={{ opacity: 1, x: 0 }}
                   viewport={{ once: true }}
-                  className="bg-white rounded-[2.5rem] p-10 border border-slate-100 shadow-sm hover:shadow-md transition-shadow"
+                  className="bg-white rounded-lg p-10 border border-slate-100 shadow-sm hover:shadow-md transition-shadow"
                 >
                   <div className="flex justify-between items-start mb-6">
                     <div className="flex items-center gap-5">
-                      <div className="w-14 h-14 bg-slate-50 rounded-2xl flex items-center justify-center text-slate-400">
+                      <div className="w-14 h-14 bg-slate-50 rounded-lg flex items-center justify-center text-slate-400">
                         <User size={28} />
                       </div>
                       <div>
@@ -674,11 +685,11 @@ export const ProductDetail = () => {
                 </motion.div>
               ))
             ) : (
-              <div className="text-center py-32 bg-slate-50 rounded-[4rem] border border-dashed border-slate-200">
+              <div className="text-center py-32 bg-slate-50 rounded-lg border border-dashed border-slate-200">
                 <div className="w-20 h-20 bg-white rounded-full flex items-center justify-center mx-auto mb-6 text-slate-200">
                   <MessageSquare size={40} />
                 </div>
-                <p className="text-slate-400 font-medium">Р©Рµ РЅРµРјР°С” Р¶РѕРґРЅРѕРіРѕ РІС–РґРіСѓРєСѓ. Р‘СѓРґСЊС‚Рµ РїРµСЂС€РёРј!</p>
+                <p className="text-slate-400 font-medium">Ще немає жодного відгуку. Будьте першим!</p>
               </div>
             )}
           </div>
@@ -690,10 +701,12 @@ export const ProductDetail = () => {
         <section>
           <div className="flex items-end justify-between mb-12">
             <div>
-              <div className="text-tiffany font-bold text-xs uppercase tracking-[0.3em] mb-4">Р’Р°Рј С‚Р°РєРѕР¶ СЃРїРѕРґРѕР±Р°С”С‚СЊСЃСЏ</div>
-              <h2 className="text-4xl font-serif font-bold text-slate-900">РЎС…РѕР¶С– С‚РѕРІР°СЂРё</h2>
+              <div className="mb-4 flex items-center gap-3 text-xs font-bold uppercase tracking-[0.3em] text-tiffany-deep">
+                <span aria-hidden="true" className="h-px w-8 bg-gold/70" /> Вам також сподобається
+              </div>
+              <h2 className="text-4xl font-serif font-bold text-slate-900">Схожі товари</h2>
             </div>
-            <Link to="/catalog" className="text-sm font-bold text-slate-400 hover:text-tiffany transition-colors uppercase tracking-widest">Р”РёРІРёС‚РёСЃСЊ РІСЃРµ</Link>
+            <Link to="/catalog" className="text-sm font-bold text-slate-400 hover:text-tiffany transition-colors uppercase tracking-widest">Дивитись все</Link>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
             {relatedProducts.map(p => (

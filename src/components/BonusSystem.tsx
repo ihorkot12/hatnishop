@@ -2,16 +2,14 @@ import React from 'react';
 import { motion } from 'framer-motion';
 import { Gift, ShieldCheck, Star } from 'lucide-react';
 import { formatCashbackRate, loyaltyTiers } from '../utils/loyalty';
+import { Eyebrow } from './Eyebrow';
 
 export const BonusSystem = () => {
   return (
-    <section className="bg-[#f8f4ef] py-20">
+    <section className="bg-cream py-20">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="mx-auto mb-12 max-w-3xl text-center">
-          <div className="mb-4 inline-flex items-center gap-2 rounded-lg border border-tiffany/20 bg-white/70 px-4 py-2 text-[11px] font-bold uppercase text-tiffany">
-            <Gift size={14} />
-            Програма лояльності
-          </div>
+          <Eyebrow icon={<Gift size={14} />}>Програма лояльності</Eyebrow>
           <h2 className="text-4xl font-serif font-bold leading-tight text-slate-950 sm:text-5xl">
             Бонуси, які не заважають купувати красиво
           </h2>

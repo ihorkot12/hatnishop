@@ -3,8 +3,11 @@
 
 @theme {
   --color-tiffany: #81D8D0;
+  --color-tiffany-deep: #68b8b0;
   --color-gold: #D4AF37;
   --color-warm-bg: #F9F7F5;
+  --color-cream: #f8f4ef;
+  --color-cream-dark: #f4f0ea;
   --font-sans: "Manrope", ui-sans-serif, system-ui, sans-serif;
   --font-serif: "Cormorant Garamond", serif;
 }
@@ -12,6 +15,16 @@
 @layer base {
   body {
     @apply bg-warm-bg text-slate-900 antialiased;
+  }
+
+  /* Respect users who prefer reduced motion: collapse all CSS animations/transitions */
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
   }
   
   h1, h2, h3, h4 {

@@ -85,8 +85,9 @@ export const QuickView: React.FC<QuickViewProps> = ({ product, onClose }) => {
           exit={{ opacity: 0, scale: 0.9, y: 20 }}
           className="relative w-full max-w-4xl bg-white rounded-[3rem] overflow-hidden shadow-2xl flex flex-col md:flex-row"
         >
-          <button 
+          <button
             onClick={onClose}
+            aria-label="Закрити швидкий перегляд"
             className="absolute top-6 right-6 z-10 w-12 h-12 bg-white rounded-full flex items-center justify-center text-slate-400 hover:text-slate-900 transition-all shadow-lg"
           >
             <X size={24} />
@@ -120,17 +121,19 @@ export const QuickView: React.FC<QuickViewProps> = ({ product, onClose }) => {
               <span className="text-tiffany font-bold text-[10px] uppercase tracking-widest">{product.category}</span>
               {isBundle && (
                 <span className="inline-flex items-center gap-1.5 rounded-full bg-tiffany/10 px-3 py-1 text-[10px] font-bold uppercase text-tiffany">
-                  <Gift size={12} /> РќР°Р±С–СЂ
+                  <Gift size={12} /> Набір
                 </span>
               )}
-              <div className="flex items-center gap-1 text-gold">
-                <Star size={14} fill="currentColor" />
-                <span className="text-slate-900 font-bold text-sm">{product.rating || '5.0'}</span>
-              </div>
+              {Number(product.rating || 0) > 0 && (
+                <div className="flex items-center gap-1 text-gold">
+                  <Star size={14} fill="currentColor" />
+                  <span className="text-slate-900 font-bold text-sm">{product.rating}</span>
+                </div>
+              )}
             </div>
 
             <h2 className="text-3xl font-serif font-bold text-slate-900 mb-4">{product.name}</h2>
-            <div className="text-2xl font-bold text-slate-900 mb-6">{product.price} РіСЂРЅ</div>
+            <div className="text-2xl font-bold text-slate-900 mb-6">{product.price} грн</div>
             
             <div className="relative mb-8">
               <p className={`text-slate-500 leading-relaxed transition-all duration-300 ${isExpanded ? '' : 'line-clamp-3'}`}>
@@ -141,14 +144,14 @@ export const QuickView: React.FC<QuickViewProps> = ({ product, onClose }) => {
                   onClick={() => setIsExpanded(!isExpanded)}
                   className="text-tiffany font-bold text-[10px] uppercase tracking-wider hover:underline"
                 >
-                  {isExpanded ? 'Р—РіРѕСЂРЅСѓС‚Рё' : 'Р§РёС‚Р°С‚Рё РїРѕРІРЅС–СЃС‚СЋ'}
+                  {isExpanded ? 'Згорнути' : 'Читати повністю'}
                 </button>
                 <Link 
                   to={`/product/${product.id}`}
                   onClick={onClose}
                   className="text-slate-400 font-bold text-[10px] uppercase tracking-wider hover:text-slate-900 flex items-center gap-1"
                 >
-                  РЎС‚РѕСЂС–РЅРєР° С‚РѕРІР°СЂСѓ <ArrowRight size={10} />
+                  Сторінка товару <ArrowRight size={10} />
                 </Link>
               </div>
             </div>
@@ -156,11 +159,11 @@ export const QuickView: React.FC<QuickViewProps> = ({ product, onClose }) => {
             <div className="space-y-4 mb-8">
               <div className="flex items-center gap-3 text-xs text-slate-600">
                 <Truck size={16} className="text-tiffany" />
-                <span>Р‘РµР·РєРѕС€С‚РѕРІРЅР° РґРѕСЃС‚Р°РІРєР° РІС–Рґ 1500 РіСЂРЅ</span>
+                <span>Безкоштовна доставка від 1500 грн</span>
               </div>
               <div className="flex items-center gap-3 text-xs text-slate-600">
                 <ShieldCheck size={16} className="text-tiffany" />
-                <span>Р“Р°СЂР°РЅС‚С–СЏ СЏРєРѕСЃС‚С– С‚Р° РїРµСЂРµРІС–СЂРєР° РїРµСЂРµРґ РІС–РґРїСЂР°РІРєРѕСЋ</span>
+                <span>Гарантія якості та перевірка перед відправкою</span>
               </div>
             </div>
 
@@ -172,10 +175,11 @@ export const QuickView: React.FC<QuickViewProps> = ({ product, onClose }) => {
                 }}
                 className="flex-1 bg-slate-900 text-white h-14 rounded-2xl font-bold flex items-center justify-center gap-3 hover:bg-tiffany transition-all shadow-xl shadow-slate-900/10"
               >
-                <ShoppingCart size={20} /> {isBundle ? 'Р”РѕРґР°С‚Рё РЅР°Р±С–СЂ' : 'Р”РѕРґР°С‚Рё РІ РєРѕС€РёРє'}
+                <ShoppingCart size={20} /> {isBundle ? 'Додати набір' : 'Додати в кошик'}
               </button>
-              <button 
+              <button
                 onClick={() => toggleWishlist(product)}
+                aria-label={isWishlisted ? `Прибрати «${product.name}» з обраного` : `Додати «${product.name}» в обране`}
                 className={`w-14 h-14 border rounded-2xl flex items-center justify-center transition-all ${isWishlisted ? 'bg-pink-50 text-pink-500 border-pink-200' : 'border-slate-200 text-slate-400 hover:text-pink-500 hover:border-pink-200'}`}
               >
                 <Heart size={20} fill={isWishlisted ? "currentColor" : "none"} />
@@ -184,7 +188,8 @@ export const QuickView: React.FC<QuickViewProps> = ({ product, onClose }) => {
                 onClick={toggleSubscription}
                 disabled={subscribing}
                 className={`w-14 h-14 border rounded-2xl flex items-center justify-center transition-all ${isSubscribed ? 'bg-tiffany/10 text-tiffany border-tiffany/20' : 'border-slate-200 text-slate-400 hover:text-tiffany hover:border-tiffany'}`}
-                title={isSubscribed ? "РЎРєР°СЃСѓРІР°С‚Рё СЃРїРѕРІС–С‰РµРЅРЅСЏ" : "РЎРїРѕРІС–СЃС‚РёС‚Рё РїСЂРѕ Р·РЅРёР¶РµРЅРЅСЏ С†С–РЅРё"}
+                title={isSubscribed ? "Скасувати сповіщення" : "Сповістити про зниження ціни"}
+                aria-label={isSubscribed ? "Скасувати сповіщення про зниження ціни" : "Сповістити про зниження ціни"}
               >
                 <Bell size={20} fill={isSubscribed ? "currentColor" : "none"} />
               </button>

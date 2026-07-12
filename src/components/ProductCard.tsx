@@ -6,6 +6,7 @@ import { Product } from '../types';
 import { useCart } from '../store/CartContext';
 import { useWishlist } from '../store/WishlistContext';
 import { isBundleProduct } from '../utils/productFlags';
+import { useCategoryLabel } from '../utils/categoryNames';
 
 interface ProductCardProps {
   product: Product;
@@ -23,6 +24,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, onQuickView }
   const isAvailable = stock > 0;
   const isBundle = isBundleProduct(product as any);
   const hasProductImage = Boolean(String(product.image || '').trim());
+  const categoryLabel = useCategoryLabel(product.category);
 
   return (
     <motion.article
@@ -30,9 +32,9 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, onQuickView }
       whileInView={{ opacity: 1, y: 0 }}
       viewport={{ once: true, margin: '-80px' }}
       whileHover={{ y: -4 }}
-      className="group relative overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm transition-shadow duration-500 hover:shadow-2xl hover:shadow-slate-950/10"
+      className="group relative overflow-hidden rounded-lg border border-slate-900/10 bg-white transition-shadow duration-500 hover:shadow-lg hover:shadow-slate-950/10"
     >
-      <Link to={`/product/${product.id}`} className="relative block aspect-[4/5] overflow-hidden bg-[#f4f0ea] hover:no-underline">
+      <Link to={`/product/${product.id}`} className="relative block aspect-[4/5] overflow-hidden bg-cream-dark hover:no-underline">
         {hasProductImage ? (
           <img
             src={product.image}
@@ -46,7 +48,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, onQuickView }
         ) : (
           <div
             aria-label={product.name}
-            className="flex h-full w-full items-center justify-center bg-[#f4f0ea] text-center"
+            className="flex h-full w-full items-center justify-center bg-cream-dark text-center"
           >
             <span className="font-serif text-4xl font-bold uppercase text-slate-300">
               Hatni
@@ -56,28 +58,28 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, onQuickView }
 
         <div className="absolute left-4 top-4 flex flex-col gap-2">
           {isBundle && (
-            <span className="inline-flex items-center gap-1.5 rounded-md bg-tiffany px-3 py-1 text-[10px] font-bold uppercase text-white shadow-sm">
+            <span className="inline-flex items-center gap-1.5 rounded-lg bg-tiffany px-3 py-1 text-[10px] font-bold uppercase text-white shadow-sm">
               <Gift size={12} /> Набір
             </span>
           )}
           {product.isPopular && (
-            <span className="rounded-md bg-slate-950 px-3 py-1 text-[10px] font-bold uppercase text-white">
+            <span className="rounded-lg bg-slate-950 px-3 py-1 text-[10px] font-bold uppercase text-white">
               Вибір покупців
             </span>
           )}
           {isLowStock && (
-            <span className="rounded-md bg-white px-3 py-1 text-[10px] font-bold uppercase text-red-600 shadow-sm">
+            <span className="rounded-lg bg-white px-3 py-1 text-[10px] font-bold uppercase text-red-600 shadow-sm">
               Лишилось {stock} шт
             </span>
           )}
           {!isAvailable && (
-            <span className="rounded-md bg-white px-3 py-1 text-[10px] font-bold uppercase text-slate-500 shadow-sm">
+            <span className="rounded-lg bg-white px-3 py-1 text-[10px] font-bold uppercase text-slate-500 shadow-sm">
               Немає в наявності
             </span>
           )}
         </div>
 
-        <div className="absolute bottom-4 right-4 flex gap-2 opacity-0 transition-opacity duration-300 group-hover:opacity-100">
+        <div className="absolute bottom-4 right-4 flex gap-2 opacity-100 transition-opacity duration-300 lg:opacity-0 lg:group-hover:opacity-100 lg:group-focus-within:opacity-100">
           <button
             type="button"
             onClick={(event) => {
@@ -108,11 +110,13 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, onQuickView }
 
       <div className="p-5">
         <div className="mb-3 flex items-center justify-between gap-3">
-          <span className="truncate text-[11px] font-bold uppercase text-slate-400">{product.category}</span>
-          <span className="flex items-center gap-1 text-xs font-bold text-slate-700">
-            <Star size={13} fill="currentColor" className="text-gold" />
-            {Number(product.rating || 5).toFixed(1)}
-          </span>
+          <span className="truncate text-[11px] font-bold uppercase text-slate-400">{categoryLabel}</span>
+          {Number((product as any).review_count || 0) > 0 && (
+            <span className="flex items-center gap-1 text-xs font-bold text-slate-700">
+              <Star size={13} fill="currentColor" className="text-gold" />
+              {Number(product.rating).toFixed(1)}
+            </span>
+          )}
         </div>
 
         <Link

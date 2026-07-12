@@ -5,7 +5,7 @@ import { generateDirectorReport } from '../services/aiDirectorService';
 import { compressDataUrl, fileToBase64 } from '../utils/imageUtils';
 import Markdown from 'react-markdown';
 import { Package, ShoppingCart, TrendingUp, Plus, Edit2, Trash2, CheckCircle, Clock, Star, Truck, Users, Shield, UserPlus, Filter, Settings, MessageSquare, Tag, Upload, Loader2, Sparkles, Share2, Database, RefreshCw, AlertTriangle, Camera, Globe2, Images } from 'lucide-react';
-import { ProductImporter } from '../components/ProductImporter';
+import { ImportWizard } from '../components/import/ImportWizard';
 import { MOCK_PRODUCTS } from '../constants';
 import { Order, User } from '../types';
 import { calculateBundlePrice, suggestBundleItemIdsLocally, suggestBundleItemsLocally } from '../utils/bundleRecommendations';
@@ -15,42 +15,42 @@ import { useAuth } from '../store/AuthContext';
 import { useNavigate } from 'react-router-dom';
 
 const salesData = [
-  { name: 'РџРЅ', sales: 4000 },
-  { name: 'Р’С‚', sales: 3000 },
-  { name: 'РЎСЂ', sales: 2000 },
-  { name: 'Р§С‚', sales: 2780 },
-  { name: 'РџС‚', sales: 1890 },
-  { name: 'РЎР±', sales: 2390 },
-  { name: 'РќРґ', sales: 3490 },
+  { name: 'Пн', sales: 4000 },
+  { name: 'Вт', sales: 3000 },
+  { name: 'Ср', sales: 2000 },
+  { name: 'Чт', sales: 2780 },
+  { name: 'Пт', sales: 1890 },
+  { name: 'Сб', sales: 2390 },
+  { name: 'Нд', sales: 3490 },
 ];
 
 const categoryData = [
-  { name: 'РџРѕСЃСѓРґ', value: 400 },
-  { name: 'РўРµРєСЃС‚РёР»СЊ', value: 300 },
-  { name: 'РљСѓС…РЅСЏ', value: 300 },
-  { name: 'Р”РµРєРѕСЂ', value: 200 },
+  { name: 'Посуд', value: 400 },
+  { name: 'Текстиль', value: 300 },
+  { name: 'Кухня', value: 300 },
+  { name: 'Декор', value: 200 },
 ];
 
 const PAYMENT_LABELS: Record<string, string> = {
   mono: 'Mono Pay',
   liqpay: 'LiqPay',
-  cash: 'РќР°РєР»Р°РґРµРЅРёР№ РїР»Р°С‚С–Р¶',
-  card: 'РљР°СЂС‚Р°',
-  bank: 'РџРµСЂРµРєР°Р· РЅР° СЂР°С…СѓРЅРѕРє'
+  cash: 'Накладений платіж',
+  card: 'Карта',
+  bank: 'Переказ на рахунок'
 };
 
 const DELIVERY_LABELS: Record<string, string> = {
-  'nova-poshta': 'РќРѕРІР° РџРѕС€С‚Р°',
-  'ukr-poshta': 'РЈРєСЂРїРѕС€С‚Р°',
-  'quick-order': 'РЁРІРёРґРєРµ Р·Р°РјРѕРІР»РµРЅРЅСЏ'
+  'nova-poshta': 'Нова Пошта',
+  'ukr-poshta': 'Укрпошта',
+  'quick-order': 'Швидке замовлення'
 };
 
-const getPaymentLabel = (method?: string) => PAYMENT_LABELS[method || ''] || 'РќР°РєР»Р°РґРµРЅРёР№ РїР»Р°С‚С–Р¶';
-const getDeliveryLabel = (method?: string) => DELIVERY_LABELS[method || ''] || 'РќРѕРІР° РџРѕС€С‚Р°';
+const getPaymentLabel = (method?: string) => PAYMENT_LABELS[method || ''] || 'Накладений платіж';
+const getDeliveryLabel = (method?: string) => DELIVERY_LABELS[method || ''] || 'Нова Пошта';
 const getDeliveryShortLabel = (method?: string) => {
-  if (method === 'nova-poshta') return 'РќРџ';
-  if (method === 'ukr-poshta') return 'РЈРџ';
-  if (method === 'quick-order') return 'РЁРІРёРґРєРµ';
+  if (method === 'nova-poshta') return 'НП';
+  if (method === 'ukr-poshta') return 'УП';
+  if (method === 'quick-order') return 'Швидке';
   return getDeliveryLabel(method);
 };
 const getOrderCustomer = (order: any) => ({
@@ -74,7 +74,7 @@ const getOrderDeliveryDestination = (order: any) => {
   const warehouse = firstFilled(customer.warehouse, order?.warehouse, order?.customer_warehouse);
   const address = firstFilled(customer.address, order?.customer_address, order?.address);
   const destination = stripCityPrefix(warehouse || address, city);
-  return destination || 'РќРµ РІРєР°Р·Р°РЅРѕ';
+  return destination || 'Не вказано';
 };
 const getOrderPaymentMethod = (order: any) => order?.paymentMethod ?? order?.payment_method ?? 'cash';
 const getOrderDeliveryMethod = (order: any) => order?.customer?.deliveryMethod ?? order?.delivery_method;
@@ -254,27 +254,27 @@ export const Admin = () => {
 
   const inferBundleTheme = (items: any[]) => {
     const text = normalizeAdminProductText(items.map(item => `${item.name} ${item.category} ${item.material || ''}`).join(' '));
-    if (/РєР°РІР°|Р»Р°С‚Рµ|С‡Р°С€|РєСѓС…РѕР»СЊ|РіР»РµС‡|СЃРєР»СЏРЅ|РєРµР»РёС…/.test(text)) return 'Р Р°РЅРєРѕРІР° РєР°РІР°';
-    if (/С‚Р°СЂС–Р»|Р±Р»СЋРґРѕ|СЃР°Р»Р°С‚|СЃРµСЂРІ|РІРёРґРµР»|Р»РѕР¶/.test(text)) return 'РЎРµСЂРІС–СЂСѓРІР°РЅРЅСЏ СЃС‚РѕР»Сѓ';
-    if (/Р±Р°РЅРє|С”РјРЅ|РєРѕРЅС‚РµР№РЅ|СЃРёРїСѓС‡|РѕСЂРіР°РЅ|РєРѕС€РёРє/.test(text)) return 'РџРѕСЂСЏРґРѕРє РЅР° РєСѓС…РЅС–';
-    if (/С„РѕСЂРјР°|РґРµРєРѕ|РІРёРїС–С‡|Р»РѕРїР°С‚|РїРµРЅР·Р»/.test(text)) return 'РљСѓС…РѕРЅРЅРёР№ СЃС‚Р°СЂС‚';
-    return 'РџРѕРґР°СЂСѓРЅРѕРє РґР»СЏ РґРѕРјСѓ';
+    if (/кава|лате|чаш|кухоль|глеч|склян|келих/.test(text)) return 'Ранкова кава';
+    if (/таріл|блюдо|салат|серв|видел|лож/.test(text)) return 'Сервірування столу';
+    if (/банк|ємн|контейн|сипуч|орган|кошик/.test(text)) return 'Порядок на кухні';
+    if (/форма|деко|випіч|лопат|пензл/.test(text)) return 'Кухонний старт';
+    return 'Подарунок для дому';
   };
 
   const buildBundleDescription = (items: any[], regularTotal: number, bundlePrice: number) => {
     const savings = Math.max(0, regularTotal - bundlePrice);
-    const itemLines = items.map((item, index) => `${index + 1}. ${item.name} вЂ” ${Number(item.price || 0)} РіСЂРЅ`).join('\n');
+    const itemLines = items.map((item, index) => `${index + 1}. ${item.name} — ${Number(item.price || 0)} грн`).join('\n');
     return [
-      `Р“РѕС‚РѕРІРёР№ РЅР°Р±С–СЂ Hatni Shop Р· ${items.length} СЃСѓРјС–СЃРЅРёС… С‚РѕРІР°СЂС–РІ.`,
+      `Готовий набір Hatni Shop з ${items.length} сумісних товарів.`,
       '',
-      'РЈ РЅР°Р±РѕСЂС–:',
+      'У наборі:',
       itemLines,
       '',
-      `РћРєСЂРµРјРѕ: ${regularTotal} РіСЂРЅ.`,
-      `Р¦С–РЅР° РЅР°Р±РѕСЂСѓ: ${bundlePrice} РіСЂРЅ.`,
-      `Р•РєРѕРЅРѕРјС–СЏ: ${savings} РіСЂРЅ.`,
+      `Окремо: ${regularTotal} грн.`,
+      `Ціна набору: ${bundlePrice} грн.`,
+      `Економія: ${savings} грн.`,
       '',
-      'РќР°Р±С–СЂ СЃС„РѕСЂРјРѕРІР°РЅРёР№ С‚Р°Рє, С‰РѕР± С‚РѕРІР°СЂРё РїР°СЃСѓРІР°Р»Рё Р·Р° СЃС†РµРЅР°СЂС–С”Рј РІРёРєРѕСЂРёСЃС‚Р°РЅРЅСЏ, С†С–РЅРѕСЋ С‚Р° РЅР°СЏРІРЅС–СЃС‚СЋ.'
+      'Набір сформований так, щоб товари пасували за сценарієм використання, ціною та наявністю.'
     ].join('\n');
   };
 
@@ -384,7 +384,7 @@ export const Admin = () => {
   }, [products]);
 
   useEffect(() => {
-    document.title = 'РђРґРјС–РЅ-РїР°РЅРµР»СЊ вЂ” РҐР°С‚РЅС– РЁС‚СѓС‡РєРё';
+    document.title = 'Адмін-панель — Хатні Штучки';
   }, []);
 
   useEffect(() => {
@@ -420,13 +420,13 @@ export const Admin = () => {
   };
 
   const resetDbDegradedMode = async () => {
-    if (!window.confirm('Р’Рё РІРїРµРІРЅРµРЅС–, С‰Рѕ С…РѕС‡РµС‚Рµ СЃРєРёРЅСѓС‚Рё РѕР±РјРµР¶РµРЅРЅСЏ Р±Р°Р·Рё РґР°РЅРёС…? Р¦Рµ РїСЂРёР·РІРµРґРµ РґРѕ СЃРїСЂРѕР±Рё РїС–РґРєР»СЋС‡РµРЅРЅСЏ РїСЂРё РЅР°СЃС‚СѓРїРЅРѕРјСѓ Р·Р°РїРёС‚С–.')) return;
+    if (!window.confirm('Ви впевнені, що хочете скинути обмеження бази даних? Це призведе до спроби підключення при наступному запиті.')) return;
     
     setIsResettingDb(true);
     try {
       const res = await fetch('/api/admin/db/reset-degraded', { method: 'POST' });
       if (res.ok) {
-        alert('РћР±РјРµР¶РµРЅРЅСЏ СЃРєРёРЅСѓС‚Рѕ. Р‘Р°Р·Р° РґР°РЅРёС… СЃРїСЂРѕР±СѓС” РїС–РґРєР»СЋС‡РёС‚РёСЃСЏ Р·РЅРѕРІСѓ.');
+        alert('Обмеження скинуто. База даних спробує підключитися знову.');
         fetchDbStatus();
       }
     } catch (error) {
@@ -511,7 +511,7 @@ export const Admin = () => {
         body: JSON.stringify(siteSettings)
       });
       if (res.ok) {
-        alert('РќР°Р»Р°С€С‚СѓРІР°РЅРЅСЏ Р·Р±РµСЂРµР¶РµРЅРѕ');
+        alert('Налаштування збережено');
       }
     } catch (err) {
       console.error(err);
@@ -550,7 +550,7 @@ export const Admin = () => {
 
   const createBonusCode = async () => {
     if (!newBonusCode.title || !newBonusCode.code) {
-      alert('Р‘СѓРґСЊ Р»Р°СЃРєР°, Р·Р°РїРѕРІРЅС–С‚СЊ Р·Р°РіРѕР»РѕРІРѕРє С‚Р° РєРѕРґ');
+      alert('Будь ласка, заповніть заголовок та код');
       return;
     }
     try {
@@ -572,14 +572,14 @@ export const Admin = () => {
           description: '',
           type: 'promo'
         });
-        alert('РђРєС†С–СЋ РґРѕРґР°РЅРѕ СѓСЃРїС–С€РЅРѕ');
+        alert('Акцію додано успішно');
       } else {
         const error = await res.json();
-        alert(`РџРѕРјРёР»РєР°: ${error.error || 'РќРµ РІРґР°Р»РѕСЃСЏ РґРѕРґР°С‚Рё Р°РєС†С–СЋ'}`);
+        alert(`Помилка: ${error.error || 'Не вдалося додати акцію'}`);
       }
     } catch (err) {
       console.error(err);
-      alert('РџРѕРјРёР»РєР° РїСЂРё Р·\'С”РґРЅР°РЅРЅС– Р· СЃРµСЂРІРµСЂРѕРј');
+      alert('Помилка при з\'єднанні з сервером');
     }
   };
 
@@ -595,7 +595,7 @@ export const Admin = () => {
         setShowBonusCodeModal(false);
         setEditingBonusCode(null);
         fetchBonusCodes();
-        alert('РђРєС†С–СЋ РѕРЅРѕРІР»РµРЅРѕ');
+        alert('Акцію оновлено');
       }
     } catch (err) {
       console.error(err);
@@ -603,7 +603,7 @@ export const Admin = () => {
   };
 
   const deleteBonusCode = async (id: string) => {
-    if (!confirm('Р’Рё РІРїРµРІРЅРµРЅС–, С‰Рѕ С…РѕС‡РµС‚Рµ РІРёРґР°Р»РёС‚Рё С†РµР№ РїСЂРѕРјРѕРєРѕРґ?')) return;
+    if (!confirm('Ви впевнені, що хочете видалити цей промокод?')) return;
     try {
       const res = await fetch(`/api/admin/bonus-codes/${id}`, { method: 'DELETE' });
       if (res.ok) fetchBonusCodes();
@@ -641,7 +641,7 @@ export const Admin = () => {
   };
 
   const deleteReview = async (id: string) => {
-    if (!confirm('Р’Рё РІРїРµРІРЅРµРЅС–, С‰Рѕ С…РѕС‡РµС‚Рµ РІРёРґР°Р»РёС‚Рё С†РµР№ РІС–РґРіСѓРє?')) return;
+    if (!confirm('Ви впевнені, що хочете видалити цей відгук?')) return;
     try {
       const res = await fetch(`/api/admin/reviews/${id}`, { method: 'DELETE' });
       if (res.ok) {
@@ -665,7 +665,7 @@ export const Admin = () => {
         setShowReviewModal(false);
         setEditingReview(null);
         fetchReviews();
-        alert('Р’С–РґРіСѓРє РѕРЅРѕРІР»РµРЅРѕ');
+        alert('Відгук оновлено');
       }
     } catch (err) {
       console.error(err);
@@ -687,7 +687,7 @@ export const Admin = () => {
   };
 
   const resetStats = async () => {
-    if (!window.confirm('Р’Рё РІРїРµРІРЅРµРЅС–, С‰Рѕ С…РѕС‡РµС‚Рµ СЃРєРёРЅСѓС‚Рё РІСЃСЋ СЃС‚Р°С‚РёСЃС‚РёРєСѓ? Р¦Рµ РІРёРґР°Р»РёС‚СЊ СѓСЃС– Р·Р°РјРѕРІР»РµРЅРЅСЏ Р· Р±Р°Р·Рё РґР°РЅРёС…!')) return;
+    if (!window.confirm('Ви впевнені, що хочете скинути всю статистику? Це видалить усі замовлення з бази даних!')) return;
     try {
       const res = await fetch('/api/admin/stats/reset', { method: 'POST' });
       if (res.ok) fetchStats();
@@ -750,7 +750,7 @@ export const Admin = () => {
   };
 
   const updateUserBonuses = async (userId: string, currentBonuses: number) => {
-    const amount = window.prompt('Р’РІРµРґС–С‚СЊ РЅРѕРІСѓ РєС–Р»СЊРєС–СЃС‚СЊ Р±РѕРЅСѓСЃС–РІ:', currentBonuses.toString());
+    const amount = window.prompt('Введіть нову кількість бонусів:', currentBonuses.toString());
     if (amount === null) return;
     
     try {
@@ -766,7 +766,7 @@ export const Admin = () => {
   };
 
   const deleteCategory = async (id: string) => {
-    if (!window.confirm('Р’Рё РІРїРµРІРЅРµРЅС–, С‰Рѕ С…РѕС‡РµС‚Рµ РІРёРґР°Р»РёС‚Рё С†СЋ РєР°С‚РµРіРѕСЂС–СЋ?')) return;
+    if (!window.confirm('Ви впевнені, що хочете видалити цю категорію?')) return;
     try {
       const res = await fetch(`/api/admin/categories/${id}`, { method: 'DELETE' });
       if (res.ok) fetchCategories();
@@ -796,11 +796,11 @@ export const Admin = () => {
         fetchCategories();
       } else {
         const errorData = await res.json().catch(() => ({}));
-        alert(`РџРѕРјРёР»РєР° Р·Р±РµСЂРµР¶РµРЅРЅСЏ: ${errorData.error || res.statusText}`);
+        alert(`Помилка збереження: ${errorData.error || res.statusText}`);
       }
     } catch (err: any) {
       console.error(err);
-      alert(`РџРѕРјРёР»РєР°: ${err.message}`);
+      alert(`Помилка: ${err.message}`);
     }
   };
 
@@ -841,11 +841,11 @@ export const Admin = () => {
         fetchStats();
       } else {
         const errorData = await res.json().catch(() => ({}));
-        alert(`РџРѕРјРёР»РєР° Р·Р±РµСЂРµР¶РµРЅРЅСЏ: ${errorData.error || res.statusText}`);
+        alert(`Помилка збереження: ${errorData.error || res.statusText}`);
       }
     } catch (err: any) {
       console.error(err);
-      alert(`РџРѕРјРёР»РєР°: ${err.message}`);
+      alert(`Помилка: ${err.message}`);
     }
   };
 
@@ -920,7 +920,7 @@ export const Admin = () => {
   const updateOrderStatus = async (orderId: string, newStatus: string) => {
     let trackingNumber = '';
     if (newStatus === 'shipped') {
-      const input = window.prompt('Р’РІРµРґС–С‚СЊ РЅРѕРјРµСЂ РўРўРќ:');
+      const input = window.prompt('Введіть номер ТТН:');
       if (input === null) return; // Cancelled
       trackingNumber = input;
     }
@@ -938,7 +938,7 @@ export const Admin = () => {
   };
 
   const deleteProduct = async (productId: string) => {
-    if (!window.confirm('Р’Рё РІРїРµРІРЅРµРЅС–, С‰Рѕ С…РѕС‡РµС‚Рµ РІРёРґР°Р»РёС‚Рё С†РµР№ С‚РѕРІР°СЂ?')) return;
+    if (!window.confirm('Ви впевнені, що хочете видалити цей товар?')) return;
     try {
       const res = await fetch(`/api/admin/products/${productId}`, { method: 'DELETE' });
       if (res.ok) fetchProducts();
@@ -979,7 +979,7 @@ export const Admin = () => {
   const handleFindWebImage = async () => {
     const { name, category } = getProductFormBasics();
     if (!name) {
-      alert('Р’РІРµРґС–С‚СЊ РЅР°Р·РІСѓ С‚РѕРІР°СЂСѓ');
+      alert('Введіть назву товару');
       return;
     }
 
@@ -988,14 +988,14 @@ export const Admin = () => {
       const result = await searchProductWebImages(name, category);
       if (!result.configured) {
         window.open(result.openSearchUrl, '_blank', 'noopener,noreferrer');
-        alert('РђРІС‚РѕРјР°С‚РёС‡РЅРёР№ РїРѕС€СѓРє СЂРµР°Р»СЊРЅРёС… С„РѕС‚Рѕ РїРѕС‚СЂРµР±СѓС” GOOGLE_SEARCH_API_KEY С‚Р° GOOGLE_SEARCH_ENGINE_ID Сѓ Vercel. РЇ РІС–РґРєСЂРёРІ РіРѕС‚РѕРІРёР№ РїРѕС€СѓРє, РјРѕР¶РЅР° СЃРєРѕРїС–СЋРІР°С‚Рё С„РѕС‚Рѕ Р°Р±Рѕ URL РІСЂСѓС‡РЅСѓ.');
+        alert('Автоматичний пошук реальних фото потребує GOOGLE_SEARCH_API_KEY та GOOGLE_SEARCH_ENGINE_ID у Vercel. Я відкрив готовий пошук, можна скопіювати фото або URL вручну.');
         return;
       }
 
       const candidate = result.candidates[0];
       if (!candidate) {
         window.open(result.openSearchUrl, '_blank', 'noopener,noreferrer');
-        alert('РђРІС‚РѕРјР°С‚РёС‡РЅРѕ РЅРµ Р·РЅР°Р№С€РѕРІ СЏРєС–СЃРЅРµ С„РѕС‚Рѕ. Р’С–РґРєСЂРёРІ СЂСѓС‡РЅРёР№ РїРѕС€СѓРє РїРѕ РЅР°Р·РІС–.');
+        alert('Автоматично не знайшов якісне фото. Відкрив ручний пошук по назві.');
         return;
       }
 
@@ -1011,7 +1011,7 @@ export const Admin = () => {
       }
     } catch (err: any) {
       console.error(err);
-      alert(`РќРµ РІРґР°Р»РѕСЃСЏ РїС–РґС–Р±СЂР°С‚Рё С„РѕС‚Рѕ РѕРЅР»Р°Р№РЅ: ${err.message || 'РїРѕРјРёР»РєР° СЃРµСЂРІРµСЂР°'}`);
+      alert(`Не вдалося підібрати фото онлайн: ${err.message || 'помилка сервера'}`);
     } finally {
       setIsSearchingWebImage(false);
     }
@@ -1019,7 +1019,7 @@ export const Admin = () => {
 
   const handleAIGenerateDescription = async (name: string, category: string) => {
     if (productDescription && productDescription.trim().length > 0) {
-      if (!confirm('РћРїРёСЃ РІР¶Рµ С–СЃРЅСѓС”. Р’Рё РІРїРµРІРЅРµРЅС–, С‰Рѕ С…РѕС‡РµС‚Рµ РїРµСЂРµРіРµРЅРµСЂСѓРІР°С‚Рё Р№РѕРіРѕ?')) {
+      if (!confirm('Опис вже існує. Ви впевнені, що хочете перегенерувати його?')) {
         return;
       }
     }
@@ -1032,7 +1032,7 @@ export const Admin = () => {
       }
     } catch (err) {
       console.error(err);
-      alert('РџРѕРјРёР»РєР° РїСЂРё РіРµРЅРµСЂР°С†С–С— РѕРїРёСЃСѓ');
+      alert('Помилка при генерації опису');
     } finally {
       setIsGeneratingAI(false);
     }
@@ -1049,7 +1049,7 @@ export const Admin = () => {
       }
     } catch (err) {
       console.error(err);
-      alert('РџРѕРјРёР»РєР° РїСЂРё РіРµРЅРµСЂР°С†С–С— Р·РѕР±СЂР°Р¶РµРЅРЅСЏ');
+      alert('Помилка при генерації зображення');
     } finally {
       setIsGeneratingAI(false);
     }
@@ -1080,7 +1080,7 @@ export const Admin = () => {
       }
     } catch (err) {
       console.error(err);
-      alert('РџРѕРјРёР»РєР° РїСЂРё РіРµРЅРµСЂР°С†С–С— AI РіР°Р»РµСЂРµС—');
+      alert('Помилка при генерації AI галереї');
     } finally {
       setIsGeneratingGallery(false);
     }
@@ -1089,16 +1089,16 @@ export const Admin = () => {
   const getBlockingBulkImageError = (type: 'ai' | 'web', error: any) => {
     const message = String(error?.message || '').trim();
     if (type === 'ai' && /Gemini.*quota|Gemini.*rate limit/i.test(message)) {
-      return 'AI-С„РѕС‚Рѕ Р·СѓРїРёРЅРµРЅРѕ: Gemini С‚Р°РєРѕР¶ СѓРїРµСЂСЃСЏ РІ РєРІРѕС‚Сѓ. Р—Р±С–Р»СЊС€С–С‚СЊ Р»С–РјС–С‚ Gemini API Р°Р±Рѕ РїРѕРїРѕРІРЅС–С‚СЊ OpenAI Billing.';
+      return 'AI-фото зупинено: Gemini також уперся в квоту. Збільшіть ліміт Gemini API або поповніть OpenAI Billing.';
     }
     if (type === 'ai' && /billing hard limit|OpenAI.*quota|OpenAI.*rate limit/i.test(message)) {
-      return 'AI-С„РѕС‚Рѕ Р·СѓРїРёРЅРµРЅРѕ: РЅР° OpenAI Р·Р°РєС–РЅС‡РёРІСЃСЏ Р»С–РјС–С‚/РєСЂРµРґРёС‚Рё. РџРѕРїРѕРІРЅС–С‚СЊ Billing Р°Р±Рѕ РґРѕРґР°Р№С‚Рµ GEMINI_API_KEY Сѓ Vercel СЏРє Р·Р°РїР°СЃРЅРёР№ РіРµРЅРµСЂР°С‚РѕСЂ.';
+      return 'AI-фото зупинено: на OpenAI закінчився ліміт/кредити. Поповніть Billing або додайте GEMINI_API_KEY у Vercel як запасний генератор.';
     }
     if (type === 'ai' && /OPENAI_API_KEY|GEMINI_API_KEY|not configured/i.test(message)) {
-      return 'AI-С„РѕС‚Рѕ Р·СѓРїРёРЅРµРЅРѕ: РЅРµ РЅР°Р»Р°С€С‚РѕРІР°РЅРёР№ РєР»СЋС‡ РіРµРЅРµСЂР°С†С–С— Р·РѕР±СЂР°Р¶РµРЅСЊ Сѓ Vercel.';
+      return 'AI-фото зупинено: не налаштований ключ генерації зображень у Vercel.';
     }
     if (type === 'web' && /Google image search is not configured|GOOGLE_SEARCH/i.test(message)) {
-      return 'Р РµР°Р»СЊРЅС– С„РѕС‚Рѕ Р·СѓРїРёРЅРµРЅРѕ: РЅРµ РЅР°Р»Р°С€С‚РѕРІР°РЅС– GOOGLE_SEARCH_API_KEY С‚Р° GOOGLE_SEARCH_ENGINE_ID Сѓ Vercel.';
+      return 'Реальні фото зупинено: не налаштовані GOOGLE_SEARCH_API_KEY та GOOGLE_SEARCH_ENGINE_ID у Vercel.';
     }
     return '';
   };
@@ -1109,7 +1109,7 @@ export const Admin = () => {
     successLabel: string
   ) => {
     if (targets.length === 0) {
-      alert('Р’РёР±РµСЂС–С‚СЊ С‚РѕРІР°СЂРё РґР»СЏ РјР°СЃРѕРІРѕС— РґС–С—.');
+      alert('Виберіть товари для масової дії.');
       return;
     }
 
@@ -1141,10 +1141,10 @@ export const Admin = () => {
 
       await fetchProducts();
       if (failed === 0) setSelectedProductIds([]);
-      alert(`${successLabel}. РћРЅРѕРІР»РµРЅРѕ: ${success}. РџСЂРѕРїСѓС‰РµРЅРѕ: ${skipped}. РџРѕРјРёР»РѕРє: ${failed}.`);
+      alert(`${successLabel}. Оновлено: ${success}. Пропущено: ${skipped}. Помилок: ${failed}.`);
     } catch (err: any) {
       console.error(err);
-      alert(`РџРѕРјРёР»РєР° РјР°СЃРѕРІРѕРіРѕ РѕРЅРѕРІР»РµРЅРЅСЏ: ${err?.message || err}`);
+      alert(`Помилка масового оновлення: ${err?.message || err}`);
     } finally {
       setIsBulkUpdating(false);
     }
@@ -1152,10 +1152,10 @@ export const Admin = () => {
 
   const applyBulkCategory = () => {
     if (!bulkCategory) {
-      alert('РћР±РµСЂС–С‚СЊ РєР°С‚РµРіРѕСЂС–СЋ РґР»СЏ РІРёР±СЂР°РЅРёС… С‚РѕРІР°СЂС–РІ.');
+      alert('Оберіть категорію для вибраних товарів.');
       return;
     }
-    updateSelectedProducts(selectedProducts, () => ({ category: bulkCategory }), 'РљР°С‚РµРіРѕСЂС–СЋ Р·Р°СЃС‚РѕСЃРѕРІР°РЅРѕ');
+    updateSelectedProducts(selectedProducts, () => ({ category: bulkCategory }), 'Категорію застосовано');
   };
 
   const applyBulkMargin = () => {
@@ -1171,7 +1171,7 @@ export const Admin = () => {
           bonusPoints: Math.max(0, Math.round(price * 0.05))
         };
       },
-      `Р¦С–РЅРё РїРµСЂРµСЂР°С…РѕРІР°РЅРѕ РїС–Рґ РјР°СЂР¶Сѓ ${margin}%`
+      `Ціни перераховано під маржу ${margin}%`
     );
   };
 
@@ -1179,14 +1179,14 @@ export const Admin = () => {
     updateSelectedProducts(
       selectedProducts,
       () => ({ isPopular: bulkPopularMode === 'popular' }),
-      'РЎС‚Р°С‚СѓСЃ РїРѕРїСѓР»СЏСЂРЅРѕСЃС‚С– РѕРЅРѕРІР»РµРЅРѕ'
+      'Статус популярності оновлено'
     );
   };
 
   const createSmartBundle = async () => {
     const items = getSmartBundleItems();
     if (items.length < 2) {
-      alert('РџРѕС‚СЂС–Р±РЅРѕ РјС–РЅС–РјСѓРј 2 РґРѕСЃС‚СѓРїРЅС– С‚РѕРІР°СЂРё, С‰РѕР± СЃС‚РІРѕСЂРёС‚Рё РЅР°Р±С–СЂ.');
+      alert('Потрібно мінімум 2 доступні товари, щоб створити набір.');
       return;
     }
 
@@ -1198,7 +1198,7 @@ export const Admin = () => {
     const similarBundles = products.filter(product =>
       isBundleProduct(product) && normalizeAdminProductText(product.name).includes(normalizedTheme)
     ).length;
-    const name = similarBundles > 0 ? `РќР°Р±С–СЂ "${theme}" #${similarBundles + 1}` : `РќР°Р±С–СЂ "${theme}"`;
+    const name = similarBundles > 0 ? `Набір "${theme}" #${similarBundles + 1}` : `Набір "${theme}"`;
     const images = items
       .filter(productHasUsablePhoto)
       .map(product => String(product.image || '').trim())
@@ -1213,7 +1213,7 @@ export const Admin = () => {
       image: images[0] || '',
       images: images.slice(1, 5),
       description: buildBundleDescription(items, regularTotal, bundlePrice),
-      material: 'РєРѕРјРїР»РµРєС‚',
+      material: 'комплект',
       brand: 'Hatni Shop',
       isPopular: true,
       isBundle: true,
@@ -1235,16 +1235,16 @@ export const Admin = () => {
 
       if (!res.ok) {
         const errorData = await res.json().catch(() => ({}));
-        alert(`РќРµ РІРґР°Р»РѕСЃСЏ СЃС‚РІРѕСЂРёС‚Рё РЅР°Р±С–СЂ: ${errorData.error || res.statusText}`);
+        alert(`Не вдалося створити набір: ${errorData.error || res.statusText}`);
         return;
       }
 
       await fetchProducts();
       setSelectedProductIds([]);
-      alert(`РЎС‚РІРѕСЂРµРЅРѕ ${name}. Р•РєРѕРЅРѕРјС–СЏ РґР»СЏ РєР»С–С”РЅС‚Р°: ${savings} РіСЂРЅ.`);
+      alert(`Створено ${name}. Економія для клієнта: ${savings} грн.`);
     } catch (err: any) {
       console.error(err);
-      alert(`РџРѕРјРёР»РєР° СЃС‚РІРѕСЂРµРЅРЅСЏ РЅР°Р±РѕСЂСѓ: ${err?.message || err}`);
+      alert(`Помилка створення набору: ${err?.message || err}`);
     } finally {
       setIsCreatingSmartBundle(false);
     }
@@ -1253,7 +1253,7 @@ export const Admin = () => {
   const runBulkImageJob = async (type: 'ai' | 'web', customProducts?: any[]) => {
     const targetProducts = customProducts && customProducts.length > 0 ? customProducts : visibleProducts;
     if (targetProducts.length === 0) {
-      alert('РЈ С†СЊРѕРјСѓ С„С–Р»СЊС‚СЂС– РЅРµРјР°С” С‚РѕРІР°СЂС–РІ РґР»СЏ РѕР±СЂРѕР±РєРё.');
+      alert('У цьому фільтрі немає товарів для обробки.');
       return;
     }
 
@@ -1262,19 +1262,19 @@ export const Admin = () => {
       try {
         probe = await searchProductWebImages(targetProducts[0].name, targetProducts[0].category, 1);
       } catch (error: any) {
-        alert(getBlockingBulkImageError(type, error) || `РќРµ РІРґР°Р»РѕСЃСЏ РїРµСЂРµРІС–СЂРёС‚Рё РїРѕС€СѓРє С„РѕС‚Рѕ: ${error?.message || error}`);
+        alert(getBlockingBulkImageError(type, error) || `Не вдалося перевірити пошук фото: ${error?.message || error}`);
         return;
       }
       if (!probe.configured) {
         window.open(probe.openSearchUrl, '_blank', 'noopener,noreferrer');
-        alert('Р”Р»СЏ Р°РІС‚РѕРјР°С‚РёС‡РЅРѕРіРѕ РјР°СЃРѕРІРѕРіРѕ РїС–РґР±РѕСЂСѓ СЂРµР°Р»СЊРЅРёС… С„РѕС‚Рѕ С‚СЂРµР±Р° РґРѕРґР°С‚Рё GOOGLE_SEARCH_API_KEY С‚Р° GOOGLE_SEARCH_ENGINE_ID Сѓ Vercel. Р‘РµР· РЅРёС… РІС–РґРєСЂРёРІР°СЋ СЂСѓС‡РЅРёР№ РїРѕС€СѓРє.');
+        alert('Для автоматичного масового підбору реальних фото треба додати GOOGLE_SEARCH_API_KEY та GOOGLE_SEARCH_ENGINE_ID у Vercel. Без них відкриваю ручний пошук.');
         return;
       }
     }
 
-    const label = type === 'ai' ? 'AI-С„РѕС‚Рѕ' : 'СЂРµР°Р»СЊРЅС– С„РѕС‚Рѕ Р· РїРѕС€СѓРєСѓ';
-    const scopeLabel = customProducts && customProducts.length > 0 ? 'РІРёР±СЂР°РЅРёС… С‚РѕРІР°СЂС–РІ' : 'С‚РѕРІР°СЂС–РІ Сѓ РїРѕС‚РѕС‡РЅРѕРјСѓ С„С–Р»СЊС‚СЂС–';
-    if (!window.confirm(`Р—Р°РїСѓСЃС‚РёС‚Рё РјР°СЃРѕРІРµ РѕРЅРѕРІР»РµРЅРЅСЏ: ${label} РґР»СЏ ${targetProducts.length} ${scopeLabel}? Р¦Рµ РјРѕР¶Рµ С‚СЂРёРІР°С‚Рё РєС–Р»СЊРєР° С…РІРёР»РёРЅ.`)) return;
+    const label = type === 'ai' ? 'AI-фото' : 'реальні фото з пошуку';
+    const scopeLabel = customProducts && customProducts.length > 0 ? 'вибраних товарів' : 'товарів у поточному фільтрі';
+    if (!window.confirm(`Запустити масове оновлення: ${label} для ${targetProducts.length} ${scopeLabel}? Це може тривати кілька хвилин.`)) return;
 
     setBulkImageJob({ type, done: 0, total: targetProducts.length });
     let success = 0;
@@ -1315,15 +1315,15 @@ export const Admin = () => {
     fetchProducts();
     const skipped = Math.max(0, targetProducts.length - success - failed);
     if (stoppedMessage) {
-      alert(`${stoppedMessage}\nРћРЅРѕРІР»РµРЅРѕ: ${success}. РџРѕРјРёР»РѕРє: ${failed}. РќРµ РѕР±СЂРѕР±Р»РµРЅРѕ: ${skipped}.`);
+      alert(`${stoppedMessage}\nОновлено: ${success}. Помилок: ${failed}. Не оброблено: ${skipped}.`);
       return;
     }
-    alert(`Р“РѕС‚РѕРІРѕ. РћРЅРѕРІР»РµРЅРѕ: ${success}. РџРѕРјРёР»РѕРє: ${failed}.`);
+    alert(`Готово. Оновлено: ${success}. Помилок: ${failed}.`);
   };
 
   const handleAIGenerateAdvice = async (name: string, category: string) => {
     if (productAiDescription && productAiDescription.trim().length > 0) {
-      if (!confirm('РџРѕСЂР°РґР° РІР¶Рµ С–СЃРЅСѓС”. Р’Рё РІРїРµРІРЅРµРЅС–, С‰Рѕ С…РѕС‡РµС‚Рµ РїРµСЂРµРіРµРЅРµСЂСѓРІР°С‚Рё С—С—?')) {
+      if (!confirm('Порада вже існує. Ви впевнені, що хочете перегенерувати її?')) {
         return;
       }
     }
@@ -1336,7 +1336,7 @@ export const Admin = () => {
       }
     } catch (err) {
       console.error(err);
-      alert('РџРѕРјРёР»РєР° РїСЂРё РіРµРЅРµСЂР°С†С–С— РїРѕСЂР°РґРё');
+      alert('Помилка при генерації поради');
     } finally {
       setIsGeneratingAdvice(false);
     }
@@ -1351,13 +1351,13 @@ export const Admin = () => {
       } else {
         const fallbackIds = suggestBundleItemIdsLocally({ id: editingProduct?.id || 'draft-bundle', name, category, price: Number(productFormRef.current?.querySelector<HTMLInputElement>('input[name="price"]')?.value || 0), image: '', description: '', stock: 1, rating: 5 }, products as any, { limit: 4 });
         if (fallbackIds.length > 0) setBundleItems(fallbackIds);
-        else alert('РќРµ РІРґР°Р»РѕСЃСЏ РїС–РґС–Р±СЂР°С‚Рё С‚РѕРІР°СЂРё РґР»СЏ РЅР°Р±РѕСЂСѓ');
+        else alert('Не вдалося підібрати товари для набору');
       }
     } catch (err) {
       console.error(err);
       const fallbackIds = suggestBundleItemIdsLocally({ id: editingProduct?.id || 'draft-bundle', name, category, price: Number(productFormRef.current?.querySelector<HTMLInputElement>('input[name="price"]')?.value || 0), image: '', description: '', stock: 1, rating: 5 }, products as any, { limit: 4 });
       if (fallbackIds.length > 0) setBundleItems(fallbackIds);
-      else alert('РџРѕРјРёР»РєР° РїСЂРё РіРµРЅРµСЂР°С†С–С— РЅР°Р±РѕСЂСѓ');
+      else alert('Помилка при генерації набору');
     } finally {
       setIsGeneratingBundle(false);
     }
@@ -1369,7 +1369,7 @@ export const Admin = () => {
     if (suggestedIds.length > 0) {
       setBundleItems(suggestedIds);
     } else {
-      alert('РќРµ Р·РЅР°Р№С€РѕРІ РґРѕСЃС‚Р°С‚РЅСЊРѕ СЃСѓРјС–СЃРЅРёС… С‚РѕРІР°СЂС–РІ');
+      alert('Не знайшов достатньо сумісних товарів');
     }
   };
 
@@ -1415,12 +1415,12 @@ export const Admin = () => {
         fetchProducts();
       } else {
         const errorData = await res.json().catch(() => ({}));
-        const statusText = res.status === 413 ? 'Р¤Р°Р№Р» Р·Р°РЅР°РґС‚Рѕ РІРµР»РёРєРёР№ (Payload Too Large)' : res.statusText;
-        alert(`РџРѕРјРёР»РєР° Р·Р±РµСЂРµР¶РµРЅРЅСЏ: ${errorData.error || statusText || `РЎС‚Р°С‚СѓСЃ ${res.status}`}`);
+        const statusText = res.status === 413 ? 'Файл занадто великий (Payload Too Large)' : res.statusText;
+        alert(`Помилка збереження: ${errorData.error || statusText || `Статус ${res.status}`}`);
       }
     } catch (err: any) {
       console.error(err);
-      alert(`РџРѕРјРёР»РєР°: ${err.message}`);
+      alert(`Помилка: ${err.message}`);
     }
   };
 
@@ -1441,67 +1441,67 @@ export const Admin = () => {
             onClick={() => setActiveTab('analytics')}
             className={`w-full flex items-center gap-3 px-6 py-4 rounded-2xl font-bold transition-all ${activeTab === 'analytics' ? 'bg-slate-900 text-white shadow-lg' : 'text-slate-500 hover:bg-slate-100'}`}
           >
-            <TrendingUp size={20} /> РђРЅР°Р»С–С‚РёРєР°
+            <TrendingUp size={20} /> Аналітика
           </button>
           <button 
             onClick={() => setActiveTab('ai-director')}
             className={`w-full flex items-center gap-3 px-6 py-4 rounded-2xl font-bold transition-all ${activeTab === 'ai-director' ? 'bg-gradient-to-r from-tiffany to-slate-900 text-white shadow-lg' : 'text-tiffany hover:bg-tiffany/5'}`}
           >
-            <Sparkles size={20} /> AI Р”РёСЂРµРєС‚РѕСЂ
+            <Sparkles size={20} /> AI Директор
           </button>
           <button 
             onClick={() => setActiveTab('orders')}
             className={`w-full flex items-center gap-3 px-6 py-4 rounded-2xl font-bold transition-all ${activeTab === 'orders' ? 'bg-slate-900 text-white shadow-lg' : 'text-slate-500 hover:bg-slate-100'}`}
           >
-            <ShoppingCart size={20} /> Р—Р°РјРѕРІР»РµРЅРЅСЏ
+            <ShoppingCart size={20} /> Замовлення
           </button>
           <button 
             onClick={() => setActiveTab('products')}
             className={`w-full flex items-center gap-3 px-6 py-4 rounded-2xl font-bold transition-all ${activeTab === 'products' ? 'bg-slate-900 text-white shadow-lg' : 'text-slate-500 hover:bg-slate-100'}`}
           >
-            <Package size={20} /> РўРѕРІР°СЂРё
+            <Package size={20} /> Товари
           </button>
           <button 
             onClick={() => setActiveTab('import')}
             className={`w-full flex items-center gap-3 px-6 py-4 rounded-2xl font-bold transition-all ${activeTab === 'import' ? 'bg-slate-900 text-white shadow-lg' : 'text-slate-500 hover:bg-slate-100'}`}
           >
-            <Upload size={20} /> Р†РјРїРѕСЂС‚
+            <Upload size={20} /> Імпорт
           </button>
           <button 
             onClick={() => setActiveTab('categories')}
             className={`w-full flex items-center gap-3 px-6 py-4 rounded-2xl font-bold transition-all ${activeTab === 'categories' ? 'bg-slate-900 text-white shadow-lg' : 'text-slate-500 hover:bg-slate-100'}`}
           >
-            <Filter size={20} /> РљР°С‚РµРіРѕСЂС–С—
+            <Filter size={20} /> Категорії
           </button>
           <button 
             onClick={() => setActiveTab('users')}
             className={`w-full flex items-center gap-3 px-6 py-4 rounded-2xl font-bold transition-all ${activeTab === 'users' ? 'bg-slate-900 text-white shadow-lg' : 'text-slate-500 hover:bg-slate-100'}`}
           >
-            <Users size={20} /> РљРѕСЂРёСЃС‚СѓРІР°С‡С–
+            <Users size={20} /> Користувачі
           </button>
           <button 
             onClick={() => setActiveTab('bonus-codes')}
             className={`w-full flex items-center gap-3 px-6 py-4 rounded-2xl font-bold transition-all ${activeTab === 'bonus-codes' ? 'bg-slate-900 text-white shadow-lg' : 'text-slate-500 hover:bg-slate-100'}`}
           >
-            <Tag size={20} /> РђРєС†С–С—
+            <Tag size={20} /> Акції
           </button>
           <button 
             onClick={() => setActiveTab('reviews')}
             className={`w-full flex items-center gap-3 px-6 py-4 rounded-2xl font-bold transition-all ${activeTab === 'reviews' ? 'bg-slate-900 text-white shadow-lg' : 'text-slate-500 hover:bg-slate-100'}`}
           >
-            <MessageSquare size={20} /> Р’С–РґРіСѓРєРё
+            <MessageSquare size={20} /> Відгуки
           </button>
           <button 
             onClick={() => setActiveTab('settings')}
             className={`w-full flex items-center gap-3 px-6 py-4 rounded-2xl font-bold transition-all ${activeTab === 'settings' ? 'bg-slate-900 text-white shadow-lg' : 'text-slate-500 hover:bg-slate-100'}`}
           >
-            <Settings size={20} /> РќР°Р»Р°С€С‚СѓРІР°РЅРЅСЏ
+            <Settings size={20} /> Налаштування
           </button>
           <div className="h-px bg-slate-100 my-4" />
           <div className="p-6 bg-tiffany/5 rounded-3xl border border-tiffany/10">
-            <div className="text-xs text-slate-400 uppercase font-bold mb-1">Р‘Р°Р»Р°РЅСЃ Р±РѕРЅСѓСЃС–РІ</div>
+            <div className="text-xs text-slate-400 uppercase font-bold mb-1">Баланс бонусів</div>
             <div className="text-2xl font-bold text-slate-900">{stats?.totalBonuses?.toLocaleString() || '0'}</div>
-            <div className="text-[10px] text-slate-400">РќР°СЂР°С…РѕРІР°РЅРѕ РєР»С–С”РЅС‚Р°Рј</div>
+            <div className="text-[10px] text-slate-400">Нараховано клієнтам</div>
           </div>
         </aside>
 
@@ -1510,22 +1510,21 @@ export const Admin = () => {
             {activeTab === 'import' ? (
               <div className="space-y-8">
                 <div className="flex justify-between items-center">
-                  <h2 className="text-2xl font-bold">Р†РјРїРѕСЂС‚ С‚РѕРІР°СЂС–РІ</h2>
+                  <h2 className="text-2xl font-bold">Імпорт товарів</h2>
                 </div>
-                <ProductImporter 
-                  categories={categories} 
+                <ImportWizard
                   onComplete={() => {
                     setActiveTab('products');
                     fetchProducts();
-                  }} 
+                  }}
                 />
               </div>
             ) : activeTab === 'ai-director' ? (
               <div className="space-y-8">
                 <div className="flex justify-between items-center">
                   <div>
-                    <h2 className="text-2xl font-bold">AI Р”РёСЂРµРєС‚РѕСЂ Р· Р°РЅР°Р»С–С‚РёРєРё С‚Р° СЂРѕСЃС‚Сѓ</h2>
-                    <p className="text-slate-500">РЎС‚СЂР°С‚РµРіС–С‡РЅС– СЂРµРєРѕРјРµРЅРґР°С†С–С— РЅР° РѕСЃРЅРѕРІС– РґР°РЅРёС… РІР°С€РѕРіРѕ РјР°РіР°Р·РёРЅСѓ</p>
+                    <h2 className="text-2xl font-bold">AI Директор з аналітики та росту</h2>
+                    <p className="text-slate-500">Стратегічні рекомендації на основі даних вашого магазину</p>
                   </div>
                   <button 
                     onClick={async () => {
@@ -1541,11 +1540,11 @@ export const Admin = () => {
                         if (report) {
                           setAiReport(report);
                         } else {
-                          throw new Error('РћС‚СЂРёРјР°РЅРѕ РїРѕСЂРѕР¶РЅС–Р№ Р·РІС–С‚');
+                          throw new Error('Отримано порожній звіт');
                         }
                       } catch (err: any) {
                         console.error('AI Director Error:', err);
-                        alert(`РџРѕРјРёР»РєР° РїСЂРё РіРµРЅРµСЂР°С†С–С— Р·РІС–С‚Сѓ: ${err.message || 'РќРµРІС–РґРѕРјР° РїРѕРјРёР»РєР°'}`);
+                        alert(`Помилка при генерації звіту: ${err.message || 'Невідома помилка'}`);
                       } finally {
                         setIsGeneratingReport(false);
                       }
@@ -1554,9 +1553,9 @@ export const Admin = () => {
                     className="flex items-center gap-2 px-6 py-3 bg-slate-900 text-white rounded-2xl font-bold hover:bg-tiffany transition-all shadow-xl shadow-slate-900/10 disabled:opacity-50"
                   >
                     {isGeneratingReport ? (
-                      <><Loader2 size={20} className="animate-spin" /> РђРЅР°Р»С–Р·СѓСЋ...</>
+                      <><Loader2 size={20} className="animate-spin" /> Аналізую...</>
                     ) : (
-                      <><Sparkles size={20} /> РЎС„РѕСЂРјСѓРІР°С‚Рё Р·РІС–С‚</>
+                      <><Sparkles size={20} /> Сформувати звіт</>
                     )}
                   </button>
                 </div>
@@ -1572,8 +1571,8 @@ export const Admin = () => {
                         <Sparkles size={24} />
                       </div>
                       <div>
-                        <div className="font-bold text-slate-900">Р—РІС–С‚ СЃС„РѕСЂРјРѕРІР°РЅРѕ AI Р”РёСЂРµРєС‚РѕСЂРѕРј</div>
-                        <div className="text-xs text-slate-400">РќР° РѕСЃРЅРѕРІС– Р°РЅР°Р»С–Р·Сѓ {products.length} С‚РѕРІР°СЂС–РІ С‚Р° {orders.length} Р·Р°РјРѕРІР»РµРЅСЊ</div>
+                        <div className="font-bold text-slate-900">Звіт сформовано AI Директором</div>
+                        <div className="text-xs text-slate-400">На основі аналізу {products.length} товарів та {orders.length} замовлень</div>
                       </div>
                     </div>
                     
@@ -1588,9 +1587,9 @@ export const Admin = () => {
                     <div className="w-20 h-20 bg-slate-50 text-slate-300 rounded-full flex items-center justify-center mx-auto mb-6">
                       <TrendingUp size={40} />
                     </div>
-                    <h3 className="text-xl font-bold text-slate-900 mb-2">Р—РІС–С‚ С‰Рµ РЅРµ СЃС„РѕСЂРјРѕРІР°РЅРѕ</h3>
+                    <h3 className="text-xl font-bold text-slate-900 mb-2">Звіт ще не сформовано</h3>
                     <p className="text-slate-500 max-w-md mx-auto mb-8">
-                      РќР°С‚РёСЃРЅС–С‚СЊ РєРЅРѕРїРєСѓ РІРёС‰Рµ, С‰РѕР± AI Р”РёСЂРµРєС‚РѕСЂ РїСЂРѕР°РЅР°Р»С–Р·СѓРІР°РІ РІР°С€С– РїСЂРѕРґР°Р¶С–, Р·Р°Р»РёС€РєРё С‚Р° РїРѕРІРµРґС–РЅРєСѓ РєР»С–С”РЅС‚С–РІ РґР»СЏ РЅР°РґР°РЅРЅСЏ СЃС‚СЂР°С‚РµРіС–С‡РЅРёС… РїРѕСЂР°Рґ.
+                      Натисніть кнопку вище, щоб AI Директор проаналізував ваші продажі, залишки та поведінку клієнтів для надання стратегічних порад.
                     </p>
                   </div>
                 )}
@@ -1598,32 +1597,32 @@ export const Admin = () => {
             ) : activeTab === 'analytics' ? (
             <div className="space-y-8">
               <div className="flex justify-between items-center">
-                <h2 className="text-2xl font-bold">РђРЅР°Р»С–С‚РёРєР°</h2>
+                <h2 className="text-2xl font-bold">Аналітика</h2>
                 <div className="flex gap-2">
                   <button 
                     onClick={fetchStats}
                     className="flex items-center gap-2 px-4 py-2 bg-slate-100 hover:bg-slate-200 rounded-xl text-sm font-bold transition-all"
                   >
-                    <Clock size={16} /> РћРЅРѕРІРёС‚Рё
+                    <Clock size={16} /> Оновити
                   </button>
                   <button 
                     onClick={resetStats}
                     className="flex items-center gap-2 px-4 py-2 bg-red-50 text-red-500 hover:bg-red-100 rounded-xl text-sm font-bold transition-all"
                   >
-                    <Trash2 size={16} /> РЎРєРёРЅСѓС‚Рё
+                    <Trash2 size={16} /> Скинути
                   </button>
                 </div>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 {[
-                  { label: 'РџСЂРѕРґР°Р¶С–', value: `${stats?.totalSales?.toLocaleString() || '0'} РіСЂРЅ`, change: '+12%', color: 'text-tiffany' },
-                  { label: 'Р—Р°РјРѕРІР»РµРЅРЅСЏ', value: stats?.orderCount?.toString() || '0', change: '+5%', color: 'text-slate-900' },
-                  { label: 'РЎРµСЂРµРґРЅС–Р№ С‡РµРє', value: `${Math.round(stats?.avgOrderValue || 0).toLocaleString()} РіСЂРЅ`, change: '+8%', color: 'text-gold' }
+                  { label: 'Продажі', value: `${stats?.totalSales?.toLocaleString() || '0'} грн`, change: '+12%', color: 'text-tiffany' },
+                  { label: 'Замовлення', value: stats?.orderCount?.toString() || '0', change: '+5%', color: 'text-slate-900' },
+                  { label: 'Середній чек', value: `${Math.round(stats?.avgOrderValue || 0).toLocaleString()} грн`, change: '+8%', color: 'text-gold' }
                 ].map((stat, i) => (
                   <div key={i} className="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-sm">
                     <div className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">{stat.label}</div>
                     <div className={`text-3xl font-bold ${stat.color} mb-2`}>{stat.value}</div>
-                    <div className="text-xs text-emerald-500 font-bold">{stat.change} Р·Р° РѕСЃС‚Р°РЅРЅС–Р№ С‚РёР¶РґРµРЅСЊ</div>
+                    <div className="text-xs text-emerald-500 font-bold">{stat.change} за останній тиждень</div>
                   </div>
                 ))}
               </div>
@@ -1631,7 +1630,7 @@ export const Admin = () => {
               {stats?.orderCount > 0 ? (
                 <>
                   <div className="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-sm">
-                    <h3 className="text-xl font-bold mb-8">Р”РёРЅР°РјС–РєР° РїСЂРѕРґР°Р¶С–РІ</h3>
+                    <h3 className="text-xl font-bold mb-8">Динаміка продажів</h3>
                     <div className="w-full min-w-0 overflow-x-auto">
                       <AreaChart width={chartWidth} height={300} data={stats?.salesByDay || []}>
                           <defs>
@@ -1653,7 +1652,7 @@ export const Admin = () => {
 
                   <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
                     <div className="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-sm">
-                      <h3 className="text-xl font-bold mb-8">РџСЂРѕРґР°Р¶С– Р·Р° РєР°С‚РµРіРѕСЂС–СЏРјРё</h3>
+                      <h3 className="text-xl font-bold mb-8">Продажі за категоріями</h3>
                       <div className="w-full min-w-0 overflow-x-auto">
                           <BarChart width={Math.min(chartWidth, 520)} height={250} data={stats?.salesByCategory || []}>
                             <XAxis dataKey="name" axisLine={false} tickLine={false} />
@@ -1667,12 +1666,12 @@ export const Admin = () => {
                       </div>
                     </div>
                     <div className="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-sm">
-                      <h3 className="text-xl font-bold mb-8">РћСЃС‚Р°РЅРЅС– РґС–С—</h3>
+                      <h3 className="text-xl font-bold mb-8">Останні дії</h3>
                       <div className="space-y-6">
                         {[
-                          { action: 'РќРѕРІРµ Р·Р°РјРѕРІР»РµРЅРЅСЏ', user: 'РњР°СЂС–СЏ Рљ.', time: '2 С…РІ С‚РѕРјСѓ', icon: <ShoppingCart size={14} /> },
-                          { action: 'РўРѕРІР°СЂ Р·Р°РєС–РЅС‡СѓС”С‚СЊСЃСЏ', user: 'Р§Р°С€РєР° "Р Р°РЅРєРѕРІР°"', time: '15 С…РІ С‚РѕРјСѓ', icon: <Package size={14} /> },
-                          { action: 'Р’С–РґРіСѓРє РѕС‚СЂРёРјР°РЅРѕ', user: 'РћР»РµРЅР° Р’.', time: '1 РіРѕРґ С‚РѕРјСѓ', icon: <Star size={14} /> }
+                          { action: 'Нове замовлення', user: 'Марія К.', time: '2 хв тому', icon: <ShoppingCart size={14} /> },
+                          { action: 'Товар закінчується', user: 'Чашка "Ранкова"', time: '15 хв тому', icon: <Package size={14} /> },
+                          { action: 'Відгук отримано', user: 'Олена В.', time: '1 год тому', icon: <Star size={14} /> }
                         ].map((item, i) => (
                           <div key={i} className="flex items-center gap-4">
                             <div className="w-8 h-8 bg-slate-50 rounded-full flex items-center justify-center text-slate-400">
@@ -1694,8 +1693,8 @@ export const Admin = () => {
                   <div className="w-20 h-20 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-6 text-slate-300">
                     <TrendingUp size={32} />
                   </div>
-                  <h3 className="text-xl font-bold text-slate-900 mb-2">РќРµРјР°С” РґР°РЅРёС… РґР»СЏ Р°РЅР°Р»С–С‚РёРєРё</h3>
-                  <p className="text-slate-500 max-w-md mx-auto">РЎС‚Р°С‚РёСЃС‚РёРєР° С‚Р° РіСЂР°С„С–РєРё Р·'СЏРІР»СЏС‚СЊСЃСЏ С‚СѓС‚ РїС–СЃР»СЏ С‚РѕРіРѕ, СЏРє РєР»С–С”РЅС‚Рё Р·СЂРѕР±Р»СЏС‚СЊ РїРµСЂС€С– Р·Р°РјРѕРІР»РµРЅРЅСЏ.</p>
+                  <h3 className="text-xl font-bold text-slate-900 mb-2">Немає даних для аналітики</h3>
+                  <p className="text-slate-500 max-w-md mx-auto">Статистика та графіки з'являться тут після того, як клієнти зроблять перші замовлення.</p>
                 </div>
               )}
             </div>
@@ -1703,37 +1702,37 @@ export const Admin = () => {
           ) : activeTab === 'bonus-codes' ? (
             <div className="space-y-8">
               <div className="flex justify-between items-center">
-                <h2 className="text-2xl font-bold">РџСЂРѕРјРѕРєРѕРґРё</h2>
+                <h2 className="text-2xl font-bold">Промокоди</h2>
               </div>
               <div className="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-sm">
-                <h3 className="text-lg font-bold mb-6">РЎС‚РІРѕСЂРёС‚Рё РЅРѕРІСѓ Р°РєС†С–СЋ / РїСЂРѕРјРѕРєРѕРґ</h3>
+                <h3 className="text-lg font-bold mb-6">Створити нову акцію / промокод</h3>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
                   <div className="space-y-1">
-                    <label className="text-[10px] font-bold text-slate-400 uppercase ml-1">РўРёРї</label>
+                    <label className="text-[10px] font-bold text-slate-400 uppercase ml-1">Тип</label>
                     <select 
                       className="w-full bg-slate-50 border-none rounded-xl p-3 text-sm focus:ring-2 focus:ring-tiffany"
                       value={newBonusCode.type}
                       onChange={e => setNewBonusCode({...newBonusCode, type: e.target.value})}
                     >
-                      <option value="promo">РџСЂРѕРјРѕРєРѕРґ (РґР»СЏ РєРѕС€РёРєР°)</option>
-                      <option value="offer">РЎРїРµС†. РїСЂРѕРїРѕР·РёС†С–СЏ (С–РЅС„Рѕ)</option>
+                      <option value="promo">Промокод (для кошика)</option>
+                      <option value="offer">Спец. пропозиція (інфо)</option>
                     </select>
                   </div>
                   <div className="space-y-1">
-                    <label className="text-[10px] font-bold text-slate-400 uppercase ml-1">Р—Р°РіРѕР»РѕРІРѕРє</label>
+                    <label className="text-[10px] font-bold text-slate-400 uppercase ml-1">Заголовок</label>
                     <input 
                       type="text" 
-                      placeholder="200 Р±РѕРЅСѓСЃС–РІ РЅР° РїРµСЂС€Рµ Р·Р°РјРѕРІР»РµРЅРЅСЏ"
+                      placeholder="200 бонусів на перше замовлення"
                       className="w-full bg-slate-50 border-none rounded-xl p-3 text-sm focus:ring-2 focus:ring-tiffany"
                       value={newBonusCode.title}
                       onChange={e => setNewBonusCode({...newBonusCode, title: e.target.value})}
                     />
                   </div>
                   <div className="space-y-1">
-                    <label className="text-[10px] font-bold text-slate-400 uppercase ml-1">РћРїРёСЃ</label>
+                    <label className="text-[10px] font-bold text-slate-400 uppercase ml-1">Опис</label>
                     <input 
                       type="text" 
-                      placeholder="Р’РёРєРѕСЂРёСЃС‚РѕРІСѓР№С‚Рµ РїСЂРё РѕС„РѕСЂРјР»РµРЅРЅС–"
+                      placeholder="Використовуйте при оформленні"
                       className="w-full bg-slate-50 border-none rounded-xl p-3 text-sm focus:ring-2 focus:ring-tiffany"
                       value={newBonusCode.description}
                       onChange={e => setNewBonusCode({...newBonusCode, description: e.target.value})}
@@ -1752,12 +1751,12 @@ export const Admin = () => {
                       <div className="w-10 h-5 bg-slate-200 rounded-full peer peer-checked:bg-tiffany transition-all"></div>
                       <div className="absolute left-1 top-1 w-3 h-3 bg-white rounded-full peer-checked:translate-x-5 transition-all"></div>
                     </div>
-                    <span className="text-xs font-bold text-slate-600 group-hover:text-slate-900 transition-colors">Р’С–РґРѕР±СЂР°Р¶Р°С‚Рё Сѓ РІС–РєРЅС– "РђРєС†С–С— С‚Р° РЅР°Р±РѕСЂРё"</span>
+                    <span className="text-xs font-bold text-slate-600 group-hover:text-slate-900 transition-colors">Відображати у вікні "Акції та набори"</span>
                   </label>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
                   <div className="space-y-1">
-                    <label className="text-[10px] font-bold text-slate-400 uppercase ml-1">РљРѕРґ</label>
+                    <label className="text-[10px] font-bold text-slate-400 uppercase ml-1">Код</label>
                     <input 
                       type="text" 
                       placeholder="SALE20"
@@ -1767,7 +1766,7 @@ export const Admin = () => {
                     />
                   </div>
                   <div className="space-y-1">
-                    <label className="text-[10px] font-bold text-slate-400 uppercase ml-1">Р—РЅРёР¶РєР°</label>
+                    <label className="text-[10px] font-bold text-slate-400 uppercase ml-1">Знижка</label>
                     <input 
                       type="number" 
                       className="w-full bg-slate-50 border-none rounded-xl p-3 text-sm focus:ring-2 focus:ring-tiffany"
@@ -1776,18 +1775,18 @@ export const Admin = () => {
                     />
                   </div>
                   <div className="space-y-1">
-                    <label className="text-[10px] font-bold text-slate-400 uppercase ml-1">РўРёРї</label>
+                    <label className="text-[10px] font-bold text-slate-400 uppercase ml-1">Тип</label>
                     <select 
                       className="w-full bg-slate-50 border-none rounded-xl p-3 text-sm focus:ring-2 focus:ring-tiffany"
                       value={newBonusCode.discount_type}
                       onChange={e => setNewBonusCode({...newBonusCode, discount_type: e.target.value})}
                     >
-                      <option value="fixed">Р“СЂРЅ</option>
+                      <option value="fixed">Грн</option>
                       <option value="percent">%</option>
                     </select>
                   </div>
                   <div className="space-y-1">
-                    <label className="text-[10px] font-bold text-slate-400 uppercase ml-1">РњС–РЅ. СЃСѓРјР°</label>
+                    <label className="text-[10px] font-bold text-slate-400 uppercase ml-1">Мін. сума</label>
                     <input 
                       type="number" 
                       className="w-full bg-slate-50 border-none rounded-xl p-3 text-sm focus:ring-2 focus:ring-tiffany"
@@ -1800,7 +1799,7 @@ export const Admin = () => {
                       onClick={createBonusCode}
                       className="w-full bg-slate-900 text-white h-[46px] rounded-xl font-bold text-sm hover:bg-tiffany transition-all"
                     >
-                      Р”РѕРґР°С‚Рё
+                      Додати
                     </button>
                   </div>
                 </div>
@@ -1810,12 +1809,12 @@ export const Admin = () => {
                 <table className="w-full text-left">
                   <thead className="bg-slate-50 text-slate-400 text-[10px] uppercase tracking-widest font-bold">
                     <tr>
-                      <th className="px-8 py-4">РўРёРї</th>
-                      <th className="px-8 py-4">РљРѕРґ</th>
-                      <th className="px-8 py-4">Р—РЅРёР¶РєР°</th>
-                      <th className="px-8 py-4">РњС–РЅ. СЃСѓРјР°</th>
-                      <th className="px-8 py-4">РЎС‚Р°С‚СѓСЃ</th>
-                      <th className="px-8 py-4">Р”С–С—</th>
+                      <th className="px-8 py-4">Тип</th>
+                      <th className="px-8 py-4">Код</th>
+                      <th className="px-8 py-4">Знижка</th>
+                      <th className="px-8 py-4">Мін. сума</th>
+                      <th className="px-8 py-4">Статус</th>
+                      <th className="px-8 py-4">Дії</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-50">
@@ -1823,20 +1822,20 @@ export const Admin = () => {
                       <tr key={bc.id} className="hover:bg-slate-50/50 transition-colors">
                         <td className="px-8 py-6">
                           <span className={`text-[10px] font-bold uppercase px-2 py-1 rounded-md ${bc.type === 'offer' ? 'bg-amber-100 text-amber-600' : 'bg-blue-100 text-blue-600'}`}>
-                            {bc.type === 'offer' ? 'РЎРїРµС†' : 'РџСЂРѕРјРѕ'}
+                            {bc.type === 'offer' ? 'Спец' : 'Промо'}
                           </span>
                         </td>
                         <td className="px-8 py-6 font-bold text-slate-900">{bc.code}</td>
                         <td className="px-8 py-6 text-slate-500">
-                          {bc.discount_amount} {bc.discount_type === 'percent' ? '%' : 'РіСЂРЅ'}
+                          {bc.discount_amount} {bc.discount_type === 'percent' ? '%' : 'грн'}
                         </td>
-                        <td className="px-8 py-6 text-slate-500">{bc.min_order_amount} РіСЂРЅ</td>
+                        <td className="px-8 py-6 text-slate-500">{bc.min_order_amount} грн</td>
                         <td className="px-8 py-6">
                           <button 
                             onClick={() => toggleBonusCodeStatus(bc.id, bc.is_active)}
                             className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase transition-all ${bc.is_active ? 'bg-emerald-100 text-emerald-600 hover:bg-emerald-200' : 'bg-red-100 text-red-600 hover:bg-red-200'}`}
                           >
-                            {bc.is_active ? 'РђРєС‚РёРІРЅРёР№' : 'РќРµР°РєС‚РёРІРЅРёР№'}
+                            {bc.is_active ? 'Активний' : 'Неактивний'}
                           </button>
                         </td>
                         <td className="px-8 py-6">
@@ -1864,17 +1863,17 @@ export const Admin = () => {
           ) : activeTab === 'reviews' ? (
             <div className="space-y-8">
               <div className="flex justify-between items-center">
-                <h2 className="text-2xl font-bold">РњРѕРґРµСЂР°С†С–СЏ РІС–РґРіСѓРєС–РІ</h2>
+                <h2 className="text-2xl font-bold">Модерація відгуків</h2>
               </div>
               <div className="bg-white rounded-[2.5rem] border border-slate-100 shadow-sm overflow-hidden">
                 <table className="w-full text-left">
                   <thead className="bg-slate-50 text-slate-400 text-[10px] uppercase tracking-widest font-bold">
                     <tr>
-                      <th className="px-8 py-4">РљРѕСЂРёСЃС‚СѓРІР°С‡ / РўРѕРІР°СЂ</th>
-                      <th className="px-8 py-4">Р’С–РґРіСѓРє</th>
-                      <th className="px-8 py-4">Р РµР№С‚РёРЅРі</th>
-                      <th className="px-8 py-4">РЎС‚Р°С‚СѓСЃ</th>
-                      <th className="px-8 py-4">Р”С–С—</th>
+                      <th className="px-8 py-4">Користувач / Товар</th>
+                      <th className="px-8 py-4">Відгук</th>
+                      <th className="px-8 py-4">Рейтинг</th>
+                      <th className="px-8 py-4">Статус</th>
+                      <th className="px-8 py-4">Дії</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-50">
@@ -1882,7 +1881,7 @@ export const Admin = () => {
                       <tr key={review.id} className="hover:bg-slate-50/50 transition-colors">
                         <td className="px-8 py-6">
                           <div className="font-bold text-slate-900">{review.user_name}</div>
-                          <div className="text-[10px] text-slate-400 uppercase tracking-widest">РўРѕРІР°СЂ ID: {review.product_id}</div>
+                          <div className="text-[10px] text-slate-400 uppercase tracking-widest">Товар ID: {review.product_id}</div>
                         </td>
                         <td className="px-8 py-6">
                           <div className="text-sm text-slate-600 max-w-xs truncate">{review.comment}</div>
@@ -1895,7 +1894,7 @@ export const Admin = () => {
                         </td>
                         <td className="px-8 py-6">
                           <span className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase ${review.is_approved ? 'bg-emerald-100 text-emerald-600' : 'bg-amber-100 text-amber-600'}`}>
-                            {review.is_approved ? 'РЎС…РІР°Р»РµРЅРѕ' : 'РћС‡С–РєСѓС”'}
+                            {review.is_approved ? 'Схвалено' : 'Очікує'}
                           </span>
                         </td>
                         <td className="px-8 py-6">
@@ -1905,7 +1904,7 @@ export const Admin = () => {
                                 onClick={() => updateReviewApproval(review.id, 1)}
                                 className="text-xs font-bold uppercase tracking-widest text-emerald-600 hover:text-emerald-700 transition-colors"
                               >
-                                РЎС…РІР°Р»РёС‚Рё
+                                Схвалити
                               </button>
                             )}
                             {review.is_approved && (
@@ -1913,7 +1912,7 @@ export const Admin = () => {
                                 onClick={() => updateReviewApproval(review.id, 0)}
                                 className="text-xs font-bold uppercase tracking-widest text-amber-600 hover:text-amber-700 transition-colors"
                               >
-                                РџСЂРёС…РѕРІР°С‚Рё
+                                Приховати
                               </button>
                             )}
                             <button 
@@ -1935,7 +1934,7 @@ export const Admin = () => {
                     {reviews.length === 0 && (
                       <tr>
                         <td colSpan={5} className="px-8 py-12 text-center text-slate-400">
-                          Р’С–РґРіСѓРєС–РІ РїРѕРєРё РЅРµРјР°С”
+                          Відгуків поки немає
                         </td>
                       </tr>
                     )}
@@ -1946,13 +1945,13 @@ export const Admin = () => {
           ) : activeTab === 'settings' ? (
             <div className="space-y-8">
               <div className="flex justify-between items-center">
-                <h2 className="text-2xl font-bold">РќР°Р»Р°С€С‚СѓРІР°РЅРЅСЏ СЃР°Р№С‚Сѓ</h2>
+                <h2 className="text-2xl font-bold">Налаштування сайту</h2>
               </div>
               <div className="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-sm max-w-4xl">
                 <form onSubmit={handleSettingsSubmit} className="space-y-8">
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                     <div className="space-y-2">
-                      <label className="text-xs font-bold text-slate-400 uppercase">Р‘РµР·РєРѕС€С‚РѕРІРЅР° РґРѕСЃС‚Р°РІРєР° РІС–Рґ (РіСЂРЅ)</label>
+                      <label className="text-xs font-bold text-slate-400 uppercase">Безкоштовна доставка від (грн)</label>
                       <input 
                         type="number" 
                         className="w-full bg-slate-50 border-none rounded-xl p-4 focus:ring-2 focus:ring-tiffany"
@@ -1961,7 +1960,7 @@ export const Admin = () => {
                       />
                     </div>
                     <div className="space-y-2">
-                      <label className="text-xs font-bold text-slate-400 uppercase">Р”РЅС–РІ РЅР° РїРѕРІРµСЂРЅРµРЅРЅСЏ</label>
+                      <label className="text-xs font-bold text-slate-400 uppercase">Днів на повернення</label>
                       <input 
                         type="number" 
                         className="w-full bg-slate-50 border-none rounded-xl p-4 focus:ring-2 focus:ring-tiffany"
@@ -1970,7 +1969,7 @@ export const Admin = () => {
                       />
                     </div>
                     <div className="space-y-2">
-                      <label className="text-xs font-bold text-slate-400 uppercase">РљРµС€Р±РµРє (%)</label>
+                      <label className="text-xs font-bold text-slate-400 uppercase">Кешбек (%)</label>
                       <input 
                         type="number" 
                         className="w-full bg-slate-50 border-none rounded-xl p-4 focus:ring-2 focus:ring-tiffany"
@@ -1983,92 +1982,92 @@ export const Admin = () => {
                   <div className="h-px bg-slate-100" />
                   
                   <div className="space-y-6">
-                    <h3 className="font-bold text-lg">Р“РѕР»РѕРІРЅРёР№ РµРєСЂР°РЅ (Hero Section)</h3>
+                    <h3 className="font-bold text-lg">Головний екран (Hero Section)</h3>
                     
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                       <div className="space-y-2">
-                        <label className="text-xs font-bold text-slate-400 uppercase">Р—Р°РіРѕР»РѕРІРѕРє (H1)</label>
+                        <label className="text-xs font-bold text-slate-400 uppercase">Заголовок (H1)</label>
                         <input 
                           type="text" 
                           className="w-full bg-slate-50 border-none rounded-xl p-4 focus:ring-2 focus:ring-tiffany"
                           value={siteSettings.hero_title}
                           onChange={e => setSiteSettings({...siteSettings, hero_title: e.target.value})}
-                          placeholder="Р•СЃС‚РµС‚РёС‡РЅРёР№ РїРѕСЃСѓРґ С‚Р° РґРµРєРѕСЂ РґР»СЏ РґРѕРјСѓ"
+                          placeholder="Естетичний посуд та декор для дому"
                         />
                       </div>
                       <div className="space-y-2">
-                        <label className="text-xs font-bold text-slate-400 uppercase">Р‘РµР№РґР¶ (Badge)</label>
+                        <label className="text-xs font-bold text-slate-400 uppercase">Бейдж (Badge)</label>
                         <input 
                           type="text" 
                           className="w-full bg-slate-50 border-none rounded-xl p-4 focus:ring-2 focus:ring-tiffany"
                           value={siteSettings.hero_badge}
                           onChange={e => setSiteSettings({...siteSettings, hero_badge: e.target.value})}
-                          placeholder="Р‘РµСЃС‚СЃРµР»РµСЂ СЃРµР·РѕРЅСѓ"
+                          placeholder="Бестселер сезону"
                         />
                       </div>
                     </div>
 
                     <div className="space-y-2">
-                      <label className="text-xs font-bold text-slate-400 uppercase">РџС–РґР·Р°РіРѕР»РѕРІРѕРє</label>
+                      <label className="text-xs font-bold text-slate-400 uppercase">Підзаголовок</label>
                       <textarea 
                         className="w-full bg-slate-50 border-none rounded-xl p-4 focus:ring-2 focus:ring-tiffany min-h-[100px]"
                         value={siteSettings.hero_subtitle}
                         onChange={e => setSiteSettings({...siteSettings, hero_subtitle: e.target.value})}
-                        placeholder="РћРїРёСЃ РјР°РіР°Р·РёРЅСѓ..."
+                        placeholder="Опис магазину..."
                       />
                     </div>
 
                     <div className="space-y-2">
-                      <label className="text-xs font-bold text-slate-400 uppercase">РђРєС†РµРЅС‚РЅРёР№ С‚РѕРІР°СЂ (Featured Product)</label>
+                      <label className="text-xs font-bold text-slate-400 uppercase">Акцентний товар (Featured Product)</label>
                       <select 
                         className="w-full bg-slate-50 border-none rounded-xl p-4 focus:ring-2 focus:ring-tiffany"
                         value={siteSettings.hero_featured_product_id}
                         onChange={e => setSiteSettings({...siteSettings, hero_featured_product_id: e.target.value})}
                       >
-                        <option value="">РћР±РµСЂС–С‚СЊ С‚РѕРІР°СЂ...</option>
+                        <option value="">Оберіть товар...</option>
                         {products.map(p => (
-                          <option key={p.id} value={p.id}>{p.name} ({p.price} РіСЂРЅ)</option>
+                          <option key={p.id} value={p.id}>{p.name} ({p.price} грн)</option>
                         ))}
                       </select>
-                      <p className="text-[10px] text-slate-400 italic">Р¦РµР№ С‚РѕРІР°СЂ Р±СѓРґРµ РІС–РґРѕР±СЂР°Р¶Р°С‚РёСЃСЏ РЅР° РіРѕР»РѕРІРЅРѕРјСѓ РµРєСЂР°РЅС– Р· РјРѕР¶Р»РёРІС–СЃС‚СЋ С€РІРёРґРєРѕРіРѕ РґРѕРґР°РІР°РЅРЅСЏ РІ РєРѕС€РёРє.</p>
+                      <p className="text-[10px] text-slate-400 italic">Цей товар буде відображатися на головному екрані з можливістю швидкого додавання в кошик.</p>
                     </div>
                   </div>
 
                   <div className="h-px bg-slate-100" />
                   
                   <div className="space-y-6">
-                    <h3 className="font-bold text-lg">РЎРµРєС†С–СЏ Р±РµСЃС‚СЃРµР»РµСЂС–РІ</h3>
+                    <h3 className="font-bold text-lg">Секція бестселерів</h3>
                     
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                       <div className="space-y-2">
-                        <label className="text-xs font-bold text-slate-400 uppercase">Р‘РµР№РґР¶ СЃРµРєС†С–С—</label>
+                        <label className="text-xs font-bold text-slate-400 uppercase">Бейдж секції</label>
                         <input 
                           type="text" 
                           className="w-full bg-slate-50 border-none rounded-xl p-4 focus:ring-2 focus:ring-tiffany"
                           value={siteSettings.bestsellers_badge}
                           onChange={e => setSiteSettings({...siteSettings, bestsellers_badge: e.target.value})}
-                          placeholder="РќР°С€С– Р±РµСЃС‚СЃРµР»РµСЂРё"
+                          placeholder="Наші бестселери"
                         />
                       </div>
                       <div className="space-y-2">
-                        <label className="text-xs font-bold text-slate-400 uppercase">Р—Р°РіРѕР»РѕРІРѕРє СЃРµРєС†С–С—</label>
+                        <label className="text-xs font-bold text-slate-400 uppercase">Заголовок секції</label>
                         <input 
                           type="text" 
                           className="w-full bg-slate-50 border-none rounded-xl p-4 focus:ring-2 focus:ring-tiffany"
                           value={siteSettings.bestsellers_title}
                           onChange={e => setSiteSettings({...siteSettings, bestsellers_title: e.target.value})}
-                          placeholder="РџРѕРїСѓР»СЏСЂРЅС– С‚РѕРІР°СЂРё РґР»СЏ РІР°С€РѕРіРѕ Р·Р°С‚РёС€РєСѓ"
+                          placeholder="Популярні товари для вашого затишку"
                         />
                       </div>
                     </div>
 
                     <div className="space-y-2">
-                      <label className="text-xs font-bold text-slate-400 uppercase">РџС–РґР·Р°РіРѕР»РѕРІРѕРє СЃРµРєС†С–С—</label>
+                      <label className="text-xs font-bold text-slate-400 uppercase">Підзаголовок секції</label>
                       <textarea 
                         className="w-full bg-slate-50 border-none rounded-xl p-4 focus:ring-2 focus:ring-tiffany min-h-[100px]"
                         value={siteSettings.bestsellers_subtitle}
                         onChange={e => setSiteSettings({...siteSettings, bestsellers_subtitle: e.target.value})}
-                        placeholder="РћРїРёСЃ СЃРµРєС†С–С— Р±РµСЃС‚СЃРµР»РµСЂС–РІ..."
+                        placeholder="Опис секції бестселерів..."
                       />
                     </div>
                   </div>
@@ -2077,7 +2076,7 @@ export const Admin = () => {
                     type="submit"
                     className="w-full bg-slate-900 text-white py-5 rounded-2xl font-bold hover:bg-tiffany transition-all shadow-xl shadow-slate-900/10"
                   >
-                    Р—Р±РµСЂРµРіС‚Рё РІСЃС– РЅР°Р»Р°С€С‚СѓРІР°РЅРЅСЏ
+                    Зберегти всі налаштування
                   </button>
                 </form>
               </div>
@@ -2088,8 +2087,8 @@ export const Admin = () => {
                     <Database size={24} />
                   </div>
                   <div>
-                    <h3 className="text-xl font-bold">РЎС‚Р°С‚СѓСЃ Р±Р°Р·Рё РґР°РЅРёС…</h3>
-                    <p className="text-sm text-slate-500">РњРѕРЅС–С‚РѕСЂРёРЅРі РїС–РґРєР»СЋС‡РµРЅРЅСЏ С‚Р° РєРІРѕС‚ Neon</p>
+                    <h3 className="text-xl font-bold">Статус бази даних</h3>
+                    <p className="text-sm text-slate-500">Моніторинг підключення та квот Neon</p>
                   </div>
                 </div>
 
@@ -2107,14 +2106,14 @@ export const Admin = () => {
                           ) : (
                             <CheckCircle className="text-emerald-500" size={20} />
                           )}
-                          <span className="font-bold uppercase text-xs tracking-wider">Р РµР¶РёРј СЂРѕР±РѕС‚Рё</span>
+                          <span className="font-bold uppercase text-xs tracking-wider">Режим роботи</span>
                         </div>
                         <div className={`text-xl font-bold ${dbStatus.isDegraded ? 'text-amber-700' : 'text-emerald-700'}`}>
-                          {dbStatus.isDegraded ? 'РћР±РјРµР¶РµРЅРёР№ (РљРІРѕС‚Р° РІРёС‡РµСЂРїР°РЅР°)' : 'РќРѕСЂРјР°Р»СЊРЅРёР№'}
+                          {dbStatus.isDegraded ? 'Обмежений (Квота вичерпана)' : 'Нормальний'}
                         </div>
                         {dbStatus.isDegraded && (
                           <p className="text-xs text-amber-600 mt-2">
-                            РЎР°Р№С‚ РїСЂР°С†СЋС” РЅР° РєРµС€РѕРІР°РЅРёС… РґР°РЅРёС…. РќР°СЃС‚СѓРїРЅР° СЃРїСЂРѕР±Р° РїС–РґРєР»СЋС‡РµРЅРЅСЏ: {new Date(dbStatus.retryAt).toLocaleTimeString()}
+                            Сайт працює на кешованих даних. Наступна спроба підключення: {new Date(dbStatus.retryAt).toLocaleTimeString()}
                           </p>
                         )}
                       </div>
@@ -2122,10 +2121,10 @@ export const Admin = () => {
                       <div className="p-6 bg-slate-50 rounded-3xl border border-slate-100">
                         <div className="flex items-center gap-3 mb-2 text-slate-400">
                           <Clock size={20} />
-                          <span className="font-bold uppercase text-xs tracking-wider">РћСЃС‚Р°РЅРЅСЏ РїРѕРјРёР»РєР°</span>
+                          <span className="font-bold uppercase text-xs tracking-wider">Остання помилка</span>
                         </div>
                         <div className="text-xl font-bold text-slate-700">
-                          {dbStatus.lastError ? new Date(dbStatus.lastError).toLocaleTimeString() : 'Р’С–РґСЃСѓС‚РЅСЏ'}
+                          {dbStatus.lastError ? new Date(dbStatus.lastError).toLocaleTimeString() : 'Відсутня'}
                         </div>
                         {dbStatus.lastError && (
                           <p className="text-xs text-slate-400 mt-2">
@@ -2141,8 +2140,8 @@ export const Admin = () => {
                           <RefreshCw className={isResettingDb ? 'animate-spin' : ''} size={24} />
                         </div>
                         <div>
-                          <div className="font-bold">РЎРєРёРЅСѓС‚Рё РѕР±РјРµР¶РµРЅРЅСЏ</div>
-                          <div className="text-xs opacity-60">РџСЂРёРјСѓСЃРѕРІРѕ СЃРїСЂРѕР±СѓРІР°С‚Рё РїС–РґРєР»СЋС‡РµРЅРЅСЏ РґРѕ Р‘Р”</div>
+                          <div className="font-bold">Скинути обмеження</div>
+                          <div className="text-xs opacity-60">Примусово спробувати підключення до БД</div>
                         </div>
                       </div>
                       <button 
@@ -2150,12 +2149,12 @@ export const Admin = () => {
                         disabled={isResettingDb}
                         className="w-full md:w-auto px-8 py-4 bg-tiffany text-white rounded-xl font-bold hover:bg-white hover:text-slate-900 transition-all disabled:opacity-50"
                       >
-                        {isResettingDb ? 'РЎРєРёРґР°РЅРЅСЏ...' : 'РЎРєРёРЅСѓС‚Рё Р·Р°СЂР°Р·'}
+                        {isResettingDb ? 'Скидання...' : 'Скинути зараз'}
                       </button>
                     </div>
                   </div>
                 ) : (
-                  <div className="text-center py-8 text-slate-400">РќРµ РІРґР°Р»РѕСЃСЏ РѕС‚СЂРёРјР°С‚Рё СЃС‚Р°С‚СѓСЃ</div>
+                  <div className="text-center py-8 text-slate-400">Не вдалося отримати статус</div>
                 )}
               </div>
             </div>
@@ -2163,16 +2162,16 @@ export const Admin = () => {
             <div className="bg-white rounded-[2.5rem] border border-slate-100 shadow-sm overflow-hidden">
               <div className="p-8 border-b border-slate-50 flex justify-between items-center">
                 <h2 className="text-2xl font-bold text-slate-900">
-                  {activeTab === 'orders' ? 'РљРµСЂСѓРІР°РЅРЅСЏ Р·Р°РјРѕРІР»РµРЅРЅСЏРјРё' : 
-                   activeTab === 'users' ? 'РљРµСЂСѓРІР°РЅРЅСЏ РєРѕСЂРёСЃС‚СѓРІР°С‡Р°РјРё' : 
-                   activeTab === 'categories' ? 'РљРµСЂСѓРІР°РЅРЅСЏ РєР°С‚РµРіРѕСЂС–СЏРјРё' : 'РљР°С‚Р°Р»РѕРі С‚РѕРІР°СЂС–РІ'}
+                  {activeTab === 'orders' ? 'Керування замовленнями' : 
+                   activeTab === 'users' ? 'Керування користувачами' : 
+                   activeTab === 'categories' ? 'Керування категоріями' : 'Каталог товарів'}
                 </h2>
                 {activeTab === 'orders' && (
                   <button 
                     onClick={() => { setEditingOrder(null); setShowOrderModal(true); }}
                     className="bg-tiffany text-white px-6 py-3 rounded-xl font-bold flex items-center gap-2 hover:bg-slate-900 transition-all"
                   >
-                    <Plus size={20} /> РЎС‚РІРѕСЂРёС‚Рё Р·Р°РјРѕРІР»РµРЅРЅСЏ
+                    <Plus size={20} /> Створити замовлення
                   </button>
                 )}
                 {activeTab === 'products' && (
@@ -2180,13 +2179,13 @@ export const Admin = () => {
                     <div className="flex flex-wrap items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 p-1">
                       <span className="px-2 text-[10px] font-bold uppercase tracking-widest text-slate-400">
                         <Filter size={12} className="inline-block mr-1" />
-                        Р¤РѕС‚Рѕ
+                        Фото
                       </span>
                       {([
-                        { value: 'needs-ai', label: 'РџРѕС‚СЂС–Р±РЅС– AI', count: productImageCounts.needsAi },
-                        { value: 'generated', label: 'РЈР¶Рµ Р· AI', count: productImageCounts.generated },
-                        { value: 'missing', label: 'Р‘РµР· С„РѕС‚Рѕ', count: productImageCounts.missing },
-                        { value: 'all', label: 'Р’СЃС–', count: productImageCounts.all }
+                        { value: 'needs-ai', label: 'Потрібні AI', count: productImageCounts.needsAi },
+                        { value: 'generated', label: 'Уже з AI', count: productImageCounts.generated },
+                        { value: 'missing', label: 'Без фото', count: productImageCounts.missing },
+                        { value: 'all', label: 'Всі', count: productImageCounts.all }
                       ] as const).map(filter => (
                         <button
                           key={filter.value}
@@ -2205,7 +2204,7 @@ export const Admin = () => {
                     </div>
                     {bulkImageJob && (
                       <div className="rounded-xl bg-slate-50 px-4 py-3 text-xs font-bold text-slate-500">
-                        Р¤РѕС‚Рѕ: {bulkImageJob.done}/{bulkImageJob.total}
+                        Фото: {bulkImageJob.done}/{bulkImageJob.total}
                       </div>
                     )}
                     <button
@@ -2214,7 +2213,7 @@ export const Admin = () => {
                       className="bg-white text-slate-700 border border-slate-200 px-4 py-3 rounded-xl font-bold flex items-center gap-2 hover:border-tiffany hover:text-tiffany transition-all disabled:opacity-50"
                     >
                       {bulkImageJob?.type === 'web' ? <Loader2 size={18} className="animate-spin" /> : <Globe2 size={18} />}
-                      Р РµР°Р»СЊРЅС– С„РѕС‚Рѕ
+                      Реальні фото
                     </button>
                     <button
                       onClick={() => runBulkImageJob('ai')}
@@ -2222,7 +2221,7 @@ export const Admin = () => {
                       className="bg-indigo-600 text-white px-4 py-3 rounded-xl font-bold flex items-center gap-2 hover:bg-slate-900 transition-all disabled:opacity-50"
                     >
                       {bulkImageJob?.type === 'ai' ? <Loader2 size={18} className="animate-spin" /> : <Camera size={18} />}
-                      AI-С„РѕС‚Рѕ РІРёРґРёРјРёРј
+                      AI-фото видимим
                     </button>
                     <button
                       onClick={() => {
@@ -2232,7 +2231,7 @@ export const Admin = () => {
                       }}
                       className="bg-slate-900 text-white px-6 py-3 rounded-xl font-bold flex items-center gap-2 hover:bg-tiffany transition-all"
                     >
-                      <Sparkles size={20} /> РЎС‚РІРѕСЂРёС‚Рё РЅР°Р±С–СЂ
+                      <Sparkles size={20} /> Створити набір
                     </button>
                     <button 
                       onClick={() => {
@@ -2242,7 +2241,7 @@ export const Admin = () => {
                       }}
                       className="bg-tiffany text-white px-6 py-3 rounded-xl font-bold flex items-center gap-2 hover:bg-slate-900 transition-all"
                     >
-                      <Plus size={20} /> Р”РѕРґР°С‚Рё С‚РѕРІР°СЂ
+                      <Plus size={20} /> Додати товар
                     </button>
                   </div>
                 )}
@@ -2251,12 +2250,12 @@ export const Admin = () => {
                     onClick={() => { setEditingCategory(null); setShowCategoryModal(true); }}
                     className="bg-tiffany text-white px-6 py-3 rounded-xl font-bold flex items-center gap-2 hover:bg-slate-900 transition-all"
                   >
-                    <Plus size={20} /> Р”РѕРґР°С‚Рё РєР°С‚РµРіРѕСЂС–СЋ
+                    <Plus size={20} /> Додати категорію
                   </button>
                 )}
                 {activeTab === 'users' && (
                   <button className="bg-slate-900 text-white px-6 py-3 rounded-xl font-bold flex items-center gap-2 hover:bg-tiffany transition-all">
-                    <UserPlus size={20} /> РќРѕРІРёР№ РєРѕСЂРёСЃС‚СѓРІР°С‡
+                    <UserPlus size={20} /> Новий користувач
                   </button>
                 )}
               </div>
@@ -2265,11 +2264,11 @@ export const Admin = () => {
                 <div className="border-b border-slate-50 bg-slate-50/60 px-6 py-5">
                   <div className="mb-4 flex flex-col gap-2 lg:flex-row lg:items-end lg:justify-between">
                     <div>
-                      <div className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400">РљРѕРЅС‚СЂРѕР»СЊ СЏРєРѕСЃС‚С–</div>
+                      <div className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400">Контроль якості</div>
                       <div className="mt-1 text-sm font-semibold text-slate-600">
                         {isProductLoading
-                          ? 'Р—Р°РІР°РЅС‚Р°Р¶СѓС”РјРѕ С‚РѕРІР°СЂРё С‚Р° РїРµСЂРµРІС–СЂСЏС”РјРѕ СЏРєС–СЃС‚СЊ РєР°СЂС‚РѕРє.'
-                          : `РџРѕРєР°Р·Р°РЅРѕ ${visibleProducts.length} Р· ${productQualityCounts.total}. РЁРІРёРґРєРѕ РІС–РґР»РѕРІР»СЋС”РјРѕ С‚РѕРІР°СЂРё Р±РµР· С„РѕС‚Рѕ, РѕРїРёСЃСѓ, СЃРѕР±С–РІР°СЂС‚РѕСЃС‚С– Р°Р±Рѕ Р· СЂРёР·РёРєРѕРІРѕСЋ РјР°СЂР¶РµСЋ.`}
+                          ? 'Завантажуємо товари та перевіряємо якість карток.'
+                          : `Показано ${visibleProducts.length} з ${productQualityCounts.total}. Швидко відловлюємо товари без фото, опису, собівартості або з ризиковою маржею.`}
                       </div>
                     </div>
                     {productQualityFilter !== 'all' && (
@@ -2278,7 +2277,7 @@ export const Admin = () => {
                         onClick={() => setProductQualityFilter('all')}
                         className="w-fit rounded-xl bg-white px-4 py-2 text-xs font-bold text-slate-500 shadow-sm transition-all hover:text-slate-900"
                       >
-                        РЎРєРёРЅСѓС‚Рё РєРѕРЅС‚СЂРѕР»СЊ СЏРєРѕСЃС‚С–
+                        Скинути контроль якості
                       </button>
                     )}
                   </div>
@@ -2286,35 +2285,35 @@ export const Admin = () => {
                     {([
                       {
                         filter: 'missing-photo' as ProductQualityFilter,
-                        label: 'Р‘РµР· С„РѕС‚Рѕ',
+                        label: 'Без фото',
                         count: productQualityCounts.missingPhoto,
                         icon: Camera,
                         className: 'border-amber-100 bg-amber-50 text-amber-700'
                       },
                       {
                         filter: 'missing-description' as ProductQualityFilter,
-                        label: 'Р‘РµР· РѕРїРёСЃСѓ',
+                        label: 'Без опису',
                         count: productQualityCounts.missingDescription,
                         icon: MessageSquare,
                         className: 'border-sky-100 bg-sky-50 text-sky-700'
                       },
                       {
                         filter: 'missing-cost' as ProductQualityFilter,
-                        label: 'Р‘РµР· СЃРѕР±С–РІР°СЂС‚РѕСЃС‚С–',
+                        label: 'Без собівартості',
                         count: productQualityCounts.missingCost,
                         icon: Tag,
                         className: 'border-violet-100 bg-violet-50 text-violet-700'
                       },
                       {
                         filter: 'low-stock' as ProductQualityFilter,
-                        label: 'РњР°Р»РёР№ Р·Р°Р»РёС€РѕРє',
+                        label: 'Малий залишок',
                         count: productQualityCounts.lowStock,
                         icon: AlertTriangle,
                         className: 'border-rose-100 bg-rose-50 text-rose-700'
                       },
                       {
                         filter: 'bad-margin' as ProductQualityFilter,
-                        label: 'РЎР»Р°Р±РєР° РјР°СЂР¶Р°',
+                        label: 'Слабка маржа',
                         count: productQualityCounts.badMargin,
                         icon: TrendingUp,
                         className: 'border-orange-100 bg-orange-50 text-orange-700'
@@ -2349,9 +2348,9 @@ export const Admin = () => {
                     <div className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
                       <div className="mb-4 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
                         <div>
-                          <div className="text-sm font-black text-slate-900">РњР°СЃРѕРІС– РґС–С—</div>
+                          <div className="text-sm font-black text-slate-900">Масові дії</div>
                           <div className="text-xs font-semibold text-slate-400">
-                            Р’РёР±СЂР°РЅРѕ {selectedProductIds.length}. РњРѕР¶РЅР° Р·РјС–РЅРёС‚Рё РєР°С‚РµРіРѕСЂС–СЋ, С†С–РЅСѓ, РїРѕРїСѓР»СЏСЂРЅС–СЃС‚СЊ Р°Р±Рѕ РѕР±СЂРѕР±РёС‚Рё С„РѕС‚Рѕ.
+                            Вибрано {selectedProductIds.length}. Можна змінити категорію, ціну, популярність або обробити фото.
                           </div>
                         </div>
                         <button
@@ -2360,7 +2359,7 @@ export const Admin = () => {
                           disabled={visibleProducts.length === 0 || isBulkUpdating}
                           className="w-fit rounded-xl border border-slate-200 bg-slate-50 px-4 py-2 text-xs font-bold text-slate-600 transition-all hover:border-tiffany hover:text-tiffany disabled:opacity-50"
                         >
-                          {allVisibleProductsSelected ? 'Р—РЅСЏС‚Рё РІРёРґРёРјС–' : 'Р’РёР±СЂР°С‚Рё РІРёРґРёРјС–'}
+                          {allVisibleProductsSelected ? 'Зняти видимі' : 'Вибрати видимі'}
                         </button>
                       </div>
                       <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
@@ -2369,7 +2368,7 @@ export const Admin = () => {
                           onChange={(e) => setBulkCategory(e.target.value)}
                           className="min-h-[46px] rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm font-bold text-slate-700 focus:border-tiffany focus:outline-none"
                         >
-                          <option value="">РљР°С‚РµРіРѕСЂС–СЏ...</option>
+                          <option value="">Категорія...</option>
                           {categories.map(category => (
                             <option key={category.id || category.slug} value={category.slug}>{category.name}</option>
                           ))}
@@ -2380,7 +2379,7 @@ export const Admin = () => {
                           disabled={isBulkUpdating || selectedProductIds.length === 0 || !bulkCategory}
                           className="min-h-[46px] rounded-xl bg-slate-900 px-4 text-sm font-bold text-white transition-all hover:bg-tiffany disabled:opacity-50"
                         >
-                          Р—Р°СЃС‚РѕСЃСѓРІР°С‚Рё РєР°С‚РµРіРѕСЂС–СЋ
+                          Застосувати категорію
                         </button>
                         <div className="flex min-h-[46px] overflow-hidden rounded-xl border border-slate-200 bg-slate-50">
                           <input
@@ -2399,7 +2398,7 @@ export const Admin = () => {
                           disabled={isBulkUpdating || selectedProductIds.length === 0}
                           className="min-h-[46px] rounded-xl border border-emerald-100 bg-emerald-50 px-4 text-sm font-bold text-emerald-700 transition-all hover:bg-emerald-100 disabled:opacity-50"
                         >
-                          РџРµСЂРµСЂР°С…СѓРІР°С‚Рё С†С–РЅСѓ
+                          Перерахувати ціну
                         </button>
                       </div>
                       <div className="mt-3 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
@@ -2408,8 +2407,8 @@ export const Admin = () => {
                           onChange={(e) => setBulkPopularMode(e.target.value as 'popular' | 'regular')}
                           className="min-h-[46px] rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm font-bold text-slate-700 focus:border-tiffany focus:outline-none"
                         >
-                          <option value="popular">РџРѕРїСѓР»СЏСЂРЅРёР№</option>
-                          <option value="regular">РќРµ РїРѕРїСѓР»СЏСЂРЅРёР№</option>
+                          <option value="popular">Популярний</option>
+                          <option value="regular">Не популярний</option>
                         </select>
                         <button
                           type="button"
@@ -2417,7 +2416,7 @@ export const Admin = () => {
                           disabled={isBulkUpdating || selectedProductIds.length === 0}
                           className="min-h-[46px] rounded-xl border border-slate-200 bg-white px-4 text-sm font-bold text-slate-700 transition-all hover:border-tiffany hover:text-tiffany disabled:opacity-50"
                         >
-                          РћРЅРѕРІРёС‚Рё СЃС‚Р°С‚СѓСЃ
+                          Оновити статус
                         </button>
                         <button
                           type="button"
@@ -2425,7 +2424,7 @@ export const Admin = () => {
                           disabled={!!bulkImageJob || selectedProductIds.length === 0}
                           className="min-h-[46px] rounded-xl border border-slate-200 bg-white px-4 text-sm font-bold text-slate-700 transition-all hover:border-tiffany hover:text-tiffany disabled:opacity-50"
                         >
-                          Р¤РѕС‚Рѕ Р· РїРѕС€СѓРєСѓ
+                          Фото з пошуку
                         </button>
                         <button
                           type="button"
@@ -2433,24 +2432,24 @@ export const Admin = () => {
                           disabled={!!bulkImageJob || selectedProductIds.length === 0}
                           className="min-h-[46px] rounded-xl bg-indigo-600 px-4 text-sm font-bold text-white transition-all hover:bg-slate-900 disabled:opacity-50"
                         >
-                          AI-С„РѕС‚Рѕ РІРёР±СЂР°РЅРёРј
+                          AI-фото вибраним
                         </button>
                       </div>
                     </div>
                     <div className="rounded-2xl border border-tiffany/20 bg-tiffany/5 p-4">
                       <div className="mb-4 flex items-start justify-between gap-3">
                         <div>
-                          <div className="text-sm font-black text-slate-900">Smart-РЅР°Р±С–СЂ</div>
+                          <div className="text-sm font-black text-slate-900">Smart-набір</div>
                           <div className="text-xs font-semibold text-slate-500">
-                            Р’РёРґС–Р»С–С‚СЊ 2+ С‚РѕРІР°СЂРё Р°Р±Рѕ Р·Р°Р»РёС€С‚Рµ РІРёР±С–СЂ РїСѓСЃС‚РёРј, С– СЃРёСЃС‚РµРјР° СЃР°РјР° РїС–РґР±РµСЂРµ СЃСѓРјС–СЃРЅРёР№ РєРѕРјРїР»РµРєС‚.
+                            Виділіть 2+ товари або залиште вибір пустим, і система сама підбере сумісний комплект.
                           </div>
                         </div>
                         <Sparkles size={22} className="text-tiffany" />
                       </div>
                       <div className="rounded-xl bg-white/70 p-3 text-xs font-bold text-slate-500">
                         {selectedProducts.length >= 2
-                          ? `Р‘СѓРґРµ СЃС‚РІРѕСЂРµРЅРѕ Р· ${selectedProducts.length} РІРёР±СЂР°РЅРёС… С‚РѕРІР°СЂС–РІ.`
-                          : 'РђРІС‚РѕРїС–РґР±С–СЂ Р±РµСЂРµ С‚РѕРІР°СЂРё Р· РїРѕС‚РѕС‡РЅРѕРіРѕ С„С–Р»СЊС‚СЂР°, Р° СЏРєС‰Рѕ С‚Р°Рј РЅРµРјР°С” С„РѕС‚Рѕ вЂ” Р· СѓСЃСЊРѕРіРѕ РєР°С‚Р°Р»РѕРіСѓ.'}
+                          ? `Буде створено з ${selectedProducts.length} вибраних товарів.`
+                          : 'Автопідбір бере товари з поточного фільтра, а якщо там немає фото — з усього каталогу.'}
                       </div>
                       <button
                         type="button"
@@ -2459,7 +2458,7 @@ export const Admin = () => {
                         className="mt-4 flex min-h-[48px] w-full items-center justify-center gap-2 rounded-xl bg-slate-900 px-4 text-sm font-black text-white transition-all hover:bg-tiffany disabled:opacity-50"
                       >
                         {isCreatingSmartBundle ? <Loader2 size={18} className="animate-spin" /> : <Sparkles size={18} />}
-                        РЎС‚РІРѕСЂРёС‚Рё smart-РЅР°Р±С–СЂ
+                        Створити smart-набір
                       </button>
                     </div>
                   </div>
@@ -2471,11 +2470,11 @@ export const Admin = () => {
                   <table className="w-full text-left">
                     <thead className="bg-slate-50 text-slate-400 text-[10px] uppercase tracking-widest font-bold">
                       <tr>
-                        <th className="px-8 py-4">ID / Р”Р°С‚Р°</th>
-                        <th className="px-8 py-4">РљР»С–С”РЅС‚ / Р”РѕСЃС‚Р°РІРєР°</th>
-                        <th className="px-8 py-4">РЎСѓРјР° (Р‘РѕРЅСѓСЃРё)</th>
-                        <th className="px-8 py-4">РЎС‚Р°С‚СѓСЃ</th>
-                        <th className="px-8 py-4">Р”С–С—</th>
+                        <th className="px-8 py-4">ID / Дата</th>
+                        <th className="px-8 py-4">Клієнт / Доставка</th>
+                        <th className="px-8 py-4">Сума (Бонуси)</th>
+                        <th className="px-8 py-4">Статус</th>
+                        <th className="px-8 py-4">Дії</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-50">
@@ -2492,18 +2491,18 @@ export const Admin = () => {
                             </div>
                             {order.comment && (
                               <div className="mt-1 text-[10px] text-amber-600 italic">
-                                РљРѕРјРµРЅС‚Р°СЂ: {order.comment}
+                                Коментар: {order.comment}
                               </div>
                             )}
                             {order.trackingNumber && (
                               <div className="mt-1 text-[10px] text-tiffany font-bold">
-                                РўРўРќ: {order.trackingNumber}
+                                ТТН: {order.trackingNumber}
                               </div>
                             )}
                           </td>
                           <td className="px-8 py-6">
-                            <div className="font-bold text-slate-900">{order.finalTotal} РіСЂРЅ</div>
-                            {order.bonusUsed > 0 && <div className="text-[10px] text-gold font-bold">-{order.bonusUsed} Р±РѕРЅСѓСЃРё</div>}
+                            <div className="font-bold text-slate-900">{order.finalTotal} грн</div>
+                            {order.bonusUsed > 0 && <div className="text-[10px] text-gold font-bold">-{order.bonusUsed} бонуси</div>}
                           </td>
                           <td className="px-8 py-6">
                             <select 
@@ -2511,11 +2510,11 @@ export const Admin = () => {
                               onChange={(e) => updateOrderStatus(order.id, e.target.value)}
                               className="text-[10px] font-bold uppercase bg-slate-50 border-none rounded-full px-3 py-1 focus:ring-2 focus:ring-tiffany"
                             >
-                              <option value="pending">РћС‡С–РєСѓС”</option>
-                              <option value="paid">РћРїР»Р°С‡РµРЅРѕ</option>
-                              <option value="shipped">Р’С–РґРїСЂР°РІР»РµРЅРѕ</option>
-                              <option value="completed">Р’РёРєРѕРЅР°РЅРѕ</option>
-                              <option value="cancelled">РЎРєР°СЃРѕРІР°РЅРѕ</option>
+                              <option value="pending">Очікує</option>
+                              <option value="paid">Оплачено</option>
+                              <option value="shipped">Відправлено</option>
+                              <option value="completed">Виконано</option>
+                              <option value="cancelled">Скасовано</option>
                             </select>
                           </td>
                           <td className="px-8 py-6">
@@ -2526,7 +2525,7 @@ export const Admin = () => {
                               }}
                               className="text-tiffany hover:text-slate-900 font-bold text-sm"
                             >
-                              Р”РµС‚Р°Р»С–
+                              Деталі
                             </button>
                           </td>
                         </tr>
@@ -2537,11 +2536,11 @@ export const Admin = () => {
                   <table className="w-full text-left">
                     <thead className="bg-slate-50 text-slate-400 text-[10px] uppercase tracking-widest font-bold">
                       <tr>
-                        <th className="px-8 py-4">РљРѕСЂРёСЃС‚СѓРІР°С‡</th>
+                        <th className="px-8 py-4">Користувач</th>
                         <th className="px-8 py-4">Email</th>
-                        <th className="px-8 py-4">Р РѕР»СЊ</th>
-                        <th className="px-8 py-4">Р‘РѕРЅСѓСЃРё / Р’РёС‚СЂР°С‡РµРЅРѕ</th>
-                        <th className="px-8 py-4">Р”С–С—</th>
+                        <th className="px-8 py-4">Роль</th>
+                        <th className="px-8 py-4">Бонуси / Витрачено</th>
+                        <th className="px-8 py-4">Дії</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-50">
@@ -2555,7 +2554,7 @@ export const Admin = () => {
                           <td className="px-8 py-6">
                             <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-bold uppercase ${u.role === 'admin' ? 'bg-tiffany/10 text-tiffany' : 'bg-slate-100 text-slate-500'}`}>
                               {u.role === 'admin' ? <Shield size={12} /> : null}
-                              {u.role === 'admin' ? 'РђРґРјС–РЅ' : 'РљР»С–С”РЅС‚'}
+                              {u.role === 'admin' ? 'Адмін' : 'Клієнт'}
                             </span>
                           </td>
                           <td className="px-8 py-6">
@@ -2568,7 +2567,7 @@ export const Admin = () => {
                                 <Edit2 size={14} />
                               </button>
                             </div>
-                            <div className="text-xs text-slate-400">{u.total_spent || 0} РіСЂРЅ РІРёС‚СЂР°С‡РµРЅРѕ</div>
+                            <div className="text-xs text-slate-400">{u.total_spent || 0} грн витрачено</div>
                           </td>
                           <td className="px-8 py-6">
                             <div className="flex gap-3">
@@ -2576,7 +2575,7 @@ export const Admin = () => {
                                 onClick={() => updateUserRole(u.id, u.role === 'admin' ? 'user' : 'admin')}
                                 className="text-xs font-bold uppercase tracking-widest text-slate-400 hover:text-tiffany transition-colors"
                               >
-                                {u.role === 'admin' ? 'Р—РЅСЏС‚Рё РїСЂР°РІР°' : 'Р—СЂРѕР±РёС‚Рё Р°РґРјС–РЅРѕРј'}
+                                {u.role === 'admin' ? 'Зняти права' : 'Зробити адміном'}
                               </button>
                             </div>
                           </td>
@@ -2588,9 +2587,9 @@ export const Admin = () => {
                   <table className="w-full text-left">
                     <thead className="bg-slate-50 text-slate-400 text-[10px] uppercase tracking-widest font-bold">
                       <tr>
-                        <th className="px-8 py-4">РљР°С‚РµРіРѕСЂС–СЏ</th>
+                        <th className="px-8 py-4">Категорія</th>
                         <th className="px-8 py-4">Slug</th>
-                        <th className="px-8 py-4">Р”С–С—</th>
+                        <th className="px-8 py-4">Дії</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-50">
@@ -2602,7 +2601,7 @@ export const Admin = () => {
                               <div className="font-bold text-slate-900">{cat.name}</div>
                               {cat.parent_id && (
                                 <div className="text-[10px] text-slate-400 uppercase font-bold">
-                                  РџС–РґРєР°С‚РµРіРѕСЂС–СЏ: {categories.find(c => c.id === cat.parent_id)?.name}
+                                  Підкатегорія: {categories.find(c => c.id === cat.parent_id)?.name}
                                 </div>
                               )}
                             </div>
@@ -2638,27 +2637,27 @@ export const Admin = () => {
                             checked={allVisibleProductsSelected}
                             onChange={toggleVisibleProductsSelection}
                             disabled={visibleProducts.length === 0}
-                            aria-label="Р’РёР±СЂР°С‚Рё РІСЃС– РІРёРґРёРјС– С‚РѕРІР°СЂРё"
+                            aria-label="Вибрати всі видимі товари"
                             className="h-4 w-4 rounded border-slate-300 text-tiffany focus:ring-tiffany"
                           />
                         </th>
-                        <th className="px-8 py-4">РўРѕРІР°СЂ</th>
-                        <th className="px-8 py-4">РљР°С‚РµРіРѕСЂС–СЏ</th>
-                        <th className="px-8 py-4">Р¦С–РЅР°</th>
-                        <th className="px-8 py-4">Р”С–С—</th>
+                        <th className="px-8 py-4">Товар</th>
+                        <th className="px-8 py-4">Категорія</th>
+                        <th className="px-8 py-4">Ціна</th>
+                        <th className="px-8 py-4">Дії</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-50">
                       {isProductLoading ? (
                         <tr>
                           <td colSpan={5} className="px-8 py-12 text-center text-sm font-bold text-slate-400">
-                            Р—Р°РІР°РЅС‚Р°Р¶РµРЅРЅСЏ С‚РѕРІР°СЂС–РІ...
+                            Завантаження товарів...
                           </td>
                         </tr>
                       ) : visibleProducts.length === 0 ? (
                         <tr>
                           <td colSpan={5} className="px-8 py-12 text-center text-sm font-bold text-slate-400">
-                            РЈ С†СЊРѕРјСѓ С„С–Р»СЊС‚СЂС– С‚РѕРІР°СЂС–РІ РЅРµРјР°С”
+                            У цьому фільтрі товарів немає
                           </td>
                         </tr>
                       ) : visibleProducts.map(product => (
@@ -2668,7 +2667,7 @@ export const Admin = () => {
                               type="checkbox"
                               checked={selectedProductIds.includes(product.id)}
                               onChange={() => toggleProductSelection(product.id)}
-                              aria-label={`Р’РёР±СЂР°С‚Рё ${product.name}`}
+                              aria-label={`Вибрати ${product.name}`}
                               className="mt-3 h-4 w-4 rounded border-slate-300 text-tiffany focus:ring-tiffany"
                             />
                           </td>
@@ -2691,39 +2690,39 @@ export const Admin = () => {
                               <div className="font-bold text-slate-900">{product.name}</div>
                               <div className="mt-2 flex flex-wrap gap-2">
                                 {isBundleProduct(product) && (
-                                  <span className="rounded-full bg-tiffany/10 px-2.5 py-1 text-[10px] font-bold uppercase text-tiffany">РќР°Р±С–СЂ</span>
+                                  <span className="rounded-full bg-tiffany/10 px-2.5 py-1 text-[10px] font-bold uppercase text-tiffany">Набір</span>
                                 )}
                                 {Number(product.stock || 0) > 0 && Number(product.stock || 0) < 5 && (
-                                  <span className="rounded-full bg-red-50 px-2.5 py-1 text-[10px] font-bold uppercase text-red-500">РњР°Р»Рѕ: {product.stock}</span>
+                                  <span className="rounded-full bg-red-50 px-2.5 py-1 text-[10px] font-bold uppercase text-red-500">Мало: {product.stock}</span>
                                 )}
                                 {product.isPopular && (
-                                  <span className="rounded-full bg-slate-100 px-2.5 py-1 text-[10px] font-bold uppercase text-slate-500">РџРѕРїСѓР»СЏСЂРЅРёР№</span>
+                                  <span className="rounded-full bg-slate-100 px-2.5 py-1 text-[10px] font-bold uppercase text-slate-500">Популярний</span>
                                 )}
                                 {product.imageIsGenerated ? (
-                                  <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-[10px] font-bold uppercase text-emerald-600">AI С„РѕС‚Рѕ</span>
+                                  <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-[10px] font-bold uppercase text-emerald-600">AI фото</span>
                                 ) : !productHasUsablePhoto(product) ? (
-                                  <span className="rounded-full bg-amber-50 px-2.5 py-1 text-[10px] font-bold uppercase text-amber-600">Р‘РµР· С„РѕС‚Рѕ</span>
+                                  <span className="rounded-full bg-amber-50 px-2.5 py-1 text-[10px] font-bold uppercase text-amber-600">Без фото</span>
                                 ) : (
-                                  <span className="rounded-full bg-indigo-50 px-2.5 py-1 text-[10px] font-bold uppercase text-indigo-600">РџРѕС‚СЂС–Р±РЅРµ AI</span>
+                                  <span className="rounded-full bg-indigo-50 px-2.5 py-1 text-[10px] font-bold uppercase text-indigo-600">Потрібне AI</span>
                                 )}
                                 {!productHasDescription(product) && (
-                                  <span className="rounded-full bg-sky-50 px-2.5 py-1 text-[10px] font-bold uppercase text-sky-600">Р‘РµР· РѕРїРёСЃСѓ</span>
+                                  <span className="rounded-full bg-sky-50 px-2.5 py-1 text-[10px] font-bold uppercase text-sky-600">Без опису</span>
                                 )}
                                 {!productHasCostPrice(product) && (
-                                  <span className="rounded-full bg-violet-50 px-2.5 py-1 text-[10px] font-bold uppercase text-violet-600">Р‘РµР· СЃРѕР±С–РІР°СЂС‚РѕСЃС‚С–</span>
+                                  <span className="rounded-full bg-violet-50 px-2.5 py-1 text-[10px] font-bold uppercase text-violet-600">Без собівартості</span>
                                 )}
                                 {productHasWeakMargin(product) && (
-                                  <span className="rounded-full bg-orange-50 px-2.5 py-1 text-[10px] font-bold uppercase text-orange-600">РњР°СЂР¶Р° {productMarginPercent(product)}%</span>
+                                  <span className="rounded-full bg-orange-50 px-2.5 py-1 text-[10px] font-bold uppercase text-orange-600">Маржа {productMarginPercent(product)}%</span>
                                 )}
                               </div>
                             </div>
                           </td>
                           <td className="px-8 py-6 text-slate-500">{product.category}</td>
                           <td className="px-8 py-6">
-                            <div className="font-bold text-slate-900">{product.price} РіСЂРЅ</div>
+                            <div className="font-bold text-slate-900">{product.price} грн</div>
                             {productMarginPercent(product) !== null && (
                               <div className={`mt-1 text-[10px] font-bold uppercase ${productHasWeakMargin(product) ? 'text-orange-500' : 'text-emerald-500'}`}>
-                                РњР°СЂР¶Р° {productMarginPercent(product)}%
+                                Маржа {productMarginPercent(product)}%
                               </div>
                             )}
                           </td>
@@ -2733,10 +2732,10 @@ export const Admin = () => {
                                 onClick={() => {
                                   const url = `${window.location.origin}/product/${product.id}`;
                                   navigator.clipboard.writeText(url);
-                                  alert('РџРѕСЃРёР»Р°РЅРЅСЏ СЃРєРѕРїС–Р№РѕРІР°РЅРѕ!');
+                                  alert('Посилання скопійовано!');
                                 }}
                                 className="p-2 text-slate-400 hover:text-gold transition-colors"
-                                title="РџРѕРґС–Р»РёС‚РёСЃСЊ"
+                                title="Поділитись"
                               >
                                 <Share2 size={18} />
                               </button>
@@ -2798,45 +2797,45 @@ export const Admin = () => {
               className="relative w-full max-w-4xl bg-white rounded-[2.5rem] shadow-2xl p-8 overflow-y-auto max-h-[90vh]"
             >
               <h2 className="text-2xl font-bold mb-8">
-                {editingProduct ? 'Р РµРґР°РіСѓРІР°С‚Рё С‚РѕРІР°СЂ' : newProductMode === 'bundle' ? 'РЎС‚РІРѕСЂРёС‚Рё РЅР°Р±С–СЂ' : 'Р”РѕРґР°С‚Рё РЅРѕРІРёР№ С‚РѕРІР°СЂ'}
+                {editingProduct ? 'Редагувати товар' : newProductMode === 'bundle' ? 'Створити набір' : 'Додати новий товар'}
               </h2>
               <form ref={productFormRef} onSubmit={handleProductSubmit} className="space-y-6">
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                   <div className="space-y-2">
-                    <label className="text-xs font-bold text-slate-400 uppercase">РќР°Р·РІР°</label>
+                    <label className="text-xs font-bold text-slate-400 uppercase">Назва</label>
                     <input name="name" defaultValue={editingProduct?.name} required className="w-full bg-slate-50 border-none rounded-xl p-4 focus:ring-2 focus:ring-tiffany" />
                   </div>
                   <div className="space-y-2">
-                    <label className="text-xs font-bold text-slate-400 uppercase">РљР°С‚РµРіРѕСЂС–СЏ</label>
+                    <label className="text-xs font-bold text-slate-400 uppercase">Категорія</label>
                     <select name="category" defaultValue={editingProduct?.category || categories[0]?.slug} className="w-full bg-slate-50 border-none rounded-xl p-4 focus:ring-2 focus:ring-tiffany">
                       {categories.filter(c => !c.parent_id).map(parent => (
                         <React.Fragment key={parent.id}>
                           <option value={parent.slug}>{parent.name}</option>
                           {categories.filter(c => c.parent_id === parent.id).map(child => (
-                            <option key={child.id} value={child.slug}>&nbsp;&nbsp;вЂ” {child.name}</option>
+                            <option key={child.id} value={child.slug}>&nbsp;&nbsp;— {child.name}</option>
                           ))}
                         </React.Fragment>
                       ))}
                     </select>
                   </div>
                   <div className="space-y-2">
-                    <label className="text-xs font-bold text-slate-400 uppercase">Р¦С–РЅР° (РіСЂРЅ)</label>
+                    <label className="text-xs font-bold text-slate-400 uppercase">Ціна (грн)</label>
                     <input name="price" type="number" defaultValue={editingProduct?.price} required className="w-full bg-slate-50 border-none rounded-xl p-4 focus:ring-2 focus:ring-tiffany" />
                   </div>
                   <div className="space-y-2">
-                    <label className="text-xs font-bold text-slate-400 uppercase">РЎРѕР±С–РІР°СЂС‚С–СЃС‚СЊ (РіСЂРЅ)</label>
+                    <label className="text-xs font-bold text-slate-400 uppercase">Собівартість (грн)</label>
                     <input name="cost_price" type="number" step="0.01" defaultValue={editingProduct?.cost_price} className="w-full bg-slate-50 border-none rounded-xl p-4 focus:ring-2 focus:ring-tiffany" />
                   </div>
                   <div className="space-y-2">
-                    <label className="text-xs font-bold text-slate-400 uppercase">Р—Р°Р»РёС€РѕРє</label>
+                    <label className="text-xs font-bold text-slate-400 uppercase">Залишок</label>
                     <input name="stock" type="number" defaultValue={editingProduct?.stock || 10} required className="w-full bg-slate-50 border-none rounded-xl p-4 focus:ring-2 focus:ring-tiffany" />
                   </div>
                   <div className="space-y-2">
-                    <label className="text-xs font-bold text-slate-400 uppercase">РњР°С‚РµСЂС–Р°Р»</label>
+                    <label className="text-xs font-bold text-slate-400 uppercase">Матеріал</label>
                     <input name="material" defaultValue={editingProduct?.material} className="w-full bg-slate-50 border-none rounded-xl p-4 focus:ring-2 focus:ring-tiffany" />
                   </div>
                   <div className="space-y-2">
-                    <label className="text-xs font-bold text-slate-400 uppercase">Р‘СЂРµРЅРґ</label>
+                    <label className="text-xs font-bold text-slate-400 uppercase">Бренд</label>
                     <input name="brand" defaultValue={editingProduct?.brand} className="w-full bg-slate-50 border-none rounded-xl p-4 focus:ring-2 focus:ring-tiffany" />
                   </div>
                 </div>
@@ -2844,7 +2843,7 @@ export const Admin = () => {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                   <div className="space-y-4">
                     <div className="flex items-center justify-between">
-                      <label className="text-xs font-bold text-slate-400 uppercase">Р“РѕР»РѕРІРЅРµ Р·РѕР±СЂР°Р¶РµРЅРЅСЏ</label>
+                      <label className="text-xs font-bold text-slate-400 uppercase">Головне зображення</label>
                       <div className="flex flex-wrap items-center justify-end gap-2">
                         <button
                           type="button"
@@ -2853,20 +2852,20 @@ export const Admin = () => {
                           className="flex items-center gap-2 px-3 py-1.5 bg-white text-slate-600 rounded-lg text-[10px] font-bold hover:text-tiffany transition-all disabled:opacity-50 border border-slate-200 shadow-sm"
                         >
                           {isSearchingWebImage ? <Loader2 size={12} className="animate-spin" /> : <Globe2 size={12} />}
-                          <span>Р—РЅР°Р№С‚Рё РѕРЅР»Р°Р№РЅ</span>
+                          <span>Знайти онлайн</span>
                         </button>
                         <button 
                           type="button"
                           onClick={() => {
                             const { name, category } = getProductFormBasics();
                             if (name) handleAIGenerateImage(name, category);
-                            else alert('Р’РІРµРґС–С‚СЊ РЅР°Р·РІСѓ С‚РѕРІР°СЂСѓ');
+                            else alert('Введіть назву товару');
                           }}
                           disabled={isGeneratingAI}
                           className="flex items-center gap-2 px-3 py-1.5 bg-indigo-50 text-indigo-600 rounded-lg text-[10px] font-bold hover:bg-indigo-100 transition-all disabled:opacity-50 border border-indigo-100 shadow-sm"
                         >
                           {isGeneratingAI ? <Loader2 size={12} className="animate-spin" /> : <Sparkles size={12} className="text-indigo-500" />}
-                          <span>AI Р¤РѕС‚Рѕ</span>
+                          <span>AI Фото</span>
                         </button>
                       </div>
                     </div>
@@ -2905,11 +2904,11 @@ export const Admin = () => {
                           htmlFor="main-image-upload"
                           className="inline-block bg-white border border-slate-200 px-4 py-2 rounded-lg text-xs font-bold cursor-pointer hover:bg-slate-50 transition-colors"
                         >
-                          Р—Р°РІР°РЅС‚Р°Р¶РёС‚Рё С„РѕС‚Рѕ
+                          Завантажити фото
                         </label>
                         <div className="mt-2">
                           <input 
-                            placeholder="РђР±Рѕ РІСЃС‚Р°РІС‚Рµ URL / Р’СЃС‚Р°РІС‚Рµ С„РѕС‚Рѕ (Ctrl+V)"
+                            placeholder="Або вставте URL / Вставте фото (Ctrl+V)"
                             className="w-full bg-white border border-slate-200 rounded-lg p-2 text-xs"
                             value={mainImage}
                             onChange={(e) => setMainImage(e.target.value)}
@@ -2921,19 +2920,19 @@ export const Admin = () => {
 
                   <div className="space-y-4">
                     <div className="flex items-center justify-between gap-3">
-                      <label className="text-xs font-bold text-slate-400 uppercase">Р“Р°Р»РµСЂРµСЏ Р·РѕР±СЂР°Р¶РµРЅСЊ</label>
+                      <label className="text-xs font-bold text-slate-400 uppercase">Галерея зображень</label>
                       <button
                         type="button"
                         onClick={() => {
                           const { name, category } = getProductFormBasics();
                           if (name) handleAIGenerateGallery(name, category);
-                          else alert('Р’РІРµРґС–С‚СЊ РЅР°Р·РІСѓ С‚РѕРІР°СЂСѓ');
+                          else alert('Введіть назву товару');
                         }}
                         disabled={isGeneratingGallery}
                         className="flex items-center gap-2 px-3 py-1.5 bg-cyan-50 text-cyan-700 rounded-lg text-[10px] font-bold hover:bg-cyan-100 transition-all disabled:opacity-50 border border-cyan-100 shadow-sm"
                       >
                         {isGeneratingGallery ? <Loader2 size={12} className="animate-spin" /> : <Images size={12} />}
-                        <span>3 AI С„РѕС‚Рѕ</span>
+                        <span>3 AI фото</span>
                       </button>
                     </div>
                     <div className="grid grid-cols-4 gap-2">
@@ -2967,7 +2966,7 @@ export const Admin = () => {
                     <div className="flex gap-2">
                       <input 
                         id="gallery-url-input"
-                        placeholder="Р”РѕРґР°С‚Рё URL / Р’СЃС‚Р°РІРёС‚Рё С„РѕС‚Рѕ (Ctrl+V)"
+                        placeholder="Додати URL / Вставити фото (Ctrl+V)"
                         className="flex-1 bg-slate-50 border-none rounded-lg p-2 text-xs focus:ring-2 focus:ring-tiffany"
                         onKeyDown={(e) => {
                           if (e.key === 'Enter') {
@@ -2987,7 +2986,7 @@ export const Admin = () => {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div className="space-y-2">
                     <div className="flex items-center justify-between">
-                      <label className="text-xs font-bold text-slate-400 uppercase">РћРїРёСЃ</label>
+                      <label className="text-xs font-bold text-slate-400 uppercase">Опис</label>
                       <button 
                         type="button"
                         onClick={() => {
@@ -2995,13 +2994,13 @@ export const Admin = () => {
                           const name = (form?.querySelector('input[name="name"]') as HTMLInputElement)?.value;
                           const category = (form?.querySelector('select[name="category"]') as HTMLSelectElement)?.value;
                           if (name) handleAIGenerateDescription(name, category);
-                          else alert('Р’РІРµРґС–С‚СЊ РЅР°Р·РІСѓ С‚РѕРІР°СЂСѓ');
+                          else alert('Введіть назву товару');
                         }}
                         disabled={isGeneratingAI}
                         className="flex items-center gap-2 px-3 py-1.5 bg-emerald-50 text-emerald-600 rounded-lg text-[10px] font-bold hover:bg-emerald-100 transition-all disabled:opacity-50 border border-emerald-100 shadow-sm"
                       >
                         {isGeneratingAI ? <Loader2 size={12} className="animate-spin" /> : <Sparkles size={12} className="text-emerald-500" />}
-                        <span>Р—РіРµРЅРµСЂСѓРІР°С‚Рё РѕРїРёСЃ РЁР†</span>
+                        <span>Згенерувати опис ШІ</span>
                       </button>
                     </div>
                     <textarea 
@@ -3014,7 +3013,7 @@ export const Admin = () => {
                   </div>
                   <div className="space-y-2">
                     <div className="flex items-center justify-between">
-                      <label className="text-xs font-bold text-slate-400 uppercase">РџРѕСЂР°РґР° РІС–Рґ РЁР† (AI Advice)</label>
+                      <label className="text-xs font-bold text-slate-400 uppercase">Порада від ШІ (AI Advice)</label>
                       <button 
                         type="button"
                         onClick={() => {
@@ -3022,13 +3021,13 @@ export const Admin = () => {
                           const name = (form?.querySelector('input[name="name"]') as HTMLInputElement)?.value;
                           const category = (form?.querySelector('select[name="category"]') as HTMLSelectElement)?.value;
                           if (name) handleAIGenerateAdvice(name, category);
-                          else alert('Р’РІРµРґС–С‚СЊ РЅР°Р·РІСѓ С‚РѕРІР°СЂСѓ');
+                          else alert('Введіть назву товару');
                         }}
                         disabled={isGeneratingAdvice}
                         className="flex items-center gap-2 px-3 py-1.5 bg-emerald-50 text-emerald-600 rounded-lg text-[10px] font-bold hover:bg-emerald-100 transition-all disabled:opacity-50 border border-emerald-100 shadow-sm"
                       >
                         {isGeneratingAdvice ? <Loader2 size={12} className="animate-spin" /> : <Sparkles size={12} className="text-emerald-500" />}
-                        <span>Р—РіРµРЅРµСЂСѓРІР°С‚Рё РїРѕСЂР°РґСѓ РЁР†</span>
+                        <span>Згенерувати пораду ШІ</span>
                       </button>
                     </div>
                     <textarea 
@@ -3044,7 +3043,7 @@ export const Admin = () => {
                 {isBundle && (
                   <div className="bg-slate-50 p-6 rounded-3xl space-y-4">
                     <div className="flex items-center justify-between gap-3">
-                      <label className="text-xs font-bold text-slate-400 uppercase">РўРѕРІР°СЂРё РІ РЅР°Р±РѕСЂС–</label>
+                      <label className="text-xs font-bold text-slate-400 uppercase">Товари в наборі</label>
                       <div className="flex flex-wrap justify-end gap-2">
                         <button 
                           type="button"
@@ -3053,12 +3052,12 @@ export const Admin = () => {
                             const name = (form?.querySelector('input[name="name"]') as HTMLInputElement)?.value;
                             const category = (form?.querySelector('select[name="category"]') as HTMLSelectElement)?.value;
                             if (name) handleAutoGenerateBundle(name, category);
-                            else alert('Р’РІРµРґС–С‚СЊ РЅР°Р·РІСѓ С‚РѕРІР°СЂСѓ');
+                            else alert('Введіть назву товару');
                           }}
                           className="flex items-center gap-2 px-3 py-1.5 bg-tiffany/10 text-tiffany rounded-lg text-[10px] font-bold hover:bg-tiffany/15 transition-all border border-tiffany/15 shadow-sm"
                         >
                           <Package size={12} />
-                          <span>РђРІС‚Рѕ-Р±Р°РЅРґР»</span>
+                          <span>Авто-бандл</span>
                         </button>
                         <button 
                           type="button"
@@ -3067,20 +3066,20 @@ export const Admin = () => {
                             const name = (form?.querySelector('input[name="name"]') as HTMLInputElement)?.value;
                             const category = (form?.querySelector('select[name="category"]') as HTMLSelectElement)?.value;
                             if (name) handleAIGenerateBundle(name, category);
-                            else alert('Р’РІРµРґС–С‚СЊ РЅР°Р·РІСѓ С‚РѕРІР°СЂСѓ');
+                            else alert('Введіть назву товару');
                           }}
                           disabled={isGeneratingBundle}
                           className="flex items-center gap-2 px-3 py-1.5 bg-indigo-50 text-indigo-600 rounded-lg text-[10px] font-bold hover:bg-indigo-100 transition-all disabled:opacity-50 border border-indigo-100 shadow-sm"
                         >
                           {isGeneratingBundle ? <Loader2 size={12} className="animate-spin" /> : <Sparkles size={12} className="text-indigo-500" />}
-                          <span>РџС–РґС–Р±СЂР°С‚Рё РЁР†</span>
+                          <span>Підібрати ШІ</span>
                         </button>
                       </div>
                     </div>
                     
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div className="space-y-2">
-                        <label className="text-[10px] font-bold text-slate-400 uppercase">Р’РёР±СЂР°С‚Рё С‚РѕРІР°СЂРё</label>
+                        <label className="text-[10px] font-bold text-slate-400 uppercase">Вибрати товари</label>
                         <select 
                           className="w-full bg-white border-none rounded-xl p-3 text-sm focus:ring-2 focus:ring-tiffany"
                           onChange={(e) => {
@@ -3091,7 +3090,7 @@ export const Admin = () => {
                             e.target.value = '';
                           }}
                         >
-                          <option value="">Р”РѕРґР°С‚Рё С‚РѕРІР°СЂ...</option>
+                          <option value="">Додати товар...</option>
                           {products
                             .filter(p => p.id !== editingProduct?.id && !bundleItems.includes(p.id))
                             .map(p => (
@@ -3102,10 +3101,10 @@ export const Admin = () => {
                       </div>
                       
                       <div className="space-y-2">
-                        <label className="text-[10px] font-bold text-slate-400 uppercase">Р’РёР±СЂР°РЅС– С‚РѕРІР°СЂРё ({bundleItems.length})</label>
+                        <label className="text-[10px] font-bold text-slate-400 uppercase">Вибрані товари ({bundleItems.length})</label>
                         <div className="space-y-2 max-h-40 overflow-y-auto pr-2">
                           {bundleItems.length === 0 ? (
-                            <div className="text-xs text-slate-400 italic">РўРѕРІР°СЂРё РЅРµ РІРёР±СЂР°РЅРѕ</div>
+                            <div className="text-xs text-slate-400 italic">Товари не вибрано</div>
                           ) : (
                             <>
                               {bundleItems.map(id => {
@@ -3114,7 +3113,7 @@ export const Admin = () => {
                                   <div key={id} className="flex items-center justify-between bg-white p-2 rounded-lg border border-slate-100">
                                     <div className="flex items-center gap-2">
                                       <img src={p?.image || undefined} className="w-8 h-8 rounded object-cover" alt="" loading="lazy" decoding="async" />
-                                      <span className="text-xs font-medium truncate max-w-[150px]">{p?.name || 'РќРµРІС–РґРѕРјРёР№ С‚РѕРІР°СЂ'}</span>
+                                      <span className="text-xs font-medium truncate max-w-[150px]">{p?.name || 'Невідомий товар'}</span>
                                     </div>
                                     <button 
                                       type="button"
@@ -3143,7 +3142,7 @@ export const Admin = () => {
                                 }}
                                 className="w-full mt-2 text-[10px] font-bold text-tiffany hover:underline"
                               >
-                                Р РѕР·СЂР°С…СѓРІР°С‚Рё С†С–РЅСѓ Р·С– Р·РЅРёР¶РєРѕСЋ 15% ({calculateBundlePrice(bundleItems.map(id => products.find(p => p.id === id)).filter(Boolean) as any[])} РіСЂРЅ)
+                                Розрахувати ціну зі знижкою 15% ({calculateBundlePrice(bundleItems.map(id => products.find(p => p.id === id)).filter(Boolean) as any[])} грн)
                               </button>
                             </>
                           )}
@@ -3156,7 +3155,7 @@ export const Admin = () => {
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-6 bg-slate-50 p-6 rounded-3xl">
                   <div className="flex items-center gap-3">
                     <input type="checkbox" name="isPopular" defaultChecked={editingProduct?.isPopular} className="w-5 h-5 rounded border-slate-300 text-tiffany focus:ring-tiffany" />
-                    <label className="text-xs font-bold text-slate-700">РџРѕРїСѓР»СЏСЂРЅРёР№</label>
+                    <label className="text-xs font-bold text-slate-700">Популярний</label>
                   </div>
                   <div className="flex items-center gap-3">
                     <input 
@@ -3166,17 +3165,17 @@ export const Admin = () => {
                       onChange={e => setIsBundle(e.target.checked)}
                       className="w-5 h-5 rounded border-slate-300 text-tiffany focus:ring-tiffany" 
                     />
-                    <label className="text-xs font-bold text-slate-700">РќР°Р±С–СЂ (Bundle)</label>
+                    <label className="text-xs font-bold text-slate-700">Набір (Bundle)</label>
                   </div>
                   <div className="space-y-1">
-                    <label className="text-[10px] font-bold text-slate-400 uppercase">Р‘РѕРЅСѓСЃРЅС– Р±Р°Р»Рё</label>
+                    <label className="text-[10px] font-bold text-slate-400 uppercase">Бонусні бали</label>
                     <input name="bonusPoints" type="number" defaultValue={editingProduct?.bonusPoints || 0} className="w-full bg-white border-none rounded-lg p-2 text-xs focus:ring-2 focus:ring-tiffany" />
                   </div>
                 </div>
 
                 <div className="flex gap-4 pt-4">
-                  <button type="button" onClick={() => setShowProductModal(false)} className="flex-1 px-6 py-4 rounded-xl font-bold text-slate-500 hover:bg-slate-50 transition-all">РЎРєР°СЃСѓРІР°С‚Рё</button>
-                  <button type="submit" className="flex-1 bg-slate-900 text-white px-6 py-4 rounded-xl font-bold hover:bg-tiffany transition-all">Р—Р±РµСЂРµРіС‚Рё</button>
+                  <button type="button" onClick={() => setShowProductModal(false)} className="flex-1 px-6 py-4 rounded-xl font-bold text-slate-500 hover:bg-slate-50 transition-all">Скасувати</button>
+                  <button type="submit" className="flex-1 bg-slate-900 text-white px-6 py-4 rounded-xl font-bold hover:bg-tiffany transition-all">Зберегти</button>
                 </div>
               </form>
             </motion.div>
@@ -3201,10 +3200,10 @@ export const Admin = () => {
               exit={{ opacity: 0, scale: 0.95, y: 20 }}
               className="relative w-full max-w-md bg-white rounded-[2.5rem] shadow-2xl p-8"
             >
-              <h2 className="text-2xl font-bold mb-8">{editingCategory ? 'Р РµРґР°РіСѓРІР°С‚Рё РєР°С‚РµРіРѕСЂС–СЋ' : 'Р”РѕРґР°С‚Рё РЅРѕРІСѓ РєР°С‚РµРіРѕСЂС–СЋ'}</h2>
+              <h2 className="text-2xl font-bold mb-8">{editingCategory ? 'Редагувати категорію' : 'Додати нову категорію'}</h2>
               <form onSubmit={handleCategorySubmit} className="space-y-6">
                 <div className="space-y-2">
-                  <label className="text-xs font-bold text-slate-400 uppercase">РќР°Р·РІР°</label>
+                  <label className="text-xs font-bold text-slate-400 uppercase">Назва</label>
                   <input name="name" defaultValue={editingCategory?.name} required className="w-full bg-slate-50 border-none rounded-xl p-4 focus:ring-2 focus:ring-tiffany" />
                 </div>
                 <div className="space-y-2">
@@ -3212,7 +3211,7 @@ export const Admin = () => {
                   <input name="slug" defaultValue={editingCategory?.slug} required className="w-full bg-slate-50 border-none rounded-xl p-4 focus:ring-2 focus:ring-tiffany" />
                 </div>
                 <div className="space-y-2">
-                  <label className="text-xs font-bold text-slate-400 uppercase">Р—РѕР±СЂР°Р¶РµРЅРЅСЏ</label>
+                  <label className="text-xs font-bold text-slate-400 uppercase">Зображення</label>
                   <div className="flex gap-4 items-center">
                     {categoryImage && (
                       <img src={categoryImage || undefined} alt="Preview" className="w-16 h-16 rounded-xl object-cover" loading="lazy" decoding="async" />
@@ -3222,7 +3221,7 @@ export const Admin = () => {
                         type="text"
                         value={categoryImage}
                         onChange={e => setCategoryImage(e.target.value)}
-                        placeholder="URL Р·РѕР±СЂР°Р¶РµРЅРЅСЏ" 
+                        placeholder="URL зображення" 
                         className="w-full bg-slate-50 border-none rounded-xl p-4 focus:ring-2 focus:ring-tiffany" 
                       />
                       <div className="relative">
@@ -3239,28 +3238,28 @@ export const Admin = () => {
                           className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
                         />
                         <button type="button" className="w-full flex items-center justify-center gap-2 bg-slate-100 text-slate-600 py-3 rounded-xl font-bold hover:bg-slate-200 transition-all">
-                          <Upload size={18} /> Р—Р°РІР°РЅС‚Р°Р¶РёС‚Рё Р· РџРљ
+                          <Upload size={18} /> Завантажити з ПК
                         </button>
                       </div>
                     </div>
                   </div>
                 </div>
                 <div className="space-y-2">
-                  <label className="text-xs font-bold text-slate-400 uppercase">Р‘Р°С‚СЊРєС–РІСЃСЊРєР° РєР°С‚РµРіРѕСЂС–СЏ</label>
+                  <label className="text-xs font-bold text-slate-400 uppercase">Батьківська категорія</label>
                   <select 
                     name="parent_id" 
                     defaultValue={editingCategory?.parent_id || ""} 
                     className="w-full bg-slate-50 border-none rounded-xl p-4 focus:ring-2 focus:ring-tiffany"
                   >
-                    <option value="">РќРµРјР°С” (РіРѕР»РѕРІРЅР°)</option>
+                    <option value="">Немає (головна)</option>
                     {categories.filter(c => c.id !== editingCategory?.id && !c.parent_id).map(cat => (
                       <option key={cat.id} value={cat.id}>{cat.name}</option>
                     ))}
                   </select>
                 </div>
                 <div className="flex gap-4 pt-4">
-                  <button type="button" onClick={() => setShowCategoryModal(false)} className="flex-1 px-6 py-4 rounded-xl font-bold text-slate-500 hover:bg-slate-50 transition-all">РЎРєР°СЃСѓРІР°С‚Рё</button>
-                  <button type="submit" className="flex-1 bg-slate-900 text-white px-6 py-4 rounded-xl font-bold hover:bg-tiffany transition-all">Р—Р±РµСЂРµРіС‚Рё</button>
+                  <button type="button" onClick={() => setShowCategoryModal(false)} className="flex-1 px-6 py-4 rounded-xl font-bold text-slate-500 hover:bg-slate-50 transition-all">Скасувати</button>
+                  <button type="submit" className="flex-1 bg-slate-900 text-white px-6 py-4 rounded-xl font-bold hover:bg-tiffany transition-all">Зберегти</button>
                 </div>
               </form>
             </motion.div>
@@ -3288,7 +3287,7 @@ export const Admin = () => {
                 <div className="space-y-8">
                   <div className="flex justify-between items-start">
                     <div>
-                      <h2 className="text-2xl font-bold mb-2">Р—Р°РјРѕРІР»РµРЅРЅСЏ #{editingOrder.id.slice(0, 8)}</h2>
+                      <h2 className="text-2xl font-bold mb-2">Замовлення #{editingOrder.id.slice(0, 8)}</h2>
                       <p className="text-slate-500">{new Date(getOrderCreatedAt(editingOrder)).toLocaleString('uk-UA')}</p>
                     </div>
                     <div className={`px-4 py-2 rounded-full text-xs font-bold uppercase ${
@@ -3296,61 +3295,61 @@ export const Admin = () => {
                       editingOrder.status === 'cancelled' ? 'bg-red-100 text-red-600' :
                       'bg-amber-100 text-amber-600'
                     }`}>
-                      {editingOrder.status === 'pending' ? 'РћС‡С–РєСѓС”' :
-                       editingOrder.status === 'paid' ? 'РћРїР»Р°С‡РµРЅРѕ' :
-                       editingOrder.status === 'shipped' ? 'Р’С–РґРїСЂР°РІР»РµРЅРѕ' :
-                       editingOrder.status === 'completed' ? 'Р’РёРєРѕРЅР°РЅРѕ' : 'РЎРєР°СЃРѕРІР°РЅРѕ'}
+                      {editingOrder.status === 'pending' ? 'Очікує' :
+                       editingOrder.status === 'paid' ? 'Оплачено' :
+                       editingOrder.status === 'shipped' ? 'Відправлено' :
+                       editingOrder.status === 'completed' ? 'Виконано' : 'Скасовано'}
                     </div>
                   </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                     <div className="space-y-4">
-                      <h3 className="text-sm font-bold text-slate-400 uppercase tracking-wider">РљР»С–С”РЅС‚</h3>
+                      <h3 className="text-sm font-bold text-slate-400 uppercase tracking-wider">Клієнт</h3>
                       <div className="bg-slate-50 p-6 rounded-3xl space-y-3">
                         <div className="flex justify-between">
-                          <span className="text-slate-500">Р†Рј'СЏ:</span>
+                          <span className="text-slate-500">Ім'я:</span>
                           <span className="font-bold">{getOrderCustomer(editingOrder).name}</span>
                         </div>
                         <div className="flex justify-between">
                           <span className="text-slate-500">Email:</span>
-                          <span className="font-bold">{getOrderCustomer(editingOrder).email || 'вЂ”'}</span>
+                          <span className="font-bold">{getOrderCustomer(editingOrder).email || '—'}</span>
                         </div>
                         <div className="flex justify-between">
-                          <span className="text-slate-500">РўРµР»РµС„РѕРЅ:</span>
+                          <span className="text-slate-500">Телефон:</span>
                           <span className="font-bold">{getOrderCustomer(editingOrder).phone}</span>
                         </div>
                         <div className="flex justify-between">
-                          <span className="text-slate-500">РњС–СЃС‚Рѕ:</span>
+                          <span className="text-slate-500">Місто:</span>
                           <span className="font-bold">{getOrderCustomer(editingOrder).city}</span>
                         </div>
                       </div>
                     </div>
 
                     <div className="space-y-4">
-                      <h3 className="text-sm font-bold text-slate-400 uppercase tracking-wider">Р”РѕСЃС‚Р°РІРєР° С‚Р° РѕРїР»Р°С‚Р°</h3>
+                      <h3 className="text-sm font-bold text-slate-400 uppercase tracking-wider">Доставка та оплата</h3>
                       <div className="bg-slate-50 p-6 rounded-3xl space-y-3">
                         <div className="flex justify-between">
-                          <span className="text-slate-500">Р”РѕСЃС‚Р°РІРєР°:</span>
+                          <span className="text-slate-500">Доставка:</span>
                           <span className="font-bold">{getDeliveryLabel(getOrderDeliveryMethod(editingOrder))}</span>
                         </div>
                         <div className="flex items-start justify-between gap-4">
-                          <span className="text-slate-500 shrink-0">РљСѓРґРё:</span>
+                          <span className="text-slate-500 shrink-0">Куди:</span>
                           <span className="font-bold text-right leading-snug break-words">{getOrderDeliveryDestination(editingOrder)}</span>
                         </div>
                         <div className="flex justify-between">
-                          <span className="text-slate-500">РћРїР»Р°С‚Р°:</span>
+                          <span className="text-slate-500">Оплата:</span>
                           <span className="font-bold">{getPaymentLabel(getOrderPaymentMethod(editingOrder))}</span>
                         </div>
                         <div className="flex justify-between">
-                          <span className="text-slate-500">Р‘РѕРЅСѓСЃРё:</span>
-                          <span className="font-bold text-emerald-600">-{getOrderBonusUsed(editingOrder)} РіСЂРЅ</span>
+                          <span className="text-slate-500">Бонуси:</span>
+                          <span className="font-bold text-emerald-600">-{getOrderBonusUsed(editingOrder)} грн</span>
                         </div>
                       </div>
                     </div>
                   </div>
 
                   <div className="space-y-4">
-                    <h3 className="text-sm font-bold text-slate-400 uppercase tracking-wider">РўРѕРІР°СЂРё</h3>
+                    <h3 className="text-sm font-bold text-slate-400 uppercase tracking-wider">Товари</h3>
                     <div className="space-y-3">
                       {editingOrder.items?.map((item: any, idx: number) => (
                         <div key={idx} className="flex items-center justify-between bg-white border border-slate-100 p-4 rounded-2xl">
@@ -3358,10 +3357,10 @@ export const Admin = () => {
                             <img src={item.image || undefined} className="w-12 h-12 rounded-xl object-cover" alt="" loading="lazy" decoding="async" referrerPolicy="no-referrer" />
                             <div>
                               <div className="font-bold">{item.name}</div>
-                              <div className="text-xs text-slate-400">{item.price} РіСЂРЅ Г— {item.quantity}</div>
+                              <div className="text-xs text-slate-400">{item.price} грн × {item.quantity}</div>
                             </div>
                           </div>
-                          <div className="font-bold">{item.price * item.quantity} РіСЂРЅ</div>
+                          <div className="font-bold">{item.price * item.quantity} грн</div>
                         </div>
                       ))}
                     </div>
@@ -3369,24 +3368,24 @@ export const Admin = () => {
 
                   <div className="flex justify-between items-center p-8 bg-slate-900 text-white rounded-[2rem]">
                     <div>
-                      <div className="text-sm opacity-60">Р Р°Р·РѕРј РґРѕ СЃРїР»Р°С‚Рё</div>
-                      <div className="text-3xl font-bold">{getOrderFinalTotal(editingOrder)} РіСЂРЅ</div>
+                      <div className="text-sm opacity-60">Разом до сплати</div>
+                      <div className="text-3xl font-bold">{getOrderFinalTotal(editingOrder)} грн</div>
                     </div>
                     <button 
                       onClick={() => setShowOrderModal(false)}
                       className="px-8 py-4 bg-white/10 hover:bg-white/20 rounded-xl font-bold transition-all"
                     >
-                      Р—Р°РєСЂРёС‚Рё
+                      Закрити
                     </button>
                   </div>
                 </div>
               ) : (
                 <>
-                  <h2 className="text-2xl font-bold mb-8">РЎС‚РІРѕСЂРёС‚Рё Р·Р°РјРѕРІР»РµРЅРЅСЏ РІСЂСѓС‡РЅСѓ</h2>
+                  <h2 className="text-2xl font-bold mb-8">Створити замовлення вручну</h2>
                   <form onSubmit={handleOrderSubmit} className="space-y-6">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                       <div className="space-y-2">
-                        <label className="text-xs font-bold text-slate-400 uppercase">Р†Рј'СЏ РєР»С–С”РЅС‚Р°</label>
+                        <label className="text-xs font-bold text-slate-400 uppercase">Ім'я клієнта</label>
                         <input name="customerName" required className="w-full bg-slate-50 border-none rounded-xl p-4 focus:ring-2 focus:ring-tiffany" />
                       </div>
                       <div className="space-y-2">
@@ -3394,35 +3393,35 @@ export const Admin = () => {
                         <input name="customerEmail" type="email" className="w-full bg-slate-50 border-none rounded-xl p-4 focus:ring-2 focus:ring-tiffany" />
                       </div>
                       <div className="space-y-2">
-                        <label className="text-xs font-bold text-slate-400 uppercase">РўРµР»РµС„РѕРЅ</label>
+                        <label className="text-xs font-bold text-slate-400 uppercase">Телефон</label>
                         <input name="customerPhone" required className="w-full bg-slate-50 border-none rounded-xl p-4 focus:ring-2 focus:ring-tiffany" />
                       </div>
                       <div className="space-y-2">
-                        <label className="text-xs font-bold text-slate-400 uppercase">РњС–СЃС‚Рѕ</label>
+                        <label className="text-xs font-bold text-slate-400 uppercase">Місто</label>
                         <input name="customerCity" required className="w-full bg-slate-50 border-none rounded-xl p-4 focus:ring-2 focus:ring-tiffany" />
                       </div>
                       <div className="space-y-2">
-                        <label className="text-xs font-bold text-slate-400 uppercase">РЎРїРѕСЃС–Р± РґРѕСЃС‚Р°РІРєРё</label>
+                        <label className="text-xs font-bold text-slate-400 uppercase">Спосіб доставки</label>
                         <select name="deliveryMethod" className="w-full bg-slate-50 border-none rounded-xl p-4 focus:ring-2 focus:ring-tiffany">
-                          <option value="nova-poshta">РќРѕРІР° РџРѕС€С‚Р°</option>
-                          <option value="ukr-poshta">РЈРєСЂРїРѕС€С‚Р°</option>
+                          <option value="nova-poshta">Нова Пошта</option>
+                          <option value="ukr-poshta">Укрпошта</option>
                         </select>
                       </div>
                       <div className="space-y-2">
-                        <label className="text-xs font-bold text-slate-400 uppercase">РЎРїРѕСЃС–Р± РѕРїР»Р°С‚Рё</label>
+                        <label className="text-xs font-bold text-slate-400 uppercase">Спосіб оплати</label>
                         <select name="paymentMethod" className="w-full bg-slate-50 border-none rounded-xl p-4 focus:ring-2 focus:ring-tiffany">
                           <option value="mono">Mono Pay</option>
                           <option value="liqpay">LiqPay</option>
-                          <option value="card">РљР°СЂС‚Р°</option>
-                          <option value="bank">РџРµСЂРµРєР°Р· РЅР° СЂР°С…СѓРЅРѕРє</option>
-                          <option value="cash">РќР°РєР»Р°РґРµРЅРёР№ РїР»Р°С‚С–Р¶</option>
+                          <option value="card">Карта</option>
+                          <option value="bank">Переказ на рахунок</option>
+                          <option value="cash">Накладений платіж</option>
                         </select>
                       </div>
                     </div>
 
                     <div className="space-y-4">
                       <div className="flex justify-between items-center">
-                        <h3 className="font-bold">РўРѕРІР°СЂРё Сѓ Р·Р°РјРѕРІР»РµРЅРЅС–</h3>
+                        <h3 className="font-bold">Товари у замовленні</h3>
                         <select 
                           onChange={(e) => {
                             if (e.target.value) {
@@ -3432,9 +3431,9 @@ export const Admin = () => {
                           }}
                           className="bg-slate-100 border-none rounded-lg px-4 py-2 text-sm focus:ring-2 focus:ring-tiffany"
                         >
-                          <option value="">Р”РѕРґР°С‚Рё С‚РѕРІР°СЂ...</option>
+                          <option value="">Додати товар...</option>
                           {products.map(p => (
-                            <option key={p.id} value={p.id}>{p.name} - {p.price} РіСЂРЅ</option>
+                            <option key={p.id} value={p.id}>{p.name} - {p.price} грн</option>
                           ))}
                         </select>
                       </div>
@@ -3446,7 +3445,7 @@ export const Admin = () => {
                               <img src={item.image || undefined} className="w-10 h-10 rounded-lg object-cover" alt="" loading="lazy" decoding="async" referrerPolicy="no-referrer" />
                               <div>
                                 <div className="font-bold text-sm">{item.name}</div>
-                                <div className="text-xs text-slate-400">{item.price} РіСЂРЅ</div>
+                                <div className="text-xs text-slate-400">{item.price} грн</div>
                               </div>
                             </div>
                             <div className="flex items-center gap-4">
@@ -3475,22 +3474,22 @@ export const Admin = () => {
                         ))}
                         {manualOrderItems.length === 0 && (
                           <div className="text-center py-8 text-slate-400 text-sm border-2 border-dashed border-slate-100 rounded-2xl">
-                            Р”РѕРґР°Р№С‚Рµ С‚РѕРІР°СЂРё РґРѕ Р·Р°РјРѕРІР»РµРЅРЅСЏ
+                            Додайте товари до замовлення
                           </div>
                         )}
                       </div>
                     </div>
 
                     <div className="flex justify-between items-center p-6 bg-slate-900 text-white rounded-2xl">
-                      <div className="text-sm font-medium opacity-70">Р—Р°РіР°Р»СЊРЅР° СЃСѓРјР°:</div>
+                      <div className="text-sm font-medium opacity-70">Загальна сума:</div>
                       <div className="text-2xl font-bold">
-                        {manualOrderItems.reduce((sum, item) => sum + item.price * item.quantity, 0)} РіСЂРЅ
+                        {manualOrderItems.reduce((sum, item) => sum + item.price * item.quantity, 0)} грн
                       </div>
                     </div>
 
                     <div className="flex gap-4 pt-4">
-                      <button type="button" onClick={() => setShowOrderModal(false)} className="flex-1 px-6 py-4 rounded-xl font-bold text-slate-500 hover:bg-slate-50 transition-all">РЎРєР°СЃСѓРІР°С‚Рё</button>
-                      <button type="submit" disabled={manualOrderItems.length === 0} className="flex-1 bg-tiffany text-white px-6 py-4 rounded-xl font-bold hover:bg-slate-900 transition-all disabled:opacity-50">РЎС‚РІРѕСЂРёС‚Рё Р·Р°РјРѕРІР»РµРЅРЅСЏ</button>
+                      <button type="button" onClick={() => setShowOrderModal(false)} className="flex-1 px-6 py-4 rounded-xl font-bold text-slate-500 hover:bg-slate-50 transition-all">Скасувати</button>
+                      <button type="submit" disabled={manualOrderItems.length === 0} className="flex-1 bg-tiffany text-white px-6 py-4 rounded-xl font-bold hover:bg-slate-900 transition-all disabled:opacity-50">Створити замовлення</button>
                     </div>
                   </form>
                 </>
@@ -3514,11 +3513,11 @@ export const Admin = () => {
               exit={{ opacity: 0, scale: 0.95, y: 20 }}
               className="relative w-full max-w-2xl bg-white rounded-[2.5rem] shadow-2xl p-8 overflow-y-auto max-h-[90vh]"
             >
-              <h2 className="text-2xl font-bold mb-8">Р РµРґР°РіСѓРІР°С‚Рё Р°РєС†С–СЋ / РїСЂРѕРјРѕРєРѕРґ</h2>
+              <h2 className="text-2xl font-bold mb-8">Редагувати акцію / промокод</h2>
               <form onSubmit={handleBonusCodeUpdate} className="space-y-6">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div className="space-y-2">
-                    <label className="text-sm font-bold text-slate-700">Р—Р°РіРѕР»РѕРІРѕРє</label>
+                    <label className="text-sm font-bold text-slate-700">Заголовок</label>
                     <input 
                       value={editingBonusCode.title}
                       onChange={e => setEditingBonusCode({...editingBonusCode, title: e.target.value})}
@@ -3527,7 +3526,7 @@ export const Admin = () => {
                     />
                   </div>
                   <div className="space-y-2">
-                    <label className="text-sm font-bold text-slate-700">РћРїРёСЃ</label>
+                    <label className="text-sm font-bold text-slate-700">Опис</label>
                     <input 
                       value={editingBonusCode.description}
                       onChange={e => setEditingBonusCode({...editingBonusCode, description: e.target.value})}
@@ -3538,7 +3537,7 @@ export const Admin = () => {
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div className="space-y-2">
-                    <label className="text-sm font-bold text-slate-700">РљРѕРґ</label>
+                    <label className="text-sm font-bold text-slate-700">Код</label>
                     <input 
                       value={editingBonusCode.code}
                       onChange={e => setEditingBonusCode({...editingBonusCode, code: e.target.value.toUpperCase()})}
@@ -3547,14 +3546,14 @@ export const Admin = () => {
                     />
                   </div>
                   <div className="space-y-2">
-                    <label className="text-sm font-bold text-slate-700">РўРёРї Р°РєС†С–С—</label>
+                    <label className="text-sm font-bold text-slate-700">Тип акції</label>
                     <select 
                       value={editingBonusCode.type}
                       onChange={e => setEditingBonusCode({...editingBonusCode, type: e.target.value})}
                       className="w-full bg-slate-50 border-none rounded-xl p-4 focus:ring-2 focus:ring-tiffany"
                     >
-                      <option value="promo">РџСЂРѕРјРѕРєРѕРґ (РґР»СЏ РєРѕС€РёРєР°)</option>
-                      <option value="offer">РЎРїРµС†. РїСЂРѕРїРѕР·РёС†С–СЏ (С–РЅС„Рѕ)</option>
+                      <option value="promo">Промокод (для кошика)</option>
+                      <option value="offer">Спец. пропозиція (інфо)</option>
                     </select>
                   </div>
                 </div>
@@ -3570,12 +3569,12 @@ export const Admin = () => {
                     <div className="w-10 h-5 bg-slate-200 rounded-full peer peer-checked:bg-tiffany transition-all"></div>
                     <div className="absolute left-1 top-1 w-3 h-3 bg-white rounded-full peer-checked:translate-x-5 transition-all"></div>
                   </div>
-                  <span className="text-sm font-bold text-slate-700 group-hover:text-slate-900 transition-colors">Р’С–РґРѕР±СЂР°Р¶Р°С‚Рё Сѓ РІС–РєРЅС– "РђРєС†С–С— С‚Р° РЅР°Р±РѕСЂРё"</span>
+                  <span className="text-sm font-bold text-slate-700 group-hover:text-slate-900 transition-colors">Відображати у вікні "Акції та набори"</span>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                   <div className="space-y-2">
-                    <label className="text-sm font-bold text-slate-700">Р—РЅРёР¶РєР°</label>
+                    <label className="text-sm font-bold text-slate-700">Знижка</label>
                     <input 
                       type="number"
                       value={editingBonusCode.discount_amount}
@@ -3584,18 +3583,18 @@ export const Admin = () => {
                     />
                   </div>
                   <div className="space-y-2">
-                    <label className="text-sm font-bold text-slate-700">РўРёРї Р·РЅРёР¶РєРё</label>
+                    <label className="text-sm font-bold text-slate-700">Тип знижки</label>
                     <select 
                       value={editingBonusCode.discount_type}
                       onChange={e => setEditingBonusCode({...editingBonusCode, discount_type: e.target.value})}
                       className="w-full bg-slate-50 border-none rounded-xl p-4 focus:ring-2 focus:ring-tiffany"
                     >
-                      <option value="fixed">Р“СЂРЅ</option>
+                      <option value="fixed">Грн</option>
                       <option value="percent">%</option>
                     </select>
                   </div>
                   <div className="space-y-2">
-                    <label className="text-sm font-bold text-slate-700">РњС–РЅ. СЃСѓРјР°</label>
+                    <label className="text-sm font-bold text-slate-700">Мін. сума</label>
                     <input 
                       type="number"
                       value={editingBonusCode.min_order_amount}
@@ -3606,8 +3605,8 @@ export const Admin = () => {
                 </div>
 
                 <div className="flex gap-4 pt-4">
-                  <button type="button" onClick={() => setShowBonusCodeModal(false)} className="flex-1 px-6 py-4 rounded-xl font-bold text-slate-500 hover:bg-slate-50 transition-all">РЎРєР°СЃСѓРІР°С‚Рё</button>
-                  <button type="submit" className="flex-1 bg-tiffany text-white px-6 py-4 rounded-xl font-bold hover:bg-slate-900 transition-all">Р—Р±РµСЂРµРіС‚Рё Р·РјС–РЅРё</button>
+                  <button type="button" onClick={() => setShowBonusCodeModal(false)} className="flex-1 px-6 py-4 rounded-xl font-bold text-slate-500 hover:bg-slate-50 transition-all">Скасувати</button>
+                  <button type="submit" className="flex-1 bg-tiffany text-white px-6 py-4 rounded-xl font-bold hover:bg-slate-900 transition-all">Зберегти зміни</button>
                 </div>
               </form>
             </motion.div>
@@ -3623,10 +3622,10 @@ export const Admin = () => {
             animate={{ opacity: 1, scale: 1 }}
             className="bg-white rounded-[2.5rem] w-full max-w-lg p-8 shadow-2xl"
           >
-            <h3 className="text-2xl font-bold mb-6">Р РµРґР°РіСѓРІР°С‚Рё РІС–РґРіСѓРє</h3>
+            <h3 className="text-2xl font-bold mb-6">Редагувати відгук</h3>
             <form onSubmit={handleReviewUpdate} className="space-y-6">
               <div className="space-y-2">
-                <label className="text-sm font-bold text-slate-700">РљРѕРјРµРЅС‚Р°СЂ</label>
+                <label className="text-sm font-bold text-slate-700">Коментар</label>
                 <textarea 
                   value={editingReview.comment}
                   onChange={e => setEditingReview({...editingReview, comment: e.target.value})}
@@ -3635,7 +3634,7 @@ export const Admin = () => {
                 />
               </div>
               <div className="space-y-2">
-                <label className="text-sm font-bold text-slate-700">Р РµР№С‚РёРЅРі</label>
+                <label className="text-sm font-bold text-slate-700">Рейтинг</label>
                 <div className="flex gap-2">
                   {[1, 2, 3, 4, 5].map(i => (
                     <button 
@@ -3650,8 +3649,8 @@ export const Admin = () => {
                 </div>
               </div>
               <div className="flex gap-4 pt-4">
-                <button type="button" onClick={() => setShowReviewModal(false)} className="flex-1 px-6 py-4 rounded-xl font-bold text-slate-500 hover:bg-slate-50 transition-all">РЎРєР°СЃСѓРІР°С‚Рё</button>
-                <button type="submit" className="flex-1 bg-tiffany text-white px-6 py-4 rounded-xl font-bold hover:bg-slate-900 transition-all">Р—Р±РµСЂРµРіС‚Рё</button>
+                <button type="button" onClick={() => setShowReviewModal(false)} className="flex-1 px-6 py-4 rounded-xl font-bold text-slate-500 hover:bg-slate-50 transition-all">Скасувати</button>
+                <button type="submit" className="flex-1 bg-tiffany text-white px-6 py-4 rounded-xl font-bold hover:bg-slate-900 transition-all">Зберегти</button>
               </div>
             </form>
           </motion.div>
