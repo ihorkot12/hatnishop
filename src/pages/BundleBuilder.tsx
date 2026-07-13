@@ -50,6 +50,15 @@ const normalize = (value: unknown) =>
 const productText = (product: Product) =>
   normalize([product.name, product.category, product.material, product.brand, product.description].filter(Boolean).join(' '));
 
+const shuffleArray = <T,>(items: T[]): T[] => {
+  const result = [...items];
+  for (let i = result.length - 1; i > 0; i -= 1) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [result[i], result[j]] = [result[j], result[i]];
+  }
+  return result;
+};
+
 export const BundleBuilder = () => {
   const navigate = useNavigate();
   const { addBundleToCart } = useCart();
@@ -150,17 +159,24 @@ export const BundleBuilder = () => {
 
   const autoPickBundle = (seedProduct?: Product) => {
     if (availableProducts.length === 0) return;
-    const scenarioMatches = availableProducts
-      .filter(product => activeScenarioConfig.keywords.some(keyword => productText(product).includes(keyword)))
-      .sort((a, b) => Number(b.rating || 0) - Number(a.rating || 0));
 
-    // Seed from a scenario-relevant product so the набір stays on theme.
+    // Свіжі (не з поточного набору) — першими, щоб кожне натискання давало НОВИЙ набір,
+    // коли товарів у сценарії більше за MAX_BUNDLE_ITEMS. Плюс перемішування для варіативності.
+    const currentSet = new Set(selectedIds);
+    const scenarioMatches = shuffleArray(
+      availableProducts.filter(product =>
+        activeScenarioConfig.keywords.some(keyword => productText(product).includes(keyword)))
+    ).sort((a, b) => (currentSet.has(a.id) ? 1 : 0) - (currentSet.has(b.id) ? 1 : 0));
+
+    // Seed зі сценарію (перемішаного), щоб набір лишався в темі, але щоразу інший.
     const baseProduct = seedProduct
       || scenarioMatches[0]
       || selectedProducts[0]
-      || [...availableProducts].sort((a, b) => Number(b.rating || 0) - Number(a.rating || 0))[0];
+      || shuffleArray(availableProducts)[0];
 
-    const suggested = suggestBundleItemsLocally(baseProduct as any, availableProducts as any, { limit: MAX_BUNDLE_ITEMS - 1 }) as Product[];
+    const suggested = shuffleArray(
+      suggestBundleItemsLocally(baseProduct as any, availableProducts as any, { limit: MAX_BUNDLE_ITEMS * 2 }) as Product[]
+    );
 
     // Scenario товари першими, далі базовий, далі комплементарні пропозиції для добору слотів.
     const candidates = [baseProduct, ...scenarioMatches, ...suggested].filter(Boolean) as Product[];
