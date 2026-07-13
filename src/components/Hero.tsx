@@ -77,15 +77,15 @@ export const Hero = ({ title, subtitle, badge, featuredProduct: propProduct, loa
                 До каталогу <ArrowRight size={19} className="transition-transform group-hover:translate-x-1" />
               </Link>
               <Link
-                to={featuredProduct ? `/product/${featuredProduct.id}#ai-bundle` : '/catalog'}
+                to="/bundle-builder"
                 className="group inline-flex items-center gap-2 border-b border-slate-300 pb-1 text-sm font-bold uppercase tracking-widest text-slate-700 transition-colors hover:border-gold hover:text-slate-950 hover:no-underline"
               >
-                Набір до товару дня <Sparkles size={15} className="text-gold" />
+                Зібрати свій набір · −12% <Sparkles size={15} className="text-gold" />
               </Link>
             </div>
 
             <div className="mt-14 flex flex-col gap-4 border-t border-slate-900/10 pt-7 text-sm text-slate-600 sm:flex-row sm:items-center sm:gap-10">
-              {['Відправка по Україні', 'Бонуси за покупки', 'Живі фото товарів'].map((item) => (
+              {['Безкоштовна доставка від 1500 грн', '5% кешбек на кожну покупку', 'Гарантія якості на кожен товар'].map((item) => (
                 <div key={item} className="flex items-center gap-2.5">
                   <ShieldCheck size={15} className="shrink-0 text-tiffany-deep" />
                   <span>{item}</span>
