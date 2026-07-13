@@ -81,11 +81,11 @@ export const Profile = () => {
 
   const getStatusText = (status: string) => {
     switch (status) {
-      case 'pending': return 'РћС‡С–РєСѓС” РїС–РґС‚РІРµСЂРґР¶РµРЅРЅСЏ';
-      case 'paid': return 'РћРїР»Р°С‡РµРЅРѕ';
-      case 'shipped': return 'Р’ РґРѕСЂРѕР·С–';
-      case 'completed': return 'Р’РёРєРѕРЅР°РЅРѕ';
-      case 'cancelled': return 'РЎРєР°СЃРѕРІР°РЅРѕ';
+      case 'pending': return 'Очікує підтвердження';
+      case 'paid': return 'Оплачено';
+      case 'shipped': return 'В дорозі';
+      case 'completed': return 'Виконано';
+      case 'cancelled': return 'Скасовано';
       default: return status;
     }
   };
@@ -104,7 +104,7 @@ export const Profile = () => {
               <p className="text-slate-400 text-sm">{user.email}</p>
               <div className="mt-6 flex items-center gap-2 bg-gold/10 text-gold px-4 py-2 rounded-full font-bold text-sm">
                 <Star size={16} fill="currentColor" />
-                {user.bonuses} Р±РѕРЅСѓСЃС–РІ
+                {user.bonuses} бонусів
               </div>
             </div>
 
@@ -112,14 +112,14 @@ export const Profile = () => {
               <button className="w-full flex items-center justify-between p-4 rounded-2xl bg-slate-50 text-slate-900 font-bold transition-all">
                 <div className="flex items-center gap-3">
                   <ShoppingBag size={20} />
-                  <span>РњРѕС— Р·Р°РјРѕРІР»РµРЅРЅСЏ</span>
+                  <span>Мої замовлення</span>
                 </div>
                 <ChevronRight size={18} />
               </button>
               <button className="w-full flex items-center justify-between p-4 rounded-2xl text-slate-500 hover:bg-slate-50 hover:text-slate-900 font-bold transition-all">
                 <div className="flex items-center gap-3">
                   <Settings size={20} />
-                  <span>РќР°Р»Р°С€С‚СѓРІР°РЅРЅСЏ</span>
+                  <span>Налаштування</span>
                 </div>
                 <ChevronRight size={18} />
               </button>
@@ -129,7 +129,7 @@ export const Profile = () => {
                 className="w-full flex items-center gap-3 p-4 rounded-2xl text-red-500 hover:bg-red-50 font-bold transition-all"
               >
                 <LogOut size={20} />
-                <span>Р’РёР№С‚Рё</span>
+                <span>Вийти</span>
               </button>
             </nav>
           </div>
@@ -137,24 +137,24 @@ export const Profile = () => {
           <div className="bg-slate-900 text-white p-10 rounded-[3rem] shadow-2xl shadow-slate-900/20">
             <div className="mb-5 flex items-center justify-between gap-4">
               <div>
-                <div className="text-[10px] font-bold uppercase tracking-[0.25em] text-white/35">Р’Р°С€ СЂС–РІРµРЅСЊ</div>
+                <div className="text-[10px] font-bold uppercase tracking-[0.25em] text-white/35">Ваш рівень</div>
                 <h3 className="mt-1 text-2xl font-bold">{loyaltyProgress.current.name}</h3>
               </div>
               <div className="rounded-2xl bg-white/10 px-4 py-3 text-right">
                 <div className="text-2xl font-bold text-tiffany">{cashbackLabel}</div>
-                <div className="text-[10px] font-bold uppercase tracking-widest text-white/35">РєРµС€Р±РµРє</div>
+                <div className="text-[10px] font-bold uppercase tracking-widest text-white/35">кешбек</div>
               </div>
             </div>
             <p className="text-white/60 text-sm mb-6 leading-relaxed">
-              Р’Рё РІР¶Рµ РєСѓРїРёР»Рё РЅР° {Math.floor(user.total_spent || 0).toLocaleString('uk-UA')} РіСЂРЅ. Р‘РѕРЅСѓСЃРё РјРѕР¶РЅР° СЃРїРёСЃСѓРІР°С‚Рё РЅР° РѕРїР»Р°С‚Сѓ РґРѕ 30% РІР°СЂС‚РѕСЃС‚С– РЅРѕРІРёС… РїРѕРєСѓРїРѕРє.
+              Ви вже купили на {Math.floor(user.total_spent || 0).toLocaleString('uk-UA')} грн. Бонуси можна списувати на оплату до 30% вартості нових покупок.
             </p>
             <div className="mb-8 rounded-2xl bg-white/5 p-4">
               <div className="mb-2 flex items-center justify-between text-[10px] font-bold uppercase tracking-widest">
-                <span className="text-white/35">РџСЂРѕРіСЂРµСЃ</span>
+                <span className="text-white/35">Прогрес</span>
                 {loyaltyProgress.next ? (
-                  <span className="text-tiffany">С‰Рµ {Math.ceil(loyaltyProgress.remaining).toLocaleString('uk-UA')} РіСЂРЅ РґРѕ {loyaltyProgress.next.name}</span>
+                  <span className="text-tiffany">ще {Math.ceil(loyaltyProgress.remaining).toLocaleString('uk-UA')} грн до {loyaltyProgress.next.name}</span>
                 ) : (
-                  <span className="text-tiffany">РјР°РєСЃРёРјР°Р»СЊРЅРёР№ СЂС–РІРµРЅСЊ</span>
+                  <span className="text-tiffany">максимальний рівень</span>
                 )}
               </div>
               <div className="h-2 overflow-hidden rounded-full bg-white/10">
@@ -164,15 +164,15 @@ export const Profile = () => {
             <div className="space-y-4">
               <div className="flex items-center gap-3 text-sm font-bold">
                 <div className="w-8 h-8 bg-tiffany/20 text-tiffany rounded-full flex items-center justify-center">1</div>
-                <span>РљСѓРїСѓР№С‚Рµ СѓР»СЋР±Р»РµРЅС– С‚РѕРІР°СЂРё</span>
+                <span>Купуйте улюблені товари</span>
               </div>
               <div className="flex items-center gap-3 text-sm font-bold">
                 <div className="w-8 h-8 bg-tiffany/20 text-tiffany rounded-full flex items-center justify-center">2</div>
-                <span>РћС‚СЂРёРјСѓР№С‚Рµ Р±РѕРЅСѓСЃРё РїС–СЃР»СЏ РґРѕСЃС‚Р°РІРєРё</span>
+                <span>Отримуйте бонуси після доставки</span>
               </div>
               <div className="flex items-center gap-3 text-sm font-bold">
                 <div className="w-8 h-8 bg-tiffany/20 text-tiffany rounded-full flex items-center justify-center">3</div>
-                <span>Р•РєРѕРЅРѕРјС‚Рµ РЅР° РЅР°СЃС‚СѓРїРЅРёС… РїРѕРєСѓРїРєР°С…</span>
+                <span>Економте на наступних покупках</span>
               </div>
             </div>
           </div>
@@ -181,9 +181,9 @@ export const Profile = () => {
         {/* Main Content */}
         <div className="lg:col-span-8">
           <div className="flex items-center justify-between mb-8">
-            <h2 className="text-3xl font-serif font-bold text-slate-900">Р†СЃС‚РѕСЂС–СЏ Р·Р°РјРѕРІР»РµРЅСЊ</h2>
+            <h2 className="text-3xl font-serif font-bold text-slate-900">Історія замовлень</h2>
             <div className="text-sm text-slate-400 font-bold uppercase tracking-widest">
-              {orders.length} Р·Р°РјРѕРІР»РµРЅСЊ
+              {orders.length} замовлень
             </div>
           </div>
 
@@ -198,10 +198,10 @@ export const Profile = () => {
               <div className="w-20 h-20 bg-slate-50 text-slate-200 rounded-full flex items-center justify-center mx-auto mb-6">
                 <ShoppingBag size={40} />
               </div>
-              <h3 className="text-xl font-bold text-slate-900 mb-2">РЈ РІР°СЃ С‰Рµ РЅРµРјР°С” Р·Р°РјРѕРІР»РµРЅСЊ</h3>
-              <p className="text-slate-500 mb-8">Р§Р°СЃ РґРѕРґР°С‚Рё Р·Р°С‚РёС€РєСѓ Сѓ СЃРІС–Р№ РґС–Рј!</p>
+              <h3 className="text-xl font-bold text-slate-900 mb-2">У вас ще немає замовлень</h3>
+              <p className="text-slate-500 mb-8">Час додати затишку у свій дім!</p>
               <Link to="/catalog" className="inline-block bg-tiffany text-white px-10 py-4 rounded-2xl font-bold hover:bg-slate-900 transition-all">
-                РџРµСЂРµР№С‚Рё РґРѕ РєР°С‚Р°Р»РѕРіСѓ
+                Перейти до каталогу
               </Link>
             </div>
           ) : (
@@ -217,21 +217,21 @@ export const Profile = () => {
                     <div className="flex flex-wrap items-center justify-between gap-4 mb-8">
                       <div>
                         <div className="flex items-center gap-3 mb-1">
-                          <span className="text-lg font-bold text-slate-900">Р—Р°РјРѕРІР»РµРЅРЅСЏ #{order.id}</span>
+                          <span className="text-lg font-bold text-slate-900">Замовлення #{order.id}</span>
                           <div className="flex items-center gap-1.5 px-3 py-1 bg-slate-50 rounded-full text-[10px] font-bold uppercase tracking-widest text-slate-500">
                             {getStatusIcon(order.status)}
                             {getStatusText(order.status)}
                           </div>
                         </div>
                         <div className="text-xs text-slate-400 font-medium">
-                          РІС–Рґ {new Date(order.createdAt).toLocaleDateString()}
+                          від {new Date(order.createdAt).toLocaleDateString()}
                         </div>
                       </div>
                       <div className="text-right">
-                        <div className="text-2xl font-bold text-slate-900">{order.finalTotal} РіСЂРЅ</div>
+                        <div className="text-2xl font-bold text-slate-900">{order.finalTotal} грн</div>
                         {order.bonusUsed > 0 && (
                           <div className="text-[10px] text-gold font-bold uppercase tracking-widest">
-                            Р’РёРєРѕСЂРёСЃС‚Р°РЅРѕ {order.bonusUsed} Р±РѕРЅСѓСЃС–РІ
+                            Використано {order.bonusUsed} бонусів
                           </div>
                         )}
                       </div>
@@ -254,7 +254,7 @@ export const Profile = () => {
                                 <Truck size={16} />
                               </div>
                               <div>
-                                <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">РўСЂРµРє-РЅРѕРјРµСЂ (РўРўРќ)</p>
+                                <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Трек-номер (ТТН)</p>
                                 <p className="text-sm font-bold text-slate-900">{order.trackingNumber}</p>
                               </div>
                             </div>
@@ -263,13 +263,13 @@ export const Profile = () => {
                               className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all ${copiedId === order.id ? 'bg-emerald-500 text-white' : 'bg-white text-slate-900 hover:bg-slate-50 border border-slate-100'}`}
                             >
                               {copiedId === order.id ? <Check size={14} /> : <Copy size={14} />}
-                              {copiedId === order.id ? 'РЎРєРѕРїС–Р№РѕРІР°РЅРѕ' : 'РљРѕРїС–СЋРІР°С‚Рё'}
+                              {copiedId === order.id ? 'Скопійовано' : 'Копіювати'}
                             </button>
                           </div>
                         )}
                         {order.comment && (
                           <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100">
-                            <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mb-1">Р’Р°С€ РєРѕРјРµРЅС‚Р°СЂ</p>
+                            <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mb-1">Ваш коментар</p>
                             <p className="text-sm text-slate-600 italic">"{order.comment}"</p>
                           </div>
                         )}
@@ -280,10 +280,10 @@ export const Profile = () => {
                   <div className="bg-slate-50 p-6 flex items-center justify-between">
                     <div className="flex items-center gap-2 text-xs font-bold text-slate-400 uppercase tracking-widest">
                       <Truck size={14} />
-                      <span>Р‘РµР·РєРѕС€С‚РѕРІРЅР° РґРѕСЃС‚Р°РІРєР°</span>
+                      <span>Безкоштовна доставка</span>
                     </div>
                     <button className="text-tiffany font-bold text-sm flex items-center gap-2 hover:text-slate-900 transition-colors">
-                      Р”РµС‚Р°Р»С– Р·Р°РјРѕРІР»РµРЅРЅСЏ
+                      Деталі замовлення
                       <ChevronRight size={16} />
                     </button>
                   </div>

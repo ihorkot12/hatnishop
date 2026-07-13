@@ -7,6 +7,7 @@ import { useAuth } from '../store/AuthContext';
 import { useWishlist } from '../store/WishlistContext';
 import { useNotifications } from '../store/NotificationContext';
 import { TopBar } from './TopBar';
+import { fetchJsonCachedOr } from '../utils/apiCache';
 
 export const Navbar = () => {
   const navigate = useNavigate();
@@ -24,8 +25,7 @@ export const Navbar = () => {
   const userMenuRef = useRef<HTMLDivElement>(null);
 
   React.useEffect(() => {
-    fetch('/api/categories/catalog')
-      .then(res => res.ok ? res.json() : [])
+    fetchJsonCachedOr<any[]>('/api/categories/catalog', [])
       .then(data => {
         if (Array.isArray(data)) {
           setCategories(data);
@@ -90,7 +90,7 @@ export const Navbar = () => {
       {user?.isDegraded && (
         <div className="bg-amber-500 text-white py-2 px-4 text-center text-xs font-bold flex items-center justify-center gap-2">
           <AlertTriangle size={14} />
-          <span>РЎР°Р№С‚ РїСЂР°С†СЋС” РІ РѕР±РјРµР¶РµРЅРѕРјСѓ СЂРµР¶РёРјС– С‡РµСЂРµР· С‚РµС…РЅС–С‡РЅС– СЂРѕР±РѕС‚Рё. Р”РµСЏРєС– С„СѓРЅРєС†С–С— РјРѕР¶СѓС‚СЊ Р±СѓС‚Рё РЅРµРґРѕСЃС‚СѓРїРЅС–.</span>
+          <span>Сайт працює в обмеженому режимі через технічні роботи. Деякі функції можуть бути недоступні.</span>
         </div>
       )}
       <TopBar />
@@ -103,7 +103,7 @@ export const Navbar = () => {
               onClick={scrollToTop}
               className="text-xl sm:text-2xl xl:text-3xl font-serif font-bold tracking-tight text-slate-900 hover:no-underline group shrink-0"
             >
-              РҐРђРўРќР† <span className="text-[#68b8b0] italic transition-colors group-hover:text-tiffany">РЁРўРЈР§РљР</span>
+              ХАТНІ <span className="text-tiffany-deep italic transition-colors group-hover:text-tiffany">ШТУЧКИ</span>
             </Link>
             <div className="hidden min-w-0 flex-1 items-center justify-center gap-4 overflow-hidden text-[10px] font-bold uppercase tracking-[0.12em] lg:flex xl:gap-6 xl:text-[11px] xl:tracking-[0.15em]">
               <div 
@@ -111,7 +111,7 @@ export const Navbar = () => {
                 onMouseEnter={() => setShowCatalogMenu(true)}
                 onMouseLeave={() => setShowCatalogMenu(false)}
               >
-                <NavLink to="/catalog" className={navLinkClass} end>РљР°С‚Р°Р»РѕРі</NavLink>
+                <NavLink to="/catalog" className={navLinkClass} end>Каталог</NavLink>
                 <AnimatePresence>
                   {showCatalogMenu && (
                     <motion.div 
@@ -148,7 +148,7 @@ export const Navbar = () => {
                 </AnimatePresence>
               </div>
               <NavLink to="/bundle-builder" className={navLinkClass}>
-                Р—С–Р±СЂР°С‚Рё РЅР°Р±С–СЂ
+                Зібрати набір
               </NavLink>
               {categories.filter(c => !c.parent_id).slice(0, 3).map(cat => (
                 <NavLink key={cat.id} to={`/catalog?category=${cat.slug}`} className={navLinkClass}>
@@ -169,7 +169,7 @@ export const Navbar = () => {
             <Link to="/wishlist" className="p-2 text-slate-400 hover:text-slate-900 transition-all duration-300 relative">
               <Heart size={20} strokeWidth={1.5} />
               {wishlist.length > 0 && (
-                <span className="absolute top-0 right-0 bg-pink-500 text-white text-[8px] font-bold w-4 h-4 rounded-full flex items-center justify-center">
+                <span className="absolute top-0 right-0 bg-slate-900 text-white text-[8px] font-bold w-4 h-4 rounded-full flex items-center justify-center">
                   {wishlist.length}
                 </span>
               )}
@@ -185,7 +185,7 @@ export const Navbar = () => {
               >
                 <Bell size={20} strokeWidth={1.5} />
                 {unreadCount > 0 && (
-                  <span className="absolute top-0 right-0 bg-tiffany text-white text-[8px] font-bold w-4 h-4 rounded-full flex items-center justify-center">
+                  <span className="absolute top-0 right-0 bg-slate-900 text-white text-[8px] font-bold w-4 h-4 rounded-full flex items-center justify-center">
                     {unreadCount}
                   </span>
                 )}
@@ -200,9 +200,9 @@ export const Navbar = () => {
                     className="absolute right-0 mt-4 w-80 bg-white rounded-3xl shadow-2xl border border-slate-100 p-6 z-50 sm:w-96"
                   >
                     <div className="mb-6 flex items-start justify-between gap-4">
-                      <h3 className="font-bold text-slate-900">РЎРїРѕРІС–С‰РµРЅРЅСЏ</h3>
+                      <h3 className="font-bold text-slate-900">Сповіщення</h3>
                       <div className="flex flex-wrap items-center justify-end gap-2">
-                        <span className="text-[10px] font-bold text-tiffany uppercase tracking-widest">{unreadCount} РЅРѕРІРёС…</span>
+                        <span className="text-[10px] font-bold text-tiffany uppercase tracking-widest">{unreadCount} нових</span>
                         {notifications.length > 0 && (
                           <button
                             type="button"
@@ -212,20 +212,20 @@ export const Navbar = () => {
                             }}
                             className="rounded-full bg-slate-50 px-3 py-1.5 text-[10px] font-bold uppercase tracking-widest text-slate-400 transition-all hover:bg-red-50 hover:text-red-500"
                           >
-                            РћС‡РёСЃС‚РёС‚Рё
+                            Очистити
                           </button>
                         )}
                         {user?.role === 'admin' && (
                           <button
                             type="button"
                             onClick={async () => {
-                              if (!window.confirm('РћС‡РёСЃС‚РёС‚Рё РІСЃС– СЃРїРѕРІС–С‰РµРЅРЅСЏ РґР»СЏ РІСЃС–С… РєРѕСЂРёСЃС‚СѓРІР°С‡С–РІ?')) return;
+                              if (!window.confirm('Очистити всі сповіщення для всіх користувачів?')) return;
                               await clearAllNotifications();
                               setShowNotifMenu(false);
                             }}
                             className="rounded-full bg-red-50 px-3 py-1.5 text-[10px] font-bold uppercase tracking-widest text-red-500 transition-all hover:bg-red-500 hover:text-white"
                           >
-                            РћС‡РёСЃС‚РёС‚Рё РІСЃС–Рј
+                            Очистити всім
                           </button>
                         )}
                       </div>
@@ -247,7 +247,7 @@ export const Navbar = () => {
                       ) : (
                         <div className="text-center py-8">
                           <BellOff size={32} className="mx-auto text-slate-200 mb-3" />
-                          <p className="text-slate-400 text-xs">РЈ РІР°СЃ РїРѕРєРё РЅРµРјР°С” СЃРїРѕРІС–С‰РµРЅСЊ</p>
+                          <p className="text-slate-400 text-xs">У вас поки немає сповіщень</p>
                         </div>
                       )}
                     </div>
@@ -297,19 +297,19 @@ export const Navbar = () => {
                   {showUserMenu && (
                     <div className="absolute top-full right-0 mt-2 w-48 bg-white rounded-2xl shadow-xl border border-slate-100 p-2 z-50">
                       <div className="px-4 py-3 border-b border-slate-50 mb-2">
-                        <div className="text-[10px] uppercase text-slate-400 font-bold">Р’Р°С€С– Р±РѕРЅСѓСЃРё</div>
-                        <div className="text-tiffany font-bold">{user.bonuses} РіСЂРЅ</div>
+                        <div className="text-[10px] uppercase text-slate-400 font-bold">Ваші бонуси</div>
+                        <div className="text-tiffany font-bold">{user.bonuses} грн</div>
                       </div>
                       {user.role === 'admin' && (
                         <Link to="/admin" onClick={() => setShowUserMenu(false)} className="flex items-center gap-3 px-4 py-3 text-sm text-slate-600 hover:bg-slate-50 rounded-xl transition-all">
-                          <User size={16} /> РђРґРјС–РЅ-РїР°РЅРµР»СЊ
+                          <User size={16} /> Адмін-панель
                         </Link>
                       )}
                       <button 
                         onClick={() => { logout(); setShowUserMenu(false); }}
                         className="w-full flex items-center gap-3 px-4 py-3 text-sm text-red-500 hover:bg-red-50 rounded-xl transition-all"
                       >
-                        <LogOut size={16} /> Р’РёР№С‚Рё
+                        <LogOut size={16} /> Вийти
                       </button>
                     </div>
                   )}
@@ -350,7 +350,7 @@ export const Navbar = () => {
               className="fixed top-0 right-0 bottom-0 w-80 bg-white z-[70] shadow-2xl p-8 flex flex-col"
             >
               <div className="flex items-center justify-between mb-12">
-                <div className="text-xl font-serif font-bold text-slate-900">РњРµРЅСЋ</div>
+                <div className="text-xl font-serif font-bold text-slate-900">Меню</div>
                 <button 
                   onClick={() => setIsMobileMenuOpen(false)}
                   className="p-2 text-slate-400 hover:text-slate-900"
@@ -361,21 +361,21 @@ export const Navbar = () => {
 
               <div className="flex-grow overflow-y-auto space-y-8">
                 <div className="space-y-4">
-                  <div className="text-[10px] uppercase text-slate-400 font-bold tracking-widest">РљР°С‚Р°Р»РѕРі</div>
+                  <div className="text-[10px] uppercase text-slate-400 font-bold tracking-widest">Каталог</div>
                   <div className="grid gap-4">
                     <Link 
                       to="/catalog" 
                       className="text-lg font-bold text-slate-900 hover:text-tiffany"
                       onClick={() => setIsMobileMenuOpen(false)}
                     >
-                      Р’РµСЃСЊ РєР°С‚Р°Р»РѕРі
+                      Весь каталог
                     </Link>
                     <Link
                       to="/bundle-builder"
                       className="text-lg font-bold text-slate-900 hover:text-tiffany"
                       onClick={() => setIsMobileMenuOpen(false)}
                     >
-                      Р—С–Р±СЂР°С‚Рё РЅР°Р±С–СЂ
+                      Зібрати набір
                     </Link>
                     {categories.filter(c => !c.parent_id).map(cat => (
                       <Link 
@@ -391,11 +391,11 @@ export const Navbar = () => {
                 </div>
 
                 <div className="space-y-4">
-                  <div className="text-[10px] uppercase text-slate-400 font-bold tracking-widest">Р”РѕРїРѕРјРѕРіР°</div>
+                  <div className="text-[10px] uppercase text-slate-400 font-bold tracking-widest">Допомога</div>
                   <div className="grid gap-4">
-                    <Link to="/about" className="text-slate-600 hover:text-slate-900" onClick={() => setIsMobileMenuOpen(false)}>РџСЂРѕ РЅР°СЃ</Link>
+                    <Link to="/about" className="text-slate-600 hover:text-slate-900" onClick={() => setIsMobileMenuOpen(false)}>Про нас</Link>
                     <Link to="/faq" className="text-slate-600 hover:text-slate-900" onClick={() => setIsMobileMenuOpen(false)}>FAQ</Link>
-                    <Link to="/faq" className="text-slate-600 hover:text-slate-900" onClick={() => setIsMobileMenuOpen(false)}>Р”РѕСЃС‚Р°РІРєР° С‚Р° РѕРїР»Р°С‚Р°</Link>
+                    <Link to="/faq" className="text-slate-600 hover:text-slate-900" onClick={() => setIsMobileMenuOpen(false)}>Доставка та оплата</Link>
                   </div>
                 </div>
               </div>
@@ -407,7 +407,7 @@ export const Navbar = () => {
                     className="flex items-center justify-center gap-3 bg-slate-900 text-white py-4 rounded-2xl font-bold"
                     onClick={() => setIsMobileMenuOpen(false)}
                   >
-                    <User size={18} /> РЈРІС–Р№С‚Рё
+                    <User size={18} /> Увійти
                   </Link>
                 ) : (
                   <div className="flex items-center gap-4">
@@ -422,14 +422,14 @@ export const Navbar = () => {
                           className="mt-3 flex min-h-11 items-center justify-center gap-2 rounded-xl bg-slate-900 px-4 py-3 text-sm text-white font-bold"
                           onClick={() => setIsMobileMenuOpen(false)}
                         >
-                          <User size={14} /> РђРґРјС–РЅ-РїР°РЅРµР»СЊ
+                          <User size={14} /> Адмін-панель
                         </Link>
                       )}
                       <button 
                         onClick={() => { logout(); setIsMobileMenuOpen(false); }}
                         className="mt-2 block text-xs text-red-500 font-bold"
                       >
-                        Р’РёР№С‚Рё
+                        Вийти
                       </button>
                     </div>
                   </div>
@@ -453,7 +453,7 @@ export const Navbar = () => {
               <input 
                 autoFocus
                 type="text" 
-                placeholder="Р©Рѕ РІРё С€СѓРєР°С”С‚Рµ?"
+                placeholder="Що ви шукаєте?"
                 className="w-full bg-slate-50 border-none rounded-[2rem] pl-16 pr-8 py-6 text-xl font-serif focus:ring-2 focus:ring-tiffany transition-all"
                 onKeyDown={(e) => {
                   if (e.key === 'Enter') {

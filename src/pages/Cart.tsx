@@ -5,6 +5,7 @@ import { useCart } from '../store/CartContext';
 import { useAuth } from '../store/AuthContext';
 import { Link } from 'react-router-dom';
 import { calculateBonusSpendLimit, formatCashbackRate, getCashbackRate, getLoyaltyProgress } from '../utils/loyalty';
+import { fetchJsonCachedOr } from '../utils/apiCache';
 
 type NovaPoshtaCity = {
   ref: string;
@@ -57,8 +58,7 @@ export const Cart = () => {
 
   useEffect(() => {
     let cancelled = false;
-    fetch('/api/site-settings', { cache: 'no-store' })
-      .then(res => res.ok ? res.json() : null)
+    fetchJsonCachedOr<any>('/api/site-settings', null)
       .then(settings => {
         if (cancelled || !settings) return;
         const threshold = Number(settings.free_delivery_min);
@@ -353,22 +353,25 @@ export const Cart = () => {
                       <h3 className="font-bold text-slate-900 text-lg mb-1">{item.name}</h3>
                       <div className="flex items-center gap-4">
                         <div className="flex items-center border border-slate-200 rounded-xl overflow-hidden">
-                          <button 
+                          <button
                             onClick={() => updateQuantity(item.id, item.quantity - 1)}
+                            aria-label={`Зменшити кількість «${item.name}»`}
                             className="p-2 hover:bg-slate-50 text-slate-500"
                           >
                             <Minus size={14} />
                           </button>
                           <span className="w-8 text-center font-bold text-sm">{item.quantity}</span>
-                          <button 
+                          <button
                             onClick={() => updateQuantity(item.id, item.quantity + 1)}
+                            aria-label={`Збільшити кількість «${item.name}»`}
                             className="p-2 hover:bg-slate-50 text-slate-500"
                           >
                             <Plus size={14} />
                           </button>
                         </div>
-                        <button 
+                        <button
                           onClick={() => removeFromCart(item.id)}
+                          aria-label={`Прибрати «${item.name}» з кошика`}
                           className="text-slate-300 hover:text-red-500 transition-colors"
                         >
                           <Trash2 size={18} />
@@ -394,10 +397,13 @@ export const Cart = () => {
               </h2>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6 bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-sm">
                 <div className="space-y-2">
-                  <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400 ml-1">Ваше ім'я</label>
-                  <input 
+                  <label htmlFor="checkout-name" className="text-[10px] font-bold uppercase tracking-widest text-slate-400 ml-1">Ваше ім'я</label>
+                  <input
+                    id="checkout-name"
+                    name="name"
+                    autoComplete="name"
                     required
-                    type="text" 
+                    type="text"
                     placeholder="Іван Іванов"
                     className="w-full bg-slate-50 border-none rounded-2xl p-4 focus:ring-2 focus:ring-tiffany transition-all"
                     value={formData.name}
@@ -405,10 +411,13 @@ export const Cart = () => {
                   />
                 </div>
                 <div className="space-y-2">
-                  <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400 ml-1">Телефон</label>
-                  <input 
+                  <label htmlFor="checkout-phone" className="text-[10px] font-bold uppercase tracking-widest text-slate-400 ml-1">Телефон</label>
+                  <input
+                    id="checkout-phone"
+                    name="phone"
+                    autoComplete="tel"
                     required
-                    type="tel" 
+                    type="tel"
                     placeholder="+380"
                     className="w-full bg-slate-50 border-none rounded-2xl p-4 focus:ring-2 focus:ring-tiffany transition-all"
                     value={formData.phone}
@@ -416,10 +425,13 @@ export const Cart = () => {
                   />
                 </div>
                 <div className="space-y-2 md:col-span-2">
-                  <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400 ml-1">Email (обов'язково)</label>
-                  <input 
+                  <label htmlFor="checkout-email" className="text-[10px] font-bold uppercase tracking-widest text-slate-400 ml-1">Email (обов'язково)</label>
+                  <input
+                    id="checkout-email"
+                    name="email"
+                    autoComplete="email"
                     required
-                    type="email" 
+                    type="email"
                     placeholder="example@mail.com"
                     className="w-full bg-slate-50 border-none rounded-2xl p-4 focus:ring-2 focus:ring-tiffany transition-all"
                     value={formData.email}
@@ -427,8 +439,10 @@ export const Cart = () => {
                   />
                 </div>
                 <div className="space-y-2 md:col-span-2">
-                  <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400 ml-1">Коментар до замовлення</label>
-                  <textarea 
+                  <label htmlFor="checkout-comment" className="text-[10px] font-bold uppercase tracking-widest text-slate-400 ml-1">Коментар до замовлення</label>
+                  <textarea
+                    id="checkout-comment"
+                    name="comment"
                     placeholder="Наприклад: Передзвоніть мені після 18:00"
                     rows={3}
                     className="w-full bg-slate-50 border-none rounded-2xl p-4 focus:ring-2 focus:ring-tiffany transition-all resize-none"
@@ -478,10 +492,12 @@ export const Cart = () => {
                       </div>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div className="relative space-y-2">
-                          <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400 ml-1">Місто</label>
-                          <input 
+                          <label htmlFor="checkout-city" className="text-[10px] font-bold uppercase tracking-widest text-slate-400 ml-1">Місто</label>
+                          <input
+                            id="checkout-city"
+                            name="city"
                             required={!isQuickOrder}
-                            type="text" 
+                            type="text"
                             placeholder="Київ"
                             className="w-full bg-slate-50 border-none rounded-2xl p-4 focus:ring-2 focus:ring-tiffany transition-all"
                             value={formData.city}
@@ -521,12 +537,14 @@ export const Cart = () => {
                           )}
                         </div>
                         <div className="relative space-y-2">
-                          <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400 ml-1">
+                          <label htmlFor="checkout-warehouse" className="text-[10px] font-bold uppercase tracking-widest text-slate-400 ml-1">
                             {formData.deliveryMethod === 'nova-poshta' ? 'Відділення / Поштомат' : 'Індекс / відділення Укрпошти'}
                           </label>
-                          <input 
+                          <input
+                            id="checkout-warehouse"
+                            name="warehouse"
                             required={!isQuickOrder}
-                            type="text" 
+                            type="text"
                             placeholder={formData.deliveryMethod === 'nova-poshta' ? '№1 або вул. Лесі Українки, 1' : 'Наприклад: 01001 або відділення на Хрещатику'}
                             className="w-full bg-slate-50 border-none rounded-2xl p-4 focus:ring-2 focus:ring-tiffany transition-all"
                             value={formData.warehouse}
@@ -665,8 +683,11 @@ export const Cart = () => {
               <div>
                 <h3 className="font-bold text-slate-900 text-sm mb-3">Промокод</h3>
                 <div className="flex gap-2">
-                  <input 
-                    type="text" 
+                  <input
+                    id="checkout-promo-code"
+                    name="promoCode"
+                    aria-label="Промокод"
+                    type="text"
                     placeholder="Введіть код"
                     value={bonusCode}
                     onChange={e => setBonusCode(e.target.value)}

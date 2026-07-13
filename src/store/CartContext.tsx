@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, useMemo } from 'react';
 import { CartItem, Product } from '../types';
 import { useAuth } from './AuthContext';
+import { fetchJsonCachedOr } from '../utils/apiCache';
 
 export interface BundleOffer {
   id: string;
@@ -57,8 +58,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (cart.length === 0) return;
 
     let cancelled = false;
-    fetch('/api/products/catalog', { cache: 'no-store' })
-      .then(res => res.ok ? res.json() : [])
+    fetchJsonCachedOr<Product[]>('/api/products/catalog', [])
       .then((products: Product[]) => {
         if (cancelled || !Array.isArray(products)) return;
         const availableProducts = new Map(products.map(product => [product.id, product]));

@@ -3,14 +3,15 @@ import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { ArrowRight } from 'lucide-react';
 import { Category } from '../types';
+import { fetchJsonCachedOr } from '../utils/apiCache';
+import { Eyebrow } from './Eyebrow';
 
 export const CategoryGrid = () => {
   const [categories, setCategories] = useState<Category[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    fetch('/api/categories/catalog')
-      .then((res) => (res.ok ? res.json() : []))
+    fetchJsonCachedOr<Category[]>('/api/categories/catalog', [])
       .then((data) => {
         setCategories(Array.isArray(data) ? data.filter((category: Category) => !category.parent_id) : []);
         setIsLoading(false);
@@ -25,7 +26,7 @@ export const CategoryGrid = () => {
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="mb-10 grid gap-6 lg:grid-cols-[1fr_auto] lg:items-end">
           <div className="max-w-2xl">
-            <div className="mb-3 text-[11px] font-bold uppercase text-tiffany">Категорії</div>
+            <Eyebrow>Категорії</Eyebrow>
             <h2 className="text-4xl font-serif font-bold leading-tight text-slate-950 sm:text-5xl">
               Зібрано як полиці у добрій крамниці
             </h2>
@@ -55,7 +56,7 @@ export const CategoryGrid = () => {
                 to={`/catalog?category=${category.slug}`}
                 className="group block w-[260px] overflow-hidden rounded-lg border border-slate-200 bg-white hover:no-underline sm:w-[320px]"
               >
-                <div className="relative aspect-[5/6] overflow-hidden bg-[#f4f0ea]">
+                <div className="relative aspect-[5/6] overflow-hidden bg-cream-dark">
                   <img
                     src={category.image || undefined}
                     alt={category.name}

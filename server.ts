@@ -1,3 +1,4 @@
+import "dotenv/config";
 import express from "express";
 import path from "path";
 import { fileURLToPath } from "url";
@@ -1487,6 +1488,223 @@ app.post("/api/auth/register", asyncHandler(async (req: any, res: any) => {
     }
   }));
 
+  // Batch AI enrichment: up to 10 raw products per single model call.
+  app.post("/api/admin/ai/enrich-batch", authenticate, asyncHandler(async (req: any, res: any) => {
+    if (!requireAdmin(req, res)) return;
+    const rawItems = Array.isArray(req.body?.items) ? req.body.items.slice(0, 10) : [];
+    const categories = Array.isArray(req.body?.categories) ? req.body.categories.slice(0, 40) : [];
+    if (!rawItems.length) return res.status(400).json({ error: "items is required" });
+
+    const catList = categories.length
+      ? categories.map((c: any) => `${c.slug} — ${c.name}`).join("\n")
+      : "kitchen — Кухня\ntableware — Посуд\ntextile — Текстиль\ndecor — Декор\norganization — Організація";
+    const itemsList = rawItems
+      .map((it: any, i: number) => `${i}. "${String(it?.name || "").slice(0, 160)}"${it?.hint ? ` (підказка: ${String(it.hint).slice(0, 120)})` : ""}${Number(it?.price) > 0 ? `, ціна ${Number(it.price)} грн` : ""}`)
+      .join("\n");
+    const prompt = `Ти — мерчандайзер українського магазину естетичних товарів для дому "Хатні Штучки". Для КОЖНОГО товару з нумерованого списку сформуй картку:
+- index: номер зі списку (число)
+- cleanName: охайна українська назва з великої літери, без артикулів, штрихкодів, розмірів у мм, зайвих лапок і КАПСУ
+- category: РІВНО один slug зі списку категорій нижче, найдоречніший
+- description: 2-3 теплих конкретних речення українською про користь і матеріал, без кліше "ідеальний вибір"
+- material: основний матеріал одним-двома словами українською (або порожній рядок)
+- brand: бренд, якщо очевидний з назви, інакше "Хатні Штучки"
+
+КАТЕГОРІЇ:
+${catList}
+
+ТОВАРИ:
+${itemsList}
+
+Поверни JSON-масив з обʼєктом для кожного товару.`;
+
+    const enrichSchema = {
+      type: Type.ARRAY,
+      items: {
+        type: Type.OBJECT,
+        properties: {
+          index: { type: Type.NUMBER },
+          cleanName: { type: Type.STRING },
+          category: { type: Type.STRING },
+          description: { type: Type.STRING },
+          material: { type: Type.STRING },
+          brand: { type: Type.STRING }
+        },
+        required: ["index", "cleanName", "category", "description"]
+      }
+    };
+
+    if (getOpenAIKey()) {
+      try {
+        const text = await requestOpenAIText(prompt, "Return only a valid JSON array matching the requested fields, nothing else.");
+        const items = JSON.parse(cleanJSON(text || "[]"));
+        if (Array.isArray(items) && items.length) {
+          return res.json({ items, provider: "openai", model: getOpenAITextModel() });
+        }
+      } catch (error: any) {
+        console.warn("OpenAI enrich-batch failed, falling back to Gemini:", error?.message || error);
+      }
+    }
+
+    const response = await getAI().models.generateContent({
+      model: "gemini-3-flash-preview",
+      contents: [{ role: "user", parts: [{ text: prompt }] }],
+      config: { responseMimeType: "application/json", responseSchema: enrichSchema }
+    });
+    try {
+      const items = JSON.parse(cleanJSON(response.text || "[]"));
+      res.json({ items: Array.isArray(items) ? items : [], provider: "gemini" });
+    } catch {
+      res.json({ items: [] });
+    }
+  }));
+
+  // Identify a product from a photo (Gemini vision): returns draft card fields.
+  app.post("/api/admin/ai/photo-identify", authenticate, asyncHandler(async (req: any, res: any) => {
+    if (!requireAdmin(req, res)) return;
+    const image = String(req.body?.image || "");
+    const categories = Array.isArray(req.body?.categories) ? req.body.categories.slice(0, 40) : [];
+    const parsed = extractDataUrlImage(image);
+    if (!parsed) return res.status(400).json({ error: "image must be a data URL (png/jpeg/webp)" });
+
+    const catList = categories.length
+      ? categories.map((c: any) => `${c.slug} — ${c.name}`).join("\n")
+      : "kitchen — Кухня\ntableware — Посуд\ntextile — Текстиль\ndecor — Декор\norganization — Організація";
+    const prompt = `На фото — товар для дому з асортименту українського магазину "Хатні Штучки". Визнач і поверни JSON:
+- name: охайна українська назва товару з великої літери
+- category: РІВНО один slug зі списку нижче
+- description: 2-3 теплих конкретних речення українською
+- material: основний матеріал (або порожній рядок)
+- priceEstimate: орієнтовна роздрібна ціна в грн (число, 0 якщо не впевнений)
+
+КАТЕГОРІЇ:
+${catList}`;
+
+    const response = await getAI().models.generateContent({
+      model: "gemini-3-flash-preview",
+      contents: [{
+        role: "user",
+        parts: [
+          { inlineData: { mimeType: parsed.mimeType, data: image.split(",")[1] } },
+          { text: prompt }
+        ]
+      }],
+      config: {
+        responseMimeType: "application/json",
+        responseSchema: {
+          type: Type.OBJECT,
+          properties: {
+            name: { type: Type.STRING },
+            category: { type: Type.STRING },
+            description: { type: Type.STRING },
+            material: { type: Type.STRING },
+            priceEstimate: { type: Type.NUMBER }
+          },
+          required: ["name", "category", "description"]
+        }
+      }
+    });
+    try {
+      const item = JSON.parse(cleanJSON(response.text || "{}"));
+      res.json({ item, provider: "gemini" });
+    } catch {
+      res.status(502).json({ error: "AI не зміг розпізнати товар на фото" });
+    }
+  }));
+
+  // Extract a product list from a supplier category page URL.
+  app.post("/api/admin/import/scrape", authenticate, asyncHandler(async (req: any, res: any) => {
+    if (!requireAdmin(req, res)) return;
+    let target: URL;
+    try {
+      target = new URL(String(req.body?.url || ""));
+    } catch {
+      return res.status(400).json({ error: "Некоректний URL" });
+    }
+    if (!/^https?:$/.test(target.protocol)) return res.status(400).json({ error: "Дозволено лише http/https" });
+    const host = target.hostname.toLowerCase();
+    if (
+      host === "localhost" || host === "0.0.0.0" || host === "[::1]" ||
+      /^127\./.test(host) || /^10\./.test(host) || /^192\.168\./.test(host) ||
+      /^172\.(1[6-9]|2\d|3[01])\./.test(host)
+    ) {
+      return res.status(400).json({ error: "Внутрішні адреси заборонені" });
+    }
+
+    let html = "";
+    try {
+      const pageResponse = await fetch(target.toString(), {
+        redirect: "follow",
+        headers: { "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) HatniImport/1.0" }
+      });
+      if (!pageResponse.ok) return res.status(502).json({ error: `Сторінка недоступна (${pageResponse.status})` });
+      html = (await pageResponse.text()).slice(0, 500_000);
+    } catch (error: any) {
+      return res.status(502).json({ error: `Не вдалося завантажити сторінку: ${error?.message || "network error"}` });
+    }
+
+    const imageSources: string[] = [];
+    html.replace(/<img[^>]+(?:data-src|src)=["']([^"']+)["'][^>]*>/gi, (_m, src) => {
+      if (imageSources.length < 200 && !/\.svg|sprite|logo|icon/i.test(src)) imageSources.push(src);
+      return "";
+    });
+    const textOnly = html
+      .replace(/<script[\s\S]*?<\/script>/gi, " ")
+      .replace(/<style[\s\S]*?<\/style>/gi, " ")
+      .replace(/<[^>]+>/g, "\n")
+      .replace(/&nbsp;/g, " ")
+      .replace(/\n{2,}/g, "\n")
+      .slice(0, 60_000);
+
+    const prompt = `Нижче — текст сторінки категорії інтернет-магазину постачальника і список URL зображень з неї. Витягни СПИСОК ТОВАРІВ (до 60). Для кожного:
+- name: назва товару як на сторінці
+- price: ціна в грн (число, 0 якщо не знайдено)
+- imageUrl: найімовірніший URL фото цього товару зі списку зображень (або порожній рядок)
+
+Ігноруй меню, банери, футер, супутні блоки. Поверни JSON-масив.
+
+ЗОБРАЖЕННЯ:
+${imageSources.slice(0, 120).join("\n")}
+
+ТЕКСТ СТОРІНКИ:
+${textOnly}`;
+
+    const response = await getAI().models.generateContent({
+      model: "gemini-3-flash-preview",
+      contents: [{ role: "user", parts: [{ text: prompt }] }],
+      config: {
+        responseMimeType: "application/json",
+        responseSchema: {
+          type: Type.ARRAY,
+          items: {
+            type: Type.OBJECT,
+            properties: {
+              name: { type: Type.STRING },
+              price: { type: Type.NUMBER },
+              imageUrl: { type: Type.STRING }
+            },
+            required: ["name"]
+          }
+        }
+      }
+    });
+    try {
+      const rawList = JSON.parse(cleanJSON(response.text || "[]"));
+      const items = (Array.isArray(rawList) ? rawList : [])
+        .filter((it: any) => it?.name)
+        .slice(0, 60)
+        .map((it: any) => {
+          let imageUrl = String(it.imageUrl || "");
+          if (imageUrl) {
+            try { imageUrl = new URL(imageUrl, target).toString(); } catch { imageUrl = ""; }
+          }
+          return { name: String(it.name).slice(0, 200), price: Math.max(0, Number(it.price) || 0), imageUrl };
+        });
+      res.json({ items, provider: "gemini", source: target.toString() });
+    } catch {
+      res.json({ items: [] });
+    }
+  }));
+
   app.post("/api/admin/ai/director-report", authenticate, asyncHandler(async (req: any, res: any) => {
     if (!requireAdmin(req, res)) return;
     const { products = [], orders = [], stats = {}, siteSettings = {}, reviews = [] } = req.body;
@@ -2117,7 +2335,7 @@ app.post("/api/auth/register", asyncHandler(async (req: any, res: any) => {
       if (product.bundle_items && Array.isArray(product.bundle_items)) {
         product.bundle_items = JSON.stringify(product.bundle_items);
       }
-      if (!product.id) product.id = Math.random().toString(36).substr(2, 9);
+      if (!product.id) product.id = (globalThis.crypto?.randomUUID?.() || Math.random().toString(36).substr(2, 9));
       await db.createProduct(product);
       clearCache();
       res.json({ success: true, product });
@@ -2128,6 +2346,71 @@ app.post("/api/auth/register", asyncHandler(async (req: any, res: any) => {
       }
       res.status(isQuota ? 503 : 500).json({ error: "Service unavailable" });
     }
+  }));
+
+  // Bulk create/upsert: up to 50 products per request, single-pass dedup by normalized name.
+  app.post("/api/admin/products/bulk", authenticate, asyncHandler(async (req: any, res: any) => {
+    if (req.user.role !== 'admin') return res.status(403).json({ error: "Forbidden" });
+    if (isDbInDegradedMode()) {
+      return res.status(503).json({ error: "База даних у обмеженому режимі, спробуйте за кілька хвилин" });
+    }
+    const items = Array.isArray(req.body?.items) ? req.body.items.slice(0, 50) : [];
+    const mode = req.body?.mode === "upsert" ? "upsert" : "create";
+    if (!items.length) return res.status(400).json({ error: "items is required" });
+
+    const normalizeName = (value: any) => String(value || "").toLowerCase().replace(/\s+/g, " ").trim();
+    let existingIndex: Map<string, any>;
+    try {
+      const existingProducts = await db.getProductsSummary();
+      existingIndex = new Map(existingProducts.map((p: any) => [normalizeName(p.name), p]));
+    } catch (err: any) {
+      recordDbError(err);
+      return res.status(503).json({ error: "Service unavailable" });
+    }
+
+    const results: any[] = [];
+    for (const raw of items) {
+      const name = String(raw?.name || "").trim();
+      try {
+        if (!name || !(Number(raw?.price) > 0)) {
+          results.push({ name, status: "error", error: "Порожня назва або ціна" });
+          continue;
+        }
+        const product: any = { ...raw, name };
+        if (Array.isArray(product.images)) product.images = JSON.stringify(product.images);
+        if (Array.isArray(product.bundle_items)) product.bundle_items = JSON.stringify(product.bundle_items);
+
+        const match = existingIndex.get(normalizeName(name));
+        if (match) {
+          if (mode === "upsert") {
+            delete product.id;
+            await db.updateProduct(match.id, product);
+            results.push({ id: match.id, name, status: "updated" });
+          } else {
+            results.push({ id: match.id, name, status: "skipped" });
+          }
+          continue;
+        }
+
+        if (!product.id) product.id = (globalThis.crypto?.randomUUID?.() || Math.random().toString(36).substr(2, 9));
+        await db.createProduct(product);
+        existingIndex.set(normalizeName(name), { id: product.id, name });
+        results.push({ id: product.id, name, status: "created" });
+      } catch (err: any) {
+        const { isQuota } = recordDbError(err);
+        results.push({ name, status: "error", error: isQuota ? "Ліміт БД вичерпано" : (err?.message || "DB error") });
+        if (isQuota) break;
+      }
+    }
+
+    clearCache();
+    const summary = {
+      created: results.filter(r => r.status === "created").length,
+      updated: results.filter(r => r.status === "updated").length,
+      skipped: results.filter(r => r.status === "skipped").length,
+      errors: results.filter(r => r.status === "error").length
+    };
+    res.json({ results, summary, mode });
   }));
 
   app.put("/api/admin/products/:id", authenticate, asyncHandler(async (req: any, res: any) => {
@@ -2234,6 +2517,16 @@ app.post("/api/auth/register", asyncHandler(async (req: any, res: any) => {
           "bonus_credit"
         );
       }
+    }
+
+    // Once the order is completed, invite the buyer to leave a review.
+    if (status === 'completed' && orderUserId) {
+      await notifyUser(
+        orderUserId,
+        "Як вам покупка?",
+        `Замовлення ${orderId} виконано. Поділіться відгуком на сторінці товару — це допомагає іншим обирати.`,
+        "review_request"
+      );
     }
 
     // Return stock, spent bonuses, and cashback if an order is cancelled.

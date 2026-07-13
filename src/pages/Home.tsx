@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
-import { ArrowRight, CheckCircle2, PackageCheck, ShieldCheck, Star, Truck } from 'lucide-react';
+import { ArrowRight, CheckCircle2, PackageCheck, ShieldCheck, Truck } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { Hero } from '../components/Hero';
 import { ProductCard } from '../components/ProductCard';
@@ -8,8 +8,9 @@ import { QuickView } from '../components/QuickView';
 import { CategoryGrid } from '../components/CategoryGrid';
 import { ReadySolutions } from '../components/ReadySolutions';
 import { BonusSystem } from '../components/BonusSystem';
-import { Newsletter } from '../components/Newsletter';
+import { Eyebrow } from '../components/Eyebrow';
 import { Product } from '../types';
+import { fetchJsonCachedOr } from '../utils/apiCache';
 
 const FALLBACK_HEADING = 'Популярні речі для оселі з характером';
 const FALLBACK_SUBTITLE = 'Кераміка, текстиль і декор, які виглядають зібраними, а не випадково доданими в кошик.';
@@ -42,8 +43,8 @@ export const Home = () => {
     document.title = 'Хатні Штучки - естетичний посуд, декор і текстиль для дому';
 
     Promise.all([
-      fetch('/api/products/catalog', { cache: 'no-store' }).then((res) => (res.ok ? res.json() : [])),
-      fetch('/api/site-settings').then((res) => (res.ok ? res.json() : null)),
+      fetchJsonCachedOr<Product[]>('/api/products/catalog', []),
+      fetchJsonCachedOr('/api/site-settings', null),
     ])
       .then(([productsData, settingsData]) => {
         setProducts(Array.isArray(productsData) ? productsData : []);
@@ -75,13 +76,11 @@ export const Home = () => {
 
       <CategoryGrid />
 
-      <section className="bg-[#f8f4ef] py-20">
+      <section className="border-t border-slate-900/10 bg-cream py-24">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="mb-10 grid gap-6 lg:grid-cols-[1fr_auto] lg:items-end">
             <div className="max-w-3xl">
-              <div className="mb-3 text-[11px] font-bold uppercase text-tiffany">
-                {siteSettings?.bestsellers_badge || 'Вибір покупців'}
-              </div>
+              <Eyebrow>{siteSettings?.bestsellers_badge || 'Вибір покупців'}</Eyebrow>
               <h2 className="text-4xl font-serif font-bold leading-tight text-slate-950 sm:text-5xl">
                 {siteSettings?.bestsellers_title || FALLBACK_HEADING}
               </h2>
@@ -111,13 +110,13 @@ export const Home = () => {
         </div>
       </section>
 
-      <section className="bg-white py-20">
-        <div className="mx-auto grid max-w-7xl gap-10 px-4 sm:px-6 lg:grid-cols-[0.85fr_1fr] lg:px-8">
+      <section className="bg-white py-24">
+        <div className="mx-auto grid max-w-7xl gap-12 px-4 sm:px-6 lg:grid-cols-[0.85fr_1fr] lg:gap-16 lg:px-8">
           <motion.div
             initial={{ opacity: 0, y: 18 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
-            className="relative overflow-hidden rounded-lg border border-slate-200 bg-[#f4f0ea]"
+            className="relative overflow-hidden rounded-lg border border-slate-200 bg-cream-dark"
           >
             <img
               src="https://images.unsplash.com/photo-1556910103-1c02745aae4d?auto=format&fit=crop&w=1200&q=80"
@@ -135,7 +134,7 @@ export const Home = () => {
           </motion.div>
 
           <div className="flex flex-col justify-center">
-            <div className="mb-4 text-[11px] font-bold uppercase text-tiffany">Чому це працює</div>
+            <Eyebrow>Чому це працює</Eyebrow>
             <h2 className="text-4xl font-serif font-bold leading-tight text-slate-950 sm:text-5xl">
               Менше випадкових покупок, більше цілісних рішень
             </h2>
@@ -149,19 +148,16 @@ export const Home = () => {
                 return (
                   <motion.div
                     key={item.title}
-                    initial={{ opacity: 0, x: 18 }}
-                    whileInView={{ opacity: 1, x: 0 }}
+                    initial={{ opacity: 0, y: 12 }}
+                    whileInView={{ opacity: 1, y: 0 }}
                     transition={{ delay: index * 0.06 }}
                     viewport={{ once: true }}
-                    className="grid grid-cols-[48px_1fr] gap-4 rounded-lg border border-slate-200 bg-white p-4"
+                    className="border-l border-slate-900/15 py-1 pl-6"
                   >
-                    <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-slate-950 text-tiffany">
-                      <Icon size={22} />
-                    </div>
-                    <div>
-                      <h3 className="font-bold text-slate-950">{item.title}</h3>
-                      <p className="mt-1 text-sm leading-6 text-slate-600">{item.text}</p>
-                    </div>
+                    <h3 className="flex items-center gap-2.5 font-bold text-slate-950">
+                      <Icon size={17} className="text-tiffany-deep" /> {item.title}
+                    </h3>
+                    <p className="mt-1.5 text-sm leading-6 text-slate-600">{item.text}</p>
                   </motion.div>
                 );
               })}
@@ -172,51 +168,12 @@ export const Home = () => {
 
       <ReadySolutions />
 
-      <section className="bg-white py-20">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <div className="grid gap-5 md:grid-cols-3">
-            {[
-              { value: '5 000+', label: 'задоволених клієнтів' },
-              { value: '4.9/5', label: 'середня оцінка товарів' },
-              { value: '24 год', label: 'на обробку більшості замовлень' },
-            ].map((stat) => (
-              <div key={stat.label} className="rounded-lg border border-slate-200 bg-[#f8f4ef] p-6">
-                <div className="text-4xl font-bold text-slate-950">{stat.value}</div>
-                <div className="mt-2 text-sm font-bold uppercase text-slate-500">{stat.label}</div>
-              </div>
-            ))}
-          </div>
-
-          <div className="mt-5 rounded-lg border border-slate-200 bg-white p-6">
-            <div className="flex flex-col gap-5 md:flex-row md:items-center md:justify-between">
-              <div className="flex items-center gap-3 text-gold">
-                {[...Array(5)].map((_, index) => (
-                  <Star key={index} size={18} fill="currentColor" />
-                ))}
-                <span className="ml-2 text-sm font-bold text-slate-950">Покупці відзначають пакування і швидкість відповіді</span>
-              </div>
-              <a
-                href="https://t.me/+gcAKeeKFKL43NjYy"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-2 text-sm font-bold text-tiffany hover:no-underline"
-              >
-                Telegram-канал <ArrowRight size={17} />
-              </a>
-            </div>
-          </div>
-        </div>
-      </section>
-
       <BonusSystem />
 
-      <section className="bg-slate-950 py-20 text-white">
+      <section className="bg-slate-950 py-24 text-white">
         <div className="mx-auto grid max-w-7xl gap-8 px-4 sm:px-6 lg:grid-cols-[1fr_auto] lg:items-center lg:px-8">
           <div>
-            <div className="mb-3 inline-flex items-center gap-2 rounded-lg border border-white/10 px-4 py-2 text-[11px] font-bold uppercase text-tiffany">
-              <ShieldCheck size={14} />
-              Спільнота
-            </div>
+            <Eyebrow icon={<ShieldCheck size={14} />}>Спільнота</Eyebrow>
             <h2 className="max-w-3xl text-4xl font-serif font-bold leading-tight sm:text-5xl">
               Нові поставки, добірки і закриті промокоди в Telegram
             </h2>
@@ -234,8 +191,6 @@ export const Home = () => {
           </a>
         </div>
       </section>
-
-      <Newsletter />
 
       <QuickView product={selectedProduct} onClose={() => setSelectedProduct(null)} />
     </div>

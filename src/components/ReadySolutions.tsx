@@ -5,6 +5,7 @@ import { Link } from 'react-router-dom';
 import { useCart } from '../store/CartContext';
 import { Product } from '../types';
 import { isBundleProduct } from '../utils/productFlags';
+import { fetchJsonCachedOr } from '../utils/apiCache';
 
 export const ReadySolutions = () => {
   const { addToCart } = useCart();
@@ -12,8 +13,7 @@ export const ReadySolutions = () => {
 
   useEffect(() => {
     let cancelled = false;
-    fetch('/api/products/catalog', { cache: 'no-store' })
-      .then(res => res.ok ? res.json() : [])
+    fetchJsonCachedOr<Product[]>('/api/products/catalog', [])
       .then((products: Product[]) => {
         if (cancelled || !Array.isArray(products)) return;
         setBundles(products.filter(product => isBundleProduct(product as any) && Number(product.stock || 0) > 0).slice(0, 2));

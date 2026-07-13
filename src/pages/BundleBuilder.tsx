@@ -6,6 +6,7 @@ import { Product } from '../types';
 import { useCart } from '../store/CartContext';
 import { calculateBundlePrice, suggestBundleItemsLocally } from '../utils/bundleRecommendations';
 import { isBundleProduct } from '../utils/productFlags';
+import { fetchJsonCachedOr } from '../utils/apiCache';
 
 const MIN_BUNDLE_ITEMS = 2;
 const MAX_BUNDLE_ITEMS = 6;
@@ -14,31 +15,31 @@ const BUNDLE_DISCOUNT_RATE = 0.12;
 const SCENARIOS = [
   {
     id: 'morning',
-    title: 'Р Р°РЅРєРѕРІР° РєР°РІР°',
-    copy: 'Р§Р°С€РєРё, Р±Р»СЋРґС†СЏ, СЃРєР»Рѕ С– РјР°Р»РµРЅСЊРєС– СЂРµС‡С– РґР»СЏ РєСЂР°СЃРёРІРѕРіРѕ СЂР°РЅРєСѓ.',
-    keywords: ['РєР°РІР°', 'С‡Р°С€', 'РєСЂСѓР¶', 'РєРµР»РёС…', 'Р±Р»СЋРґ', 'С†СѓРєРѕСЂ', 'Р»РѕР¶'],
+    title: 'Ранкова кава',
+    copy: 'Чашки, блюдця, скло і маленькі речі для красивого ранку.',
+    keywords: ['кава', 'чаш', 'круж', 'келих', 'блюд', 'цукор', 'лож'],
   },
   {
     id: 'serving',
-    title: 'РЎС‚С–Р» РґР»СЏ РіРѕСЃС‚РµР№',
-    copy: 'РџРѕСЃСѓРґ, С‚Р°СЂС–Р»РєРё, СЃР°Р»Р°С‚РЅРёРєРё С– СЃРµСЂРІС–СЂСѓРІР°РЅРЅСЏ РѕРґРЅРёРј РЅР°Р±РѕСЂРѕРј.',
-    keywords: ['С‚Р°СЂС–Р»', 'Р±Р»СЋРґ', 'СЃР°Р»Р°С‚', 'РєРµР»РёС…', 'РіР»РµС‡', 'СЃРµСЂРІ', 'РЅР°Р±С–СЂ'],
+    title: 'Стіл для гостей',
+    copy: 'Посуд, тарілки, салатники і сервірування одним набором.',
+    keywords: ['таріл', 'блюд', 'салат', 'келих', 'глеч', 'серв', 'набір'],
   },
   {
     id: 'storage',
-    title: 'РћСЂРіР°РЅС–Р·Р°С†С–СЏ РєСѓС…РЅС–',
-    copy: 'РљРѕРЅС‚РµР№РЅРµСЂРё, Р±Р°РЅРєРё, С”РјРЅРѕСЃС‚С– С– РІСЃРµ РґР»СЏ Р°РєСѓСЂР°С‚РЅРѕРіРѕ Р·Р±РµСЂС–РіР°РЅРЅСЏ.',
-    keywords: ['С”РјРЅ', 'РєРѕРЅС‚РµР№РЅ', 'Р±Р°РЅРєР°', 'РѕСЂРіР°РЅ', 'Р·Р±РµСЂ', 'СЃРёРїСѓС‡', 'РєРѕС€РёРє'],
+    title: 'Організація кухні',
+    copy: 'Контейнери, банки, ємності і все для акуратного зберігання.',
+    keywords: ['ємн', 'контейн', 'банка', 'орган', 'збер', 'сипуч', 'кошик'],
   },
   {
     id: 'gift',
-    title: 'РџРѕРґР°СЂСѓРЅРѕРє',
-    copy: 'Р•СЃС‚РµС‚РёС‡РЅС– С‚РѕРІР°СЂРё, СЏРєС– Р»РµРіРєРѕ РґР°СЂСѓРІР°С‚Рё РєРѕРјРїР»РµРєС‚РѕРј.',
-    keywords: ['РЅР°Р±С–СЂ', 'РїРѕРґР°СЂ', 'РґРµРєРѕСЂ', 'С‚РµРєСЃС‚РёР»СЊ', 'СЃРІС–С‡', 'СЃРµСЂРІРµС‚'],
+    title: 'Подарунок',
+    copy: 'Естетичні товари, які легко дарувати комплектом.',
+    keywords: ['набір', 'подар', 'декор', 'текстиль', 'свіч', 'сервет'],
   },
 ];
 
-const formatPrice = (value: number | string) => `${Number(value || 0).toLocaleString('uk-UA')} РіСЂРЅ`;
+const formatPrice = (value: number | string) => `${Number(value || 0).toLocaleString('uk-UA')} грн`;
 
 const normalize = (value: unknown) =>
   String(value || '')
@@ -64,7 +65,7 @@ export const BundleBuilder = () => {
   const activeScenarioConfig = SCENARIOS.find(scenario => scenario.id === activeScenario) || SCENARIOS[0];
 
   useEffect(() => {
-    document.title = 'РљРѕРЅСЃС‚СЂСѓРєС‚РѕСЂ РЅР°Р±РѕСЂС–РІ вЂ” РҐР°С‚РЅС– РЁС‚СѓС‡РєРё';
+    document.title = 'Конструктор наборів — Хатні Штучки';
   }, []);
 
   useEffect(() => {
@@ -72,13 +73,9 @@ export const BundleBuilder = () => {
     const loadData = async () => {
       setIsLoading(true);
       try {
-        const [productsRes, categoriesRes] = await Promise.all([
-          fetch('/api/products/catalog', { cache: 'no-store' }),
-          fetch('/api/categories/catalog', { cache: 'no-store' }),
-        ]);
         const [productsData, categoriesData] = await Promise.all([
-          productsRes.ok ? productsRes.json() : [],
-          categoriesRes.ok ? categoriesRes.json() : [],
+          fetchJsonCachedOr<Product[]>('/api/products/catalog', []),
+          fetchJsonCachedOr<any[]>('/api/categories/catalog', []),
         ]);
         if (cancelled) return;
         setProducts(Array.isArray(productsData) ? productsData : []);
@@ -144,7 +141,7 @@ export const BundleBuilder = () => {
     setSelectedIds(prev => {
       if (prev.includes(product.id)) return prev.filter(id => id !== product.id);
       if (prev.length >= MAX_BUNDLE_ITEMS) {
-        setNotice(`РЈ РЅР°Р±РѕСЂС– РјР°РєСЃРёРјСѓРј ${MAX_BUNDLE_ITEMS} С‚РѕРІР°СЂС–РІ, С‰РѕР± РІС–РЅ Р»РёС€Р°РІСЃСЏ Р·СЂСѓС‡РЅРёРј РґР»СЏ Р·Р°РјРѕРІР»РµРЅРЅСЏ.`);
+        setNotice(`У наборі максимум ${MAX_BUNDLE_ITEMS} товарів, щоб він лишався зручним для замовлення.`);
         return prev;
       }
       return [...prev, product.id];
@@ -169,7 +166,7 @@ export const BundleBuilder = () => {
     ).values()).slice(0, MAX_BUNDLE_ITEMS);
 
     setSelectedIds(picked.map(product => product.id));
-    setNotice(`РџС–РґС–Р±СЂР°РЅРѕ РЅР°Р±С–СЂ "${activeScenarioConfig.title}" Р· ${picked.length} С‚РѕРІР°СЂС–РІ.`);
+    setNotice(`Підібрано набір "${activeScenarioConfig.title}" з ${picked.length} товарів.`);
   };
 
   useEffect(() => {
@@ -180,12 +177,12 @@ export const BundleBuilder = () => {
 
   const addSelectedBundleToCart = () => {
     if (selectedProducts.length < MIN_BUNDLE_ITEMS) {
-      setNotice(`Р”РѕРґР°Р№С‚Рµ РјС–РЅС–РјСѓРј ${MIN_BUNDLE_ITEMS} С‚РѕРІР°СЂРё, С‰РѕР± СЃС„РѕСЂРјСѓРІР°С‚Рё РЅР°Р±С–СЂ.`);
+      setNotice(`Додайте мінімум ${MIN_BUNDLE_ITEMS} товари, щоб сформувати набір.`);
       return;
     }
 
     addBundleToCart(selectedProducts, {
-      title: `РќР°Р±С–СЂ "${activeScenarioConfig.title}"`,
+      title: `Набір "${activeScenarioConfig.title}"`,
       discountRate: BUNDLE_DISCOUNT_RATE,
     });
     navigate('/cart');
@@ -197,13 +194,13 @@ export const BundleBuilder = () => {
         <div className="mx-auto grid max-w-7xl gap-10 px-4 py-12 sm:px-6 lg:grid-cols-[1.1fr_0.9fr] lg:px-8 lg:py-16">
           <div>
             <div className="mb-5 inline-flex items-center gap-2 rounded-full bg-tiffany/10 px-4 py-2 text-[11px] font-bold uppercase tracking-[0.22em] text-tiffany">
-              <Sparkles size={14} /> РљРѕРЅСЃС‚СЂСѓРєС‚РѕСЂ РЅР°Р±РѕСЂС–РІ
+              <Sparkles size={14} /> Конструктор наборів
             </div>
             <h1 className="max-w-3xl text-5xl font-serif font-bold leading-none text-slate-950 md:text-7xl">
-              Р—Р±РµСЂС–С‚СЊ СЃРІС–Р№ РЅР°Р±С–СЂ РґР»СЏ РґРѕРјСѓ
+              Зберіть свій набір для дому
             </h1>
             <p className="mt-6 max-w-2xl text-lg leading-8 text-slate-500">
-              РћР±РµСЂС–С‚СЊ СЃС†РµРЅР°СЂС–Р№, РґРѕРґР°Р№С‚Рµ С‚РѕРІР°СЂРё РІСЂСѓС‡РЅСѓ Р°Р±Рѕ РЅР°С‚РёСЃРЅС–С‚СЊ Р°РІС‚РѕРїС–РґР±С–СЂ. РЎР°Р№С‚ СЃР°Рј РїРѕРєР°Р¶Рµ СЃСѓРјСѓ, РµРєРѕРЅРѕРјС–СЋ С– РґРѕРґР°СЃС‚СЊ РІРµСЃСЊ РЅР°Р±С–СЂ Сѓ РєРѕС€РёРє РѕРґРЅРёРј РєР»С–РєРѕРј.
+              Оберіть сценарій, додайте товари вручну або натисніть автопідбір. Сайт сам покаже суму, економію і додасть весь набір у кошик одним кліком.
             </p>
             <div className="mt-8 flex flex-wrap gap-3">
               {SCENARIOS.map(scenario => (
@@ -234,7 +231,7 @@ export const BundleBuilder = () => {
           >
             <div className="mb-8 flex items-start justify-between gap-6">
               <div>
-                <div className="text-[11px] font-bold uppercase tracking-[0.22em] text-tiffany">РџРѕС‚РѕС‡РЅРёР№ РЅР°Р±С–СЂ</div>
+                <div className="text-[11px] font-bold uppercase tracking-[0.22em] text-tiffany">Поточний набір</div>
                 <h2 className="mt-2 text-3xl font-serif font-bold">{activeScenarioConfig.title}</h2>
                 <p className="mt-3 text-sm leading-6 text-white/50">{activeScenarioConfig.copy}</p>
               </div>
@@ -243,15 +240,15 @@ export const BundleBuilder = () => {
 
             <div className="grid grid-cols-3 gap-3">
               <div className="rounded-2xl bg-white/5 p-4">
-                <div className="text-[10px] font-bold uppercase tracking-widest text-white/35">РўРѕРІР°СЂС–РІ</div>
+                <div className="text-[10px] font-bold uppercase tracking-widest text-white/35">Товарів</div>
                 <div className="mt-2 text-2xl font-bold">{selectedProducts.length}</div>
               </div>
               <div className="rounded-2xl bg-white/5 p-4">
-                <div className="text-[10px] font-bold uppercase tracking-widest text-white/35">Р Р°Р·РѕРј</div>
+                <div className="text-[10px] font-bold uppercase tracking-widest text-white/35">Разом</div>
                 <div className="mt-2 text-2xl font-bold">{formatPrice(bundlePrice)}</div>
               </div>
               <div className="rounded-2xl bg-tiffany/10 p-4">
-                <div className="text-[10px] font-bold uppercase tracking-widest text-white/35">Р•РєРѕРЅРѕРјС–СЏ</div>
+                <div className="text-[10px] font-bold uppercase tracking-widest text-white/35">Економія</div>
                 <div className="mt-2 text-2xl font-bold text-tiffany">{formatPrice(bundleSavings)}</div>
               </div>
             </div>
@@ -268,14 +265,14 @@ export const BundleBuilder = () => {
                     type="button"
                     onClick={() => toggleProduct(product)}
                     className="flex h-9 w-9 items-center justify-center rounded-full bg-white/10 text-white/60 transition-colors hover:bg-red-500 hover:text-white"
-                    aria-label={`РџСЂРёР±СЂР°С‚Рё ${product.name}`}
+                    aria-label={`Прибрати ${product.name}`}
                   >
                     <X size={16} />
                   </button>
                 </div>
               )) : (
                 <div className="rounded-2xl border border-dashed border-white/10 p-6 text-sm text-white/40">
-                  Р’РёР±РµСЂС–С‚СЊ С‚РѕРІР°СЂРё РЅРёР¶С‡Рµ Р°Р±Рѕ РЅР°С‚РёСЃРЅС–С‚СЊ Р°РІС‚РѕРїС–РґР±С–СЂ.
+                  Виберіть товари нижче або натисніть автопідбір.
                 </div>
               )}
             </div>
@@ -290,7 +287,7 @@ export const BundleBuilder = () => {
                 onClick={() => autoPickBundle()}
                 className="flex min-h-14 items-center justify-center gap-2 rounded-2xl bg-white px-5 py-4 text-sm font-bold text-slate-950 transition-all hover:bg-tiffany hover:text-white"
               >
-                <Sparkles size={18} /> РђРІС‚РѕРїС–РґС–Р±СЂР°С‚Рё
+                <Sparkles size={18} /> Автопідібрати
               </button>
               <button
                 type="button"
@@ -298,7 +295,7 @@ export const BundleBuilder = () => {
                 disabled={selectedProducts.length < MIN_BUNDLE_ITEMS}
                 className="flex min-h-14 items-center justify-center gap-2 rounded-2xl bg-tiffany px-5 py-4 text-sm font-bold text-white shadow-xl shadow-tiffany/20 transition-all hover:bg-white hover:text-tiffany disabled:cursor-not-allowed disabled:bg-white/10 disabled:text-white/30 disabled:shadow-none"
               >
-                РЈ РєРѕС€РёРє <ArrowRight size={18} />
+                У кошик <ArrowRight size={18} />
               </button>
             </div>
           </motion.div>
@@ -312,7 +309,7 @@ export const BundleBuilder = () => {
             <input
               value={searchQuery}
               onChange={event => setSearchQuery(event.target.value)}
-              placeholder="РџРѕС€СѓРє С‚РѕРІР°СЂСѓ РґР»СЏ РЅР°Р±РѕСЂСѓ..."
+              placeholder="Пошук товару для набору..."
               className="w-full rounded-2xl border-none bg-slate-50 py-4 pl-12 pr-4 text-sm font-semibold focus:ring-2 focus:ring-tiffany"
             />
           </div>
@@ -321,7 +318,7 @@ export const BundleBuilder = () => {
             onChange={event => setCategoryFilter(event.target.value)}
             className="rounded-2xl border-none bg-slate-50 px-5 py-4 text-xs font-bold uppercase tracking-widest text-slate-500 focus:ring-2 focus:ring-tiffany"
           >
-            <option value="all">РЈСЃС– РєР°С‚РµРіРѕСЂС–С—</option>
+            <option value="all">Усі категорії</option>
             {categoryOptions.map(category => (
               <option key={category.id || category.slug} value={category.slug}>{category.name}</option>
             ))}
@@ -331,19 +328,19 @@ export const BundleBuilder = () => {
             onClick={() => autoPickBundle()}
             className="flex min-h-12 items-center justify-center gap-2 rounded-2xl bg-slate-950 px-5 py-4 text-xs font-bold uppercase tracking-widest text-white transition-all hover:bg-tiffany"
           >
-            <PackageCheck size={17} /> Р—С–Р±СЂР°С‚Рё Р°РІС‚РѕРјР°С‚РѕРј
+            <PackageCheck size={17} /> Зібрати автоматом
           </button>
         </div>
 
         {isLoading ? (
           <div className="rounded-[2rem] bg-white p-16 text-center text-sm font-bold uppercase tracking-widest text-slate-300">
-            Р—Р°РІР°РЅС‚Р°Р¶СѓС”РјРѕ С‚РѕРІР°СЂРё...
+            Завантажуємо товари...
           </div>
         ) : visibleProducts.length === 0 ? (
           <div className="rounded-[2rem] bg-white p-16 text-center">
             <Gift className="mx-auto mb-4 text-slate-200" size={54} />
-            <h2 className="text-2xl font-bold text-slate-950">РќС–С‡РѕРіРѕ РЅРµ Р·РЅР°Р№С€Р»Рё</h2>
-            <p className="mt-2 text-slate-500">Р—РјС–РЅС–С‚СЊ РїРѕС€СѓРє Р°Р±Рѕ РєР°С‚РµРіРѕСЂС–СЋ.</p>
+            <h2 className="text-2xl font-bold text-slate-950">Нічого не знайшли</h2>
+            <p className="mt-2 text-slate-500">Змініть пошук або категорію.</p>
           </div>
         ) : (
           <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
@@ -380,7 +377,7 @@ export const BundleBuilder = () => {
                       </div>
                       {activeScenarioConfig.keywords.some(keyword => productText(product).includes(keyword)) && (
                         <div className="absolute left-4 top-4 inline-flex items-center gap-1.5 rounded-md bg-white px-3 py-1 text-[10px] font-bold uppercase text-tiffany shadow-sm">
-                          <BadgePercent size={12} /> РїС–РґС…РѕРґРёС‚СЊ
+                          <BadgePercent size={12} /> підходить
                         </div>
                       )}
                     </div>
@@ -390,7 +387,7 @@ export const BundleBuilder = () => {
                       <div className="mt-5 flex items-center justify-between border-t border-slate-100 pt-4">
                         <div className="text-xl font-bold text-slate-950">{formatPrice(product.price)}</div>
                         <span className="rounded-full bg-slate-50 px-3 py-1 text-[10px] font-bold uppercase text-slate-400">
-                          {Number(product.stock || 0)} С€С‚
+                          {Number(product.stock || 0)} шт
                         </span>
                       </div>
                     </div>
@@ -407,9 +404,9 @@ export const BundleBuilder = () => {
               <Gift size={22} />
             </div>
             <div>
-              <h2 className="text-xl font-bold text-slate-950">Р“РѕС‚РѕРІС– РЅР°Р±РѕСЂРё С‚РµР¶ Р»РёС€Р°СЋС‚СЊСЃСЏ</h2>
+              <h2 className="text-xl font-bold text-slate-950">Готові набори теж лишаються</h2>
               <p className="mt-1 text-sm leading-6 text-slate-500">
-                РЇРєС‰Рѕ С‚СЂРµР±Р° РЅРµ Р·Р±РёСЂР°С‚Рё СЃР°РјРѕРјСѓ, РІС–РґРєСЂРёР№С‚Рµ РіРѕС‚РѕРІС– РєРѕРјРїР»РµРєС‚Рё Р· РєР°С‚Р°Р»РѕРіСѓ.
+                Якщо треба не збирати самому, відкрийте готові комплекти з каталогу.
               </p>
             </div>
           </div>
@@ -417,7 +414,7 @@ export const BundleBuilder = () => {
             to="/catalog?category=bundles"
             className="mt-5 inline-flex min-h-12 items-center justify-center rounded-2xl bg-slate-950 px-6 py-3 text-sm font-bold text-white hover:bg-tiffany hover:no-underline md:mt-0"
           >
-            Р“РѕС‚РѕРІС– РЅР°Р±РѕСЂРё
+            Готові набори
           </Link>
         </div>
       </section>

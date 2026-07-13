@@ -1,5 +1,6 @@
 import { Suspense, lazy } from 'react';
-import { BrowserRouter as Router, Link, Route, Routes } from 'react-router-dom';
+import { MotionConfig } from 'framer-motion';
+import { BrowserRouter as Router, Link, Route, Routes, useLocation } from 'react-router-dom';
 import { CartProvider } from './store/CartContext';
 import { AuthProvider } from './store/AuthContext';
 import { WishlistProvider } from './store/WishlistContext';
@@ -25,8 +26,17 @@ const RouteFallback = () => (
   <div className="flex min-h-[60vh] items-center justify-center font-bold text-slate-400">Завантаження...</div>
 );
 
+// Плаваючий віджет акцій показуємо лише там, де користувач обирає товари,
+// і не відволікаємо в кошику, профілі чи адмінці.
+const FloatingOffers = () => {
+  const { pathname } = useLocation();
+  const isShoppingRoute = pathname === '/' || pathname === '/catalog' || pathname.startsWith('/product/');
+  return isShoppingRoute ? <SpecialOffers /> : null;
+};
+
 export default function App() {
   return (
+    <MotionConfig reducedMotion="user">
     <AuthProvider>
       <NotificationProvider>
         <WishlistProvider>
@@ -52,7 +62,7 @@ export default function App() {
                   </Suspense>
                 </main>
 
-                <SpecialOffers />
+                <FloatingOffers />
 
                 <footer className="bg-slate-950 py-16 text-white">
                   <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
@@ -113,5 +123,6 @@ export default function App() {
         </WishlistProvider>
       </NotificationProvider>
     </AuthProvider>
+    </MotionConfig>
   );
 }
