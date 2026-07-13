@@ -77,7 +77,23 @@ export const ProductDetail = () => {
   const categoryLabel = useCategoryLabel(product?.category);
   const isBundleProduct = hasBundleFlag(product);
   const smartBundleProducts = product && !isBundleProduct ? relatedProducts.slice(0, 4) : [];
-  const smartBundleItems = product ? [product, ...smartBundleProducts] : [];
+  // Дедуплікація за id і видимою ідентичністю (назва+ціна): той самий товар (або його
+  // дубль-SKU з іншим id) не показується в наборі двічі.
+  const smartBundleItems = (() => {
+    if (!product) return [] as Product[];
+    const seenIds = new Set<string>();
+    const seenIdentities = new Set<string>();
+    const result: Product[] = [];
+    for (const item of [product, ...smartBundleProducts]) {
+      if (!item) continue;
+      const identityKey = `${String(item.name || '').toLowerCase().replace(/\s+/g, ' ').trim()}|${Number(item.price || 0)}`;
+      if (seenIds.has(item.id) || seenIdentities.has(identityKey)) continue;
+      seenIds.add(item.id);
+      seenIdentities.add(identityKey);
+      result.push(item as Product);
+    }
+    return result;
+  })();
   const smartBundleTotal = smartBundleItems.reduce((sum, item) => sum + Number(item?.price || 0), 0);
 
   const addSmartBundleToCart = () => {
