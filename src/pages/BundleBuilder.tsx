@@ -150,20 +150,34 @@ export const BundleBuilder = () => {
 
   const autoPickBundle = (seedProduct?: Product) => {
     if (availableProducts.length === 0) return;
-    const scenarioMatches = availableProducts.filter(product =>
-      activeScenarioConfig.keywords.some(keyword => productText(product).includes(keyword))
-    );
+    const scenarioMatches = availableProducts
+      .filter(product => activeScenarioConfig.keywords.some(keyword => productText(product).includes(keyword)))
+      .sort((a, b) => Number(b.rating || 0) - Number(a.rating || 0));
+
+    // Seed from a scenario-relevant product so the набір stays on theme.
     const baseProduct = seedProduct
-      || selectedProducts[0]
       || scenarioMatches[0]
-      || availableProducts.sort((a, b) => Number(b.rating || 0) - Number(a.rating || 0))[0];
+      || selectedProducts[0]
+      || [...availableProducts].sort((a, b) => Number(b.rating || 0) - Number(a.rating || 0))[0];
 
     const suggested = suggestBundleItemsLocally(baseProduct as any, availableProducts as any, { limit: MAX_BUNDLE_ITEMS - 1 }) as Product[];
-    const picked = Array.from(new Map(
-      [baseProduct, ...suggested, ...scenarioMatches]
-        .filter(Boolean)
-        .map(product => [product.id, product])
-    ).values()).slice(0, MAX_BUNDLE_ITEMS);
+
+    // Scenario товари першими, далі базовий, далі комплементарні пропозиції для добору слотів.
+    const candidates = [baseProduct, ...scenarioMatches, ...suggested].filter(Boolean) as Product[];
+
+    // Дедуплікація і за id, і за видимою ідентичністю (назва+ціна) — той самий товар
+    // не потрапляє в набір двічі навіть коли в каталозі є дублі-SKU з різними id.
+    const seenIds = new Set<string>();
+    const seenIdentities = new Set<string>();
+    const picked: Product[] = [];
+    for (const product of candidates) {
+      const identityKey = `${normalize(product.name)}|${Number(product.price || 0)}`;
+      if (seenIds.has(product.id) || seenIdentities.has(identityKey)) continue;
+      seenIds.add(product.id);
+      seenIdentities.add(identityKey);
+      picked.push(product);
+      if (picked.length >= MAX_BUNDLE_ITEMS) break;
+    }
 
     setSelectedIds(picked.map(product => product.id));
     setNotice(`Підібрано набір "${activeScenarioConfig.title}" з ${picked.length} товарів.`);
