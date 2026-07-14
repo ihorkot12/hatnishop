@@ -2948,6 +2948,28 @@ app.get("/api/admin/users", authenticate, asyncHandler(async (req: any, res: any
         ? Math.floor(safeFinalTotal * getCashbackRate(toFiniteNumber(loyaltyUser.total_spent)))
         : 0;
 
+      // Безкоштовна доставка визначається СЕРВЕРОМ: або сума понад поріг, або перше
+      // замовлення зареєстрованого користувача (рахуємо за кількістю замовлень, бо
+      // total_spent оновлюється лише після закриття замовлення адміном).
+      let isFirstOrder = false;
+      if (authUser?.id) {
+        try {
+          const previousOrders = await (db as any).getUserOrders(authUser.id);
+          isFirstOrder = Array.isArray(previousOrders) && previousOrders.length === 0;
+        } catch {
+          isFirstOrder = false; // fail-closed: сумнів — не даємо безкоштовну доставку
+        }
+      }
+      let freeDeliveryMin = 1500;
+      try {
+        const settings: any = await db.getSiteSettings();
+        const configured = toFiniteNumber(settings?.free_delivery_min, 1500);
+        if (configured > 0) freeDeliveryMin = configured;
+      } catch {
+        // лишаємо дефолт
+      }
+      const isFreeDelivery = isFirstOrder || serverTotal >= freeDeliveryMin;
+
       await db.createOrder({
         id: orderId,
         user_id: authUser?.id,
@@ -2963,7 +2985,12 @@ app.get("/api/admin/users", authenticate, asyncHandler(async (req: any, res: any
         comment: [
           comment,
           promoCode ? `Промокод: ${promoCode}` : "",
-          bundleDiscount > 0 ? `Конструктор набору: -${bundleDiscount} грн` : ""
+          bundleDiscount > 0 ? `Конструктор набору: -${bundleDiscount} грн` : "",
+          // Рахуємо на сервері (клієнтський deliverySummary ігноруємо), інакше власник
+          // не знав би, що покупцю пообіцяли безкоштовну доставку.
+          isFreeDelivery
+            ? (isFirstOrder ? "ДОСТАВКА: безкоштовна (перше замовлення)" : "ДОСТАВКА: безкоштовна (сума понад поріг)")
+            : "ДОСТАВКА: за тарифами перевізника"
         ].filter(Boolean).join("\n") || undefined
       }, orderItems, safeBonusUsed, safeFinalTotal);
 

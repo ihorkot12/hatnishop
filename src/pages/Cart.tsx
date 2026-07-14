@@ -213,6 +213,21 @@ export const Cart = () => {
     e.preventDefault();
     if (isSubmitting) return;
     setCheckoutError('');
+
+    // Поле "відділення" буває disabled (якщо місто не обране зі списку НП), а браузер
+    // не валідує disabled-поля — без цієї перевірки замовлення йшло без відділення,
+    // і власник не знав, куди відправляти посилку.
+    if (!isQuickOrder) {
+      if (!formData.city.trim()) {
+        setCheckoutError('Вкажіть місто доставки.');
+        return;
+      }
+      if (!formData.warehouse.trim()) {
+        setCheckoutError('Вкажіть відділення або поштомат — без нього ми не зможемо відправити замовлення.');
+        return;
+      }
+    }
+
     setIsSubmitting(true);
     const order = {
       id: Math.random().toString(36).substr(2, 9).toUpperCase(),
@@ -576,7 +591,6 @@ export const Cart = () => {
                             className="w-full bg-slate-50 border-none rounded-2xl p-4 focus:ring-2 focus:ring-tiffany transition-all"
                             value={formData.warehouse}
                             autoComplete="off"
-                            disabled={formData.deliveryMethod === 'nova-poshta' && !novaPoshtaCityRef}
                             onChange={e => {
                               setFormData({...formData, warehouse: e.target.value});
                               setNovaPoshtaWarehouseRef('');
