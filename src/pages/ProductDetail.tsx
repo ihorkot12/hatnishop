@@ -73,6 +73,41 @@ export const ProductDetail = () => {
     fetchProduct();
   }, [id]);
 
+  useEffect(() => {
+    if (!product) return;
+    const scriptId = 'product-jsonld';
+    const anyProduct = product as any;
+    const data: any = {
+      '@context': 'https://schema.org/',
+      '@type': 'Product',
+      name: product.name,
+      image: [product.image, ...(Array.isArray(product.images) ? product.images : [])].filter(Boolean),
+      description: product.description || '',
+      brand: { '@type': 'Brand', name: product.brand || 'Хатні Штучки' },
+      offers: {
+        '@type': 'Offer',
+        priceCurrency: 'UAH',
+        price: Number(product.price || 0),
+        availability: Number(product.stock || 0) > 0 ? 'https://schema.org/InStock' : 'https://schema.org/OutOfStock',
+        url: typeof window !== 'undefined' ? window.location.href : undefined,
+      },
+    };
+    const reviewCount = Number(anyProduct.reviewCount || anyProduct.review_count || 0);
+    const rating = Number(anyProduct.rating || 0);
+    if (reviewCount > 0 && rating > 0) {
+      data.aggregateRating = { '@type': 'AggregateRating', ratingValue: rating, reviewCount };
+    }
+    let script = document.getElementById(scriptId) as HTMLScriptElement | null;
+    if (!script) {
+      script = document.createElement('script');
+      script.id = scriptId;
+      script.type = 'application/ld+json';
+      document.head.appendChild(script);
+    }
+    script.textContent = JSON.stringify(data);
+    return () => { document.getElementById(scriptId)?.remove(); };
+  }, [product]);
+
   const isWishlisted = product ? isInWishlist(product.id) : false;
   const categoryLabel = useCategoryLabel(product?.category);
   const isBundleProduct = hasBundleFlag(product);

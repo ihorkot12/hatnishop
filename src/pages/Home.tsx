@@ -97,11 +97,23 @@ export const Home = () => {
           </div>
 
           {bestSellers.length > 0 ? (
-            <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
+            <motion.div
+              className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4"
+              initial="hidden"
+              whileInView="visible"
+              viewport={{ once: true, amount: 0.2 }}
+              variants={{ visible: { transition: { staggerChildren: 0.08 } } }}
+            >
               {bestSellers.map((product) => (
-                <ProductCard key={product.id} product={product} onQuickView={(item) => setSelectedProduct(item)} />
+                <motion.div
+                  key={product.id}
+                  variants={{ hidden: { opacity: 0, y: 20 }, visible: { opacity: 1, y: 0 } }}
+                  transition={{ duration: 0.5, ease: 'easeOut' }}
+                >
+                  <ProductCard product={product} onQuickView={(item) => setSelectedProduct(item)} />
+                </motion.div>
               ))}
-            </div>
+            </motion.div>
           ) : (
             <div className="rounded-lg border border-dashed border-slate-300 bg-white p-10 text-center text-slate-500">
               Товари завантажуються. Якщо каталог порожній, додайте позиції в адмінці.
