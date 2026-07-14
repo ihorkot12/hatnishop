@@ -311,6 +311,13 @@ export const BundleBuilder = () => {
               <div className="mt-5 rounded-2xl bg-white/5 p-4 text-sm text-white/70">{notice}</div>
             )}
 
+            <div className="mt-5 flex items-start gap-2.5 rounded-2xl bg-tiffany/10 p-4 text-sm text-white/80">
+              <Gift size={17} className="mt-0.5 shrink-0 text-tiffany" />
+              <span>
+                До кожного набору додаємо <span className="font-bold text-tiffany">подарункову листівку</span> з побажанням — безкоштовно.
+              </span>
+            </div>
+
             <div className="mt-8 grid gap-3 sm:grid-cols-2">
               <button
                 type="button"
