@@ -437,13 +437,15 @@ export const Catalog = () => {
                 <div>
                   <h3 className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400 mb-6">Популярність</h3>
                   <label className="flex items-center gap-3 cursor-pointer group">
-                    <input 
-                      type="checkbox" 
-                      className="hidden" 
+                    {/* sr-only, а не hidden: display:none викидає інпут із tab-order,
+                        і фільтр ставав недоступним з клавіатури */}
+                    <input
+                      type="checkbox"
+                      className="sr-only peer"
                       checked={popularOnly}
                       onChange={(e) => setPopularOnly(e.target.checked)}
                     />
-                    <div className={`w-6 h-6 rounded-md flex items-center justify-center border-2 transition-all ${popularOnly ? 'bg-tiffany border-tiffany' : 'border-slate-300 group-hover:border-tiffany'}`}>
+                    <div className={`w-6 h-6 rounded-md flex items-center justify-center border-2 transition-all peer-focus-visible:ring-2 peer-focus-visible:ring-tiffany-deep peer-focus-visible:ring-offset-2 ${popularOnly ? 'bg-tiffany border-tiffany' : 'border-slate-300 group-hover:border-tiffany'}`}>
                       {popularOnly && <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>}
                     </div>
                     <span className="font-bold text-slate-700 group-hover:text-slate-900">Тільки популярні товари</span>
@@ -451,11 +453,11 @@ export const Catalog = () => {
                   <label className="mt-4 flex items-center gap-3 cursor-pointer group">
                     <input
                       type="checkbox"
-                      className="hidden"
+                      className="sr-only peer"
                       checked={bundleOnly}
                       onChange={(e) => setBundleOnly(e.target.checked)}
                     />
-                    <div className={`w-6 h-6 rounded-md flex items-center justify-center border-2 transition-all ${bundleOnly ? 'bg-tiffany border-tiffany' : 'border-slate-300 group-hover:border-tiffany'}`}>
+                    <div className={`w-6 h-6 rounded-md flex items-center justify-center border-2 transition-all peer-focus-visible:ring-2 peer-focus-visible:ring-tiffany-deep peer-focus-visible:ring-offset-2 ${bundleOnly ? 'bg-tiffany border-tiffany' : 'border-slate-300 group-hover:border-tiffany'}`}>
                       {bundleOnly && <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>}
                     </div>
                     <span className="font-bold text-slate-700 group-hover:text-slate-900">Тільки готові набори</span>

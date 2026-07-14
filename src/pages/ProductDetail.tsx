@@ -737,6 +737,29 @@ export const ProductDetail = () => {
           </div>
         </section>
       )}
+
+      {/* Мобільний sticky-CTA: на телефоні основна кнопка купівлі зникає майже одразу
+          після скролу, тож тримаємо ціну + дію завжди під рукою. */}
+      <div className="fixed inset-x-0 bottom-0 z-40 border-t border-slate-200 bg-white/95 p-3 shadow-[0_-4px_20px_rgba(15,23,42,0.08)] backdrop-blur lg:hidden">
+        <div className="flex items-center gap-3">
+          <div className="min-w-0 flex-1">
+            <div className="truncate text-[11px] font-bold uppercase tracking-widest text-slate-400">
+              {outOfStock ? 'Немає в наявності' : 'До сплати'}
+            </div>
+            <div className="text-xl font-bold text-slate-950">{product.price} грн</div>
+          </div>
+          <button
+            type="button"
+            onClick={() => !outOfStock && addToCart(product)}
+            disabled={outOfStock}
+            className="flex min-h-12 flex-1 items-center justify-center gap-2 rounded-lg bg-slate-950 px-5 py-3 text-sm font-bold text-white transition-colors hover:bg-tiffany disabled:cursor-not-allowed disabled:bg-slate-300"
+          >
+            <ShoppingCart size={18} /> {outOfStock ? 'Немає' : 'У кошик'}
+          </button>
+        </div>
+      </div>
+      {/* Відступ, щоб sticky-панель не перекривала кінець сторінки */}
+      <div className="h-24 lg:hidden" />
     </div>
   );
 };

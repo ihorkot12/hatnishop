@@ -23,7 +23,43 @@ const FAQ = lazy(() => import('./pages/FAQ').then((module) => ({ default: module
 const Admin = lazy(() => import('./pages/Admin').then((module) => ({ default: module.Admin })));
 
 const RouteFallback = () => (
-  <div className="flex min-h-[60vh] items-center justify-center font-bold text-slate-400">Завантаження...</div>
+  <div className="mx-auto min-h-[60vh] max-w-7xl px-4 py-16 sm:px-6 lg:px-8">
+    <div className="h-8 w-64 animate-pulse rounded-lg bg-slate-200" />
+    <div className="mt-4 h-4 w-96 max-w-full animate-pulse rounded bg-slate-100" />
+    <div className="mt-10 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
+      {[0, 1, 2, 3].map(index => (
+        <div key={index} className="overflow-hidden rounded-lg border border-slate-200 bg-white">
+          <div className="aspect-[4/5] animate-pulse bg-slate-100" />
+          <div className="space-y-2 p-5">
+            <div className="h-4 w-3/4 animate-pulse rounded bg-slate-100" />
+            <div className="h-4 w-1/3 animate-pulse rounded bg-slate-100" />
+          </div>
+        </div>
+      ))}
+    </div>
+  </div>
+);
+
+// Свідомо БЕЗ AnimatePresence-переходів між роутами: у зв'язці з lazy-роутами
+// (mode="wait" + Suspense) нова сторінка не монтувалася — при зміні URL показувався
+// контент попередньої сторінки. Косметика не варта зламаної навігації.
+// Плавність натомість дають entrance-анімації всередині самих сторінок.
+const AppRoutes = () => (
+  <Suspense fallback={<RouteFallback />}>
+    <Routes>
+      <Route path="/" element={<Home />} />
+      <Route path="/catalog" element={<Catalog />} />
+      <Route path="/bundle-builder" element={<BundleBuilder />} />
+      <Route path="/product/:id" element={<ProductDetail />} />
+      <Route path="/cart" element={<Cart />} />
+      <Route path="/wishlist" element={<Wishlist />} />
+      <Route path="/profile" element={<Profile />} />
+      <Route path="/admin" element={<Admin />} />
+      <Route path="/login" element={<Login />} />
+      <Route path="/about" element={<AboutUs />} />
+      <Route path="/faq" element={<FAQ />} />
+    </Routes>
+  </Suspense>
 );
 
 // Плаваючий віджет акцій показуємо лише там, де користувач обирає товари,
@@ -45,21 +81,7 @@ export default function App() {
               <div className="flex min-h-screen flex-col">
                 <Navbar />
                 <main className="flex-grow">
-                  <Suspense fallback={<RouteFallback />}>
-                    <Routes>
-                      <Route path="/" element={<Home />} />
-                      <Route path="/catalog" element={<Catalog />} />
-                      <Route path="/bundle-builder" element={<BundleBuilder />} />
-                      <Route path="/product/:id" element={<ProductDetail />} />
-                      <Route path="/cart" element={<Cart />} />
-                      <Route path="/wishlist" element={<Wishlist />} />
-                      <Route path="/profile" element={<Profile />} />
-                      <Route path="/admin" element={<Admin />} />
-                      <Route path="/login" element={<Login />} />
-                      <Route path="/about" element={<AboutUs />} />
-                      <Route path="/faq" element={<FAQ />} />
-                    </Routes>
-                  </Suspense>
+                  <AppRoutes />
                 </main>
 
                 <FloatingOffers />
