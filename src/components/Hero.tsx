@@ -85,7 +85,7 @@ export const Hero = ({ title, subtitle, badge, featuredProduct: propProduct, loa
             </div>
 
             <div className="mt-14 flex flex-col gap-4 border-t border-slate-900/10 pt-7 text-sm text-slate-600 sm:flex-row sm:items-center sm:gap-10">
-              {['Безкоштовна доставка від 1500 грн', '5% кешбек на кожну покупку', 'Гарантія якості на кожен товар'].map((item) => (
+              {['Безкоштовна доставка на перше замовлення', '5% кешбек на кожну покупку', 'Гарантія якості на кожен товар'].map((item) => (
                 <div key={item} className="flex items-center gap-2.5">
                   <ShieldCheck size={15} className="shrink-0 text-tiffany-deep" />
                   <span>{item}</span>

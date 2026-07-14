@@ -154,7 +154,9 @@ export const Cart = () => {
   const usableBonusAmount = user ? Math.min(availableBonuses, bonusSpendLimit) : 0;
   const appliedBonusAmount = useBonuses ? Math.min(appliedBonuses, usableBonusAmount) : 0;
   const finalTotal = Math.max(0, bonusBase - appliedBonusAmount);
-  const isDeliveryFree = freeDeliveryMin <= 0 || totalPrice >= freeDeliveryMin;
+  // Оффер: перше замовлення зареєстрованого користувача — доставка безкоштовна без порогу.
+  const isFirstOrder = !!user && Number(user.total_spent || 0) === 0;
+  const isDeliveryFree = freeDeliveryMin <= 0 || totalPrice >= freeDeliveryMin || isFirstOrder;
   const deliveryRemaining = Math.max(0, freeDeliveryMin - totalPrice);
   const cashbackRate = getCashbackRate(user?.total_spent || 0);
   const cashbackPercent = formatCashbackRate(cashbackRate);
@@ -770,8 +772,18 @@ export const Cart = () => {
                 )}
                 {isDeliveryFree && totalPrice > 0 && (
                   <div className="rounded-2xl bg-tiffany/10 p-3 text-[11px] font-bold text-tiffany">
-                    Ви отримали безкоштовну доставку 🎉
+                    {isFirstOrder && totalPrice < freeDeliveryMin
+                      ? 'Безкоштовна доставка на ваше перше замовлення 🎉'
+                      : 'Ви отримали безкоштовну доставку 🎉'}
                   </div>
+                )}
+                {!user && !isDeliveryFree && (
+                  <Link
+                    to="/login"
+                    className="block rounded-2xl bg-white/5 p-3 text-[11px] font-bold text-tiffany transition-colors hover:bg-white/10 hover:text-white hover:no-underline"
+                  >
+                    Зареєструйтесь — і доставка на перше замовлення безкоштовна, без порогу →
+                  </Link>
                 )}
                 <div className="h-px bg-white/10 my-4" />
                 <div className="flex justify-between text-2xl font-bold">
