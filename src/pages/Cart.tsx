@@ -756,8 +756,21 @@ export const Cart = () => {
                   </span>
                 </div>
                 {!isDeliveryFree && (
-                  <div className="rounded-2xl bg-white/5 p-3 text-[11px] leading-relaxed text-white/45">
-                    Додайте ще {deliveryRemaining.toLocaleString('uk-UA')} грн, щоб отримати безкоштовну доставку від {freeDeliveryMin.toLocaleString('uk-UA')} грн.
+                  <div className="rounded-2xl bg-white/5 p-3">
+                    <div className="mb-2 text-[11px] leading-relaxed text-white/60">
+                      Додайте ще <span className="font-bold text-tiffany">{deliveryRemaining.toLocaleString('uk-UA')} грн</span> — і доставка стане <span className="font-bold text-white">безкоштовною</span>.
+                    </div>
+                    <div className="h-1.5 w-full overflow-hidden rounded-full bg-white/10" role="progressbar" aria-valuemin={0} aria-valuemax={freeDeliveryMin} aria-valuenow={Math.min(totalPrice, freeDeliveryMin)}>
+                      <div
+                        className="h-full rounded-full bg-tiffany transition-all duration-500"
+                        style={{ width: `${Math.min(100, Math.round((totalPrice / Math.max(1, freeDeliveryMin)) * 100))}%` }}
+                      />
+                    </div>
+                  </div>
+                )}
+                {isDeliveryFree && totalPrice > 0 && (
+                  <div className="rounded-2xl bg-tiffany/10 p-3 text-[11px] font-bold text-tiffany">
+                    Ви отримали безкоштовну доставку 🎉
                   </div>
                 )}
                 <div className="h-px bg-white/10 my-4" />
