@@ -51,6 +51,28 @@ export const Cart = () => {
   const [isLoadingCities, setIsLoadingCities] = useState(false);
   const [isLoadingWarehouses, setIsLoadingWarehouses] = useState(false);
   const [freeDeliveryMin, setFreeDeliveryMin] = useState(1500);
+  // null = ще не відомо / не вдалось порахувати (тоді оффер не діє — fail-closed)
+  const [orderCount, setOrderCount] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (!user) {
+      setOrderCount(null);
+      return;
+    }
+    let cancelled = false;
+    fetch('/api/user/orders', { credentials: 'include' })
+      .then(response => (response.ok ? response.json() : null))
+      .then(data => {
+        if (cancelled) return;
+        setOrderCount(Array.isArray(data) ? data.length : null);
+      })
+      .catch(() => {
+        if (!cancelled) setOrderCount(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [user]);
 
   useEffect(() => {
     document.title = 'Кошик та оформлення замовлення — Хатні Штучки';
@@ -155,7 +177,10 @@ export const Cart = () => {
   const appliedBonusAmount = useBonuses ? Math.min(appliedBonuses, usableBonusAmount) : 0;
   const finalTotal = Math.max(0, bonusBase - appliedBonusAmount);
   // Оффер: перше замовлення зареєстрованого користувача — доставка безкоштовна без порогу.
-  const isFirstOrder = !!user && Number(user.total_spent || 0) === 0;
+  // Рахуємо саме КІЛЬКІСТЬ замовлень, а не total_spent: останній оновлюється лише коли
+  // адмін закриває замовлення, тож по ньому можна було б наробити кілька "перших" замовлень.
+  // Fail-closed: якщо порахувати не вдалось (null) — оффер не діє.
+  const isFirstOrder = !!user && orderCount === 0;
   const isDeliveryFree = freeDeliveryMin <= 0 || totalPrice >= freeDeliveryMin || isFirstOrder;
   const deliveryRemaining = Math.max(0, freeDeliveryMin - totalPrice);
   const cashbackRate = getCashbackRate(user?.total_spent || 0);
