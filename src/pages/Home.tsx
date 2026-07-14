@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { motion } from 'framer-motion';
+import { motion, useReducedMotion } from 'framer-motion';
 import { ArrowRight, CheckCircle2, PackageCheck, ShieldCheck, Truck } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { Hero } from '../components/Hero';
@@ -34,6 +34,7 @@ const serviceItems = [
 ];
 
 export const Home = () => {
+  const prefersReducedMotion = useReducedMotion();
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [products, setProducts] = useState<Product[]>([]);
   const [siteSettings, setSiteSettings] = useState<any>(null);
@@ -102,13 +103,16 @@ export const Home = () => {
               initial="hidden"
               whileInView="visible"
               viewport={{ once: true, amount: 0.2 }}
-              variants={{ visible: { transition: { staggerChildren: 0.08 } } }}
+              variants={{ visible: { transition: { staggerChildren: prefersReducedMotion ? 0 : 0.08 } } }}
             >
               {bestSellers.map((product) => (
                 <motion.div
                   key={product.id}
-                  variants={{ hidden: { opacity: 0, y: 20 }, visible: { opacity: 1, y: 0 } }}
-                  transition={{ duration: 0.5, ease: 'easeOut' }}
+                  variants={{
+                    hidden: prefersReducedMotion ? { opacity: 1, y: 0 } : { opacity: 0, y: 20 },
+                    visible: { opacity: 1, y: 0 },
+                  }}
+                  transition={{ duration: prefersReducedMotion ? 0 : 0.5, ease: 'easeOut' }}
                 >
                   <ProductCard product={product} onQuickView={(item) => setSelectedProduct(item)} />
                 </motion.div>

@@ -115,6 +115,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, onQuickView }
             <span className="flex items-center gap-1 text-xs font-bold text-slate-700">
               <Star size={13} fill="currentColor" className="text-gold" />
               {Number(product.rating).toFixed(1)}
+              <span className="font-medium text-slate-400">({Number((product as any).review_count)})</span>
             </span>
           )}
         </div>
