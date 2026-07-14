@@ -473,6 +473,12 @@ const normalizePaymentMethod = (value: any) => {
   return PAYMENT_METHODS.has(method) ? method : "cash";
 };
 
+// Єдине авторитетне джерело правди для знижки на набір. Клієнтське значення
+// (bundleOffer.discountRate) НЕ використовується — інакше його можна підробити.
+const BUNDLE_DISCOUNT_RATE = 0.12;
+const MIN_BUNDLE_ITEMS = 2;
+const MAX_BUNDLE_ITEMS = 6;
+
 const getCashbackRate = (totalSpent: number) => {
   if (totalSpent >= 15000) return 0.1;
   if (totalSpent >= 5000) return 0.07;
@@ -2781,6 +2787,9 @@ app.get("/api/admin/users", authenticate, asyncHandler(async (req: any, res: any
   app.put("/api/admin/site-settings", authenticate, asyncHandler(async (req: any, res: any) => {
     if (req.user.role !== 'admin') return res.status(403).json({ error: "Forbidden" });
     await db.updateSiteSettings(req.body);
+    // Без цього налаштування лежать у кеші до 30 хв: адмін зберігає, а сайт (і сама
+    // вкладка налаштувань) далі віддають старі значення — виглядає як зламана адмінка.
+    clearCache();
     res.json({ success: true });
   }));
 
@@ -2909,16 +2918,17 @@ app.get("/api/admin/users", authenticate, asyncHandler(async (req: any, res: any
           bundleOffer.productIds
             .map((id: any) => normalizeString(id, 120))
             .filter(Boolean)
-        )).slice(0, 8) as string[];
+        )).slice(0, MAX_BUNDLE_ITEMS) as string[];
         const orderedIds = new Set(orderItems.map(item => item.product_id));
 
-        if (offerIds.length >= 2 && offerIds.every(id => orderedIds.has(id))) {
-          const bundleRate = Math.min(0.18, Math.max(0.05, toFiniteNumber(bundleOffer.discountRate, 0.12)));
+        if (offerIds.length >= MIN_BUNDLE_ITEMS && offerIds.every(id => orderedIds.has(id))) {
+          // Ставку задає ВИКЛЮЧНО сервер. Раніше вона бралася з req.body.bundleOffer.discountRate,
+          // тож будь-хто міг підставити 0.18 і отримати 18% знижки на будь-яке замовлення.
           const bundleBase = offerIds.reduce((sum: number, id: string) => {
             const item = orderItems.find(orderItem => orderItem.product_id === id);
             return sum + toFiniteNumber(item?.price);
           }, 0);
-          bundleDiscount = Math.min(Math.round(bundleBase * bundleRate), Math.max(0, serverTotal - promoDiscount));
+          bundleDiscount = Math.min(Math.round(bundleBase * BUNDLE_DISCOUNT_RATE), Math.max(0, serverTotal - promoDiscount));
         }
       }
 

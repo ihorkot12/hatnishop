@@ -8,7 +8,7 @@ import { Package, ShoppingCart, TrendingUp, Plus, Edit2, Trash2, CheckCircle, Cl
 import { ImportWizard } from '../components/import/ImportWizard';
 import { MOCK_PRODUCTS } from '../constants';
 import { Order, User } from '../types';
-import { calculateBundlePrice, suggestBundleItemIdsLocally, suggestBundleItemsLocally } from '../utils/bundleRecommendations';
+import { BUNDLE_DISCOUNT_RATE, calculateBundlePrice, suggestBundleItemIdsLocally, suggestBundleItemsLocally } from '../utils/bundleRecommendations';
 import { isBundleProduct } from '../utils/productFlags';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, BarChart, Bar, Cell } from 'recharts';
 import { useAuth } from '../store/AuthContext';
@@ -484,7 +484,11 @@ export const Admin = () => {
     }
     if (activeTab === 'bonus-codes') fetchBonusCodes();
     if (activeTab === 'reviews') fetchReviews();
-    if (activeTab === 'settings') fetchSiteSettings();
+    // Товари потрібні тут для дропдауна "Акцентний товар" — без них він порожній.
+    if (activeTab === 'settings') {
+      fetchSiteSettings();
+      fetchProducts();
+    }
   }, [activeTab, loading, user?.role]);
 
   const fetchSiteSettings = async () => {
@@ -1191,7 +1195,7 @@ export const Admin = () => {
     }
 
     const regularTotal = items.reduce((sum, product) => sum + Number(product.price || 0), 0);
-    const bundlePrice = calculateBundlePrice(items as any[], 0.12);
+    const bundlePrice = calculateBundlePrice(items as any[], BUNDLE_DISCOUNT_RATE);
     const savings = Math.max(0, regularTotal - bundlePrice);
     const theme = inferBundleTheme(items);
     const normalizedTheme = normalizeAdminProductText(theme);
@@ -3132,9 +3136,11 @@ export const Admin = () => {
                                     const p = products.find(prod => prod.id === id);
                                     return acc + Number(p?.price || 0);
                                   }, 0);
-                                  // Apply a default 15% discount for the bundle price suggestion
+                                  // Ставка мусить збігатися з BUNDLE_DISCOUNT_RATE (сервер застосує саме її)
                                   const selectedProducts = bundleItems.map(id => products.find(prod => prod.id === id)).filter(Boolean) as any[];
-                                  const discounted = selectedProducts.length > 0 ? calculateBundlePrice(selectedProducts) : Math.round(total * 0.85);
+                                  const discounted = selectedProducts.length > 0
+                                    ? calculateBundlePrice(selectedProducts)
+                                    : Math.round(total * (1 - BUNDLE_DISCOUNT_RATE));
                                   const priceInput = document.querySelector('input[name="price"]') as HTMLInputElement;
                                   if (priceInput) {
                                     priceInput.value = discounted.toString();
@@ -3142,7 +3148,7 @@ export const Admin = () => {
                                 }}
                                 className="w-full mt-2 text-[10px] font-bold text-tiffany hover:underline"
                               >
-                                Розрахувати ціну зі знижкою 15% ({calculateBundlePrice(bundleItems.map(id => products.find(p => p.id === id)).filter(Boolean) as any[])} грн)
+                                Розрахувати ціну зі знижкою {Math.round(BUNDLE_DISCOUNT_RATE * 100)}% ({calculateBundlePrice(bundleItems.map(id => products.find(p => p.id === id)).filter(Boolean) as any[])} грн)
                               </button>
                             </>
                           )}

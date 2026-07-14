@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import { ArrowRight, ShieldCheck, ShoppingCart, Sparkles } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useCart } from '../store/CartContext';
+import { isOutOfStock } from '../utils/productFlags';
 
 interface HeroProps {
   title?: string;
@@ -136,9 +137,10 @@ export const Hero = ({ title, subtitle, badge, featuredProduct: propProduct, loa
                 </div>
                 <button
                   type="button"
-                  onClick={() => featuredProduct && addToCart(featuredProduct as any)}
-                  disabled={!featuredProduct}
-                  aria-label="Додати товар дня у кошик"
+                  onClick={() => featuredProduct && !isOutOfStock(featuredProduct) && addToCart(featuredProduct as any)}
+                  disabled={!featuredProduct || isOutOfStock(featuredProduct)}
+                  aria-label={featuredProduct && isOutOfStock(featuredProduct) ? 'Товар дня немає в наявності' : 'Додати товар дня у кошик'}
+                  title={featuredProduct && isOutOfStock(featuredProduct) ? 'Немає в наявності' : undefined}
                   className="flex h-14 w-14 items-center justify-center rounded-lg bg-slate-950 text-white transition-colors hover:bg-tiffany disabled:cursor-not-allowed disabled:bg-slate-300"
                 >
                   <ShoppingCart size={22} />

@@ -616,22 +616,14 @@ export const Cart = () => {
                       <span className="w-8 h-8 bg-slate-900 text-white rounded-full flex items-center justify-center text-sm">4</span>
                       Оплата
                     </h2>
-                    <div className="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-sm grid grid-cols-1 md:grid-cols-3 gap-4">
-                      {[
-                        { id: 'mono', name: 'Mono Pay', icon: <CreditCard size={20} /> },
-                        { id: 'liqpay', name: 'LiqPay', icon: <CreditCard size={20} /> },
-                        { id: 'cash', name: 'Накладений платіж', icon: <Truck size={20} /> }
-                      ].map(method => (
-                        <button
-                          key={method.id}
-                          type="button"
-                          onClick={() => setFormData({...formData, paymentMethod: method.id as any})}
-                          className={`flex items-center gap-3 p-4 rounded-2xl border-2 transition-all ${formData.paymentMethod === method.id ? 'border-tiffany bg-tiffany/5 text-tiffany' : 'border-slate-100 text-slate-500 hover:border-slate-200'}`}
-                        >
-                          {method.icon}
-                          <span className="font-bold text-sm">{method.name}</span>
-                        </button>
-                      ))}
+                    <div className="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-sm">
+                      <div className="flex items-center gap-3 rounded-2xl border-2 border-tiffany bg-tiffany/5 p-4 text-tiffany">
+                        <Truck size={20} />
+                        <span className="text-sm font-bold">Накладений платіж</span>
+                      </div>
+                      <p className="mt-4 text-sm leading-6 text-slate-500">
+                        Оплата при отриманні у відділенні перевізника. Онлайн-оплата картою буде додана згодом.
+                      </p>
                     </div>
                   </section>
                 </motion.div>

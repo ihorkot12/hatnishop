@@ -10,7 +10,7 @@ import { ProductCard } from '../components/ProductCard';
 import { generateStylingTip } from '../services/aiService';
 import { Review, Product } from '../types';
 import { suggestBundleItemsLocally } from '../utils/bundleRecommendations';
-import { isBundleProduct as hasBundleFlag } from '../utils/productFlags';
+import { isBundleProduct as hasBundleFlag, isOutOfStock } from '../utils/productFlags';
 import { useCategoryLabel } from '../utils/categoryNames';
 import { fetchJsonCachedOr } from '../utils/apiCache';
 
@@ -73,41 +73,7 @@ export const ProductDetail = () => {
     fetchProduct();
   }, [id]);
 
-  useEffect(() => {
-    if (!product) return;
-    const scriptId = 'product-jsonld';
-    const anyProduct = product as any;
-    const data: any = {
-      '@context': 'https://schema.org/',
-      '@type': 'Product',
-      name: product.name,
-      image: [product.image, ...(Array.isArray(product.images) ? product.images : [])].filter(Boolean),
-      description: product.description || '',
-      brand: { '@type': 'Brand', name: product.brand || 'Хатні Штучки' },
-      offers: {
-        '@type': 'Offer',
-        priceCurrency: 'UAH',
-        price: Number(product.price || 0),
-        availability: Number(product.stock || 0) > 0 ? 'https://schema.org/InStock' : 'https://schema.org/OutOfStock',
-        url: typeof window !== 'undefined' ? window.location.href : undefined,
-      },
-    };
-    const reviewCount = Number(anyProduct.reviewCount || anyProduct.review_count || 0);
-    const rating = Number(anyProduct.rating || 0);
-    if (reviewCount > 0 && rating > 0) {
-      data.aggregateRating = { '@type': 'AggregateRating', ratingValue: rating, reviewCount };
-    }
-    let script = document.getElementById(scriptId) as HTMLScriptElement | null;
-    if (!script) {
-      script = document.createElement('script');
-      script.id = scriptId;
-      script.type = 'application/ld+json';
-      document.head.appendChild(script);
-    }
-    script.textContent = JSON.stringify(data);
-    return () => { document.getElementById(scriptId)?.remove(); };
-  }, [product]);
-
+  const outOfStock = isOutOfStock(product as any);
   const isWishlisted = product ? isInWishlist(product.id) : false;
   const categoryLabel = useCategoryLabel(product?.category);
   const isBundleProduct = hasBundleFlag(product);
@@ -426,18 +392,23 @@ export const ProductDetail = () => {
           </div>
 
           <div className="mb-5 flex items-center gap-2 rounded-lg border border-slate-100 bg-slate-50 px-4 py-3">
-            <div className={`h-2.5 w-2.5 shrink-0 rounded-full ${product.stock > 5 ? 'bg-emerald-500' : 'bg-amber-500'}`} />
-            <span className={`text-xs font-bold uppercase leading-5 tracking-widest sm:text-sm ${product.stock > 5 ? 'text-emerald-600' : 'text-amber-600'}`}>
-              {product.stock > 5 ? 'В наявності та готовий до відправки' : `Залишилось ${product.stock} шт`}
+            <div className={`h-2.5 w-2.5 shrink-0 rounded-full ${outOfStock ? 'bg-red-500' : product.stock > 5 ? 'bg-emerald-500' : 'bg-amber-500'}`} />
+            <span className={`text-xs font-bold uppercase leading-5 tracking-widest sm:text-sm ${outOfStock ? 'text-red-600' : product.stock > 5 ? 'text-emerald-600' : 'text-amber-600'}`}>
+              {outOfStock
+                ? 'Немає в наявності'
+                : product.stock > 5
+                  ? 'В наявності та готовий до відправки'
+                  : `Залишилось ${product.stock} шт`}
             </span>
           </div>
 
           <div className="mb-8 flex flex-col gap-3 sm:flex-row sm:gap-4">
             <button
-              onClick={() => addToCart(product)}
-              className="product-buy-button flex flex-1 items-center justify-center gap-3 rounded-lg bg-slate-900 px-5 text-base font-bold text-white shadow-xl shadow-slate-900/15 transition-all hover:bg-tiffany active:scale-95 sm:text-lg"
+              onClick={() => !outOfStock && addToCart(product)}
+              disabled={outOfStock}
+              className="product-buy-button flex flex-1 items-center justify-center gap-3 rounded-lg bg-slate-900 px-5 text-base font-bold text-white shadow-xl shadow-slate-900/15 transition-all hover:bg-tiffany active:scale-95 disabled:cursor-not-allowed disabled:bg-slate-300 disabled:shadow-none sm:text-lg"
             >
-              <ShoppingCart size={22} /> {isBundleProduct ? 'Додати набір у кошик' : 'Додати в кошик'}
+              <ShoppingCart size={22} /> {outOfStock ? 'Немає в наявності' : isBundleProduct ? 'Додати набір у кошик' : 'Додати в кошик'}
             </button>
             <div className="grid grid-cols-2 gap-3 sm:flex sm:gap-4">
               <button

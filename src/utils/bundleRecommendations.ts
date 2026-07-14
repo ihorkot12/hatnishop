@@ -117,7 +117,11 @@ export const suggestBundleItemIdsLocally = (
   options?: { limit?: number; minStock?: number }
 ) => suggestBundleItemsLocally(baseProduct, allProducts, options).map((product) => product.id);
 
-export const calculateBundlePrice = (products: ProductLike[], discountRate = 0.15) => {
+// Мусить збігатися з BUNDLE_DISCOUNT_RATE на сервері (server.ts) — інакше ціна
+// готового набору розійдеться зі знижкою, яку реально застосує сервер.
+export const BUNDLE_DISCOUNT_RATE = 0.12;
+
+export const calculateBundlePrice = (products: ProductLike[], discountRate = BUNDLE_DISCOUNT_RATE) => {
   const total = products.reduce((sum, product) => sum + Number(product.price || 0), 0);
   return Math.max(0, Math.round(total * (1 - discountRate)));
 };

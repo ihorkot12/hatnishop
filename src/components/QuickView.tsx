@@ -6,7 +6,7 @@ import { Product } from '../types';
 import { useCart } from '../store/CartContext';
 import { useAuth } from '../store/AuthContext';
 import { useWishlist } from '../store/WishlistContext';
-import { isBundleProduct } from '../utils/productFlags';
+import { isBundleProduct, isOutOfStock } from '../utils/productFlags';
 
 interface QuickViewProps {
   product: Product | null;
@@ -168,14 +168,16 @@ export const QuickView: React.FC<QuickViewProps> = ({ product, onClose }) => {
             </div>
 
             <div className="mt-auto flex gap-4">
-              <button 
+              <button
                 onClick={() => {
+                  if (isOutOfStock(product as any)) return;
                   addToCart(product);
                   onClose();
                 }}
-                className="flex-1 bg-slate-900 text-white h-14 rounded-2xl font-bold flex items-center justify-center gap-3 hover:bg-tiffany transition-all shadow-xl shadow-slate-900/10"
+                disabled={isOutOfStock(product as any)}
+                className="flex-1 bg-slate-900 text-white h-14 rounded-2xl font-bold flex items-center justify-center gap-3 hover:bg-tiffany transition-all shadow-xl shadow-slate-900/10 disabled:cursor-not-allowed disabled:bg-slate-300 disabled:shadow-none"
               >
-                <ShoppingCart size={20} /> {isBundle ? 'Додати набір' : 'Додати в кошик'}
+                <ShoppingCart size={20} /> {isOutOfStock(product as any) ? 'Немає в наявності' : isBundle ? 'Додати набір' : 'Додати в кошик'}
               </button>
               <button
                 onClick={() => toggleWishlist(product)}
