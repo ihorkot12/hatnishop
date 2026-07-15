@@ -1,4 +1,4 @@
-import { Suspense, lazy } from 'react';
+import { Suspense, lazy, useEffect } from 'react';
 import { MotionConfig } from 'framer-motion';
 import { BrowserRouter as Router, Link, Route, Routes, useLocation } from 'react-router-dom';
 import { CartProvider } from './store/CartContext';
@@ -40,6 +40,19 @@ const RouteFallback = () => (
   </div>
 );
 
+// Скролимо на початок сторінки при кожній зміні маршруту. Без цього перехід
+// (наприклад, клік по товару на головній або вхід у каталог) залишав сторінку
+// прокрученою донизу — виглядало так, ніби «нічого не відкрилось».
+const ScrollToTop = () => {
+  const { pathname } = useLocation();
+  useEffect(() => {
+    // 'auto', а не 'smooth': на переході між сторінками потрібне миттєве
+    // повернення вгору, а не плавна прокрутка через увесь контент.
+    window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
+  }, [pathname]);
+  return null;
+};
+
 // Свідомо БЕЗ AnimatePresence-переходів між роутами: у зв'язці з lazy-роутами
 // (mode="wait" + Suspense) нова сторінка не монтувалася — при зміні URL показувався
 // контент попередньої сторінки. Косметика не варта зламаної навігації.
@@ -78,6 +91,7 @@ export default function App() {
         <WishlistProvider>
           <CartProvider>
             <Router>
+              <ScrollToTop />
               <div className="flex min-h-screen flex-col">
                 <Navbar />
                 <main className="flex-grow">
