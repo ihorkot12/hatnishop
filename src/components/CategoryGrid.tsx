@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { ArrowRight } from 'lucide-react';
@@ -6,18 +6,41 @@ import { Category } from '../types';
 import { fetchJsonCachedOr } from '../utils/apiCache';
 import { Eyebrow } from './Eyebrow';
 
+// Категорії, у яких фото ще стокове (Unsplash-хотлінк) або порожнє, показуємо з фото
+// реального товару з тієї ж категорії. Своє фото, виставлене в адмінці, має пріоритет.
+const isStockImage = (url?: string) => !url || url.includes('unsplash.com');
+
 export const CategoryGrid = () => {
   const [categories, setCategories] = useState<Category[]>([]);
+  const [products, setProducts] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    fetchJsonCachedOr<Category[]>('/api/categories/catalog', [])
-      .then((data) => {
-        setCategories(Array.isArray(data) ? data.filter((category: Category) => !category.parent_id) : []);
+    Promise.all([
+      fetchJsonCachedOr<Category[]>('/api/categories/catalog', []),
+      fetchJsonCachedOr<any[]>('/api/products/catalog', []),
+    ])
+      .then(([cats, prods]) => {
+        setCategories(Array.isArray(cats) ? cats.filter((category: Category) => !category.parent_id) : []);
+        setProducts(Array.isArray(prods) ? prods : []);
         setIsLoading(false);
       })
       .catch(() => setIsLoading(false));
   }, []);
+
+  // Перше фото товару для кожної категорії (товар прив'язаний до категорії за slug).
+  const productImageByCategory = useMemo(() => {
+    const map: Record<string, string> = {};
+    for (const product of products) {
+      const key = product?.category;
+      const image = product?.image;
+      if (key && image && !map[key]) map[key] = image;
+    }
+    return map;
+  }, [products]);
+
+  const resolveCategoryImage = (category: Category) =>
+    (isStockImage(category.image) ? productImageByCategory[category.slug] : category.image) || category.image || undefined;
 
   if (isLoading || categories.length === 0) return null;
 
@@ -58,7 +81,7 @@ export const CategoryGrid = () => {
               >
                 <div className="relative aspect-[5/6] overflow-hidden bg-cream-dark">
                   <img
-                    src={category.image || undefined}
+                    src={resolveCategoryImage(category)}
                     alt={category.name}
                     loading="lazy"
                     decoding="async"
