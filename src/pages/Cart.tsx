@@ -295,7 +295,7 @@ export const Cart = () => {
         <motion.div 
           initial={{ scale: 0.5, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
-          className="bg-white p-12 rounded-[3rem] shadow-xl border border-slate-100"
+          className="bg-white p-12 rounded-lg shadow-sm border border-slate-900/10"
         >
           <div className="w-20 h-20 bg-tiffany/10 text-tiffany rounded-full flex items-center justify-center mx-auto mb-8">
             <CheckCircle2 size={48} />
@@ -307,17 +307,17 @@ export const Cart = () => {
             <span className="text-slate-900 font-bold">Наш менеджер зв'яжеться з вами у Viber або Telegram</span> для підтвердження та надання реквізитів для оплати.
           </p>
           {(completedOrder?.cashbackPending ?? 0) > 0 ? (
-            <div className="bg-tiffany/5 p-6 rounded-3xl mb-10 border border-tiffany/10">
+            <div className="bg-tiffany/5 p-6 rounded-lg mb-10 border border-tiffany/10">
               <p className="text-tiffany font-bold text-lg mb-1">Очікується +{completedOrder?.cashbackPending} бонусів</p>
               <p className="text-xs text-slate-400">Бонуси зарахуються після підтвердження оплати або виконання замовлення.</p>
             </div>
           ) : (
-            <div className="bg-tiffany/5 p-6 rounded-3xl mb-10 border border-tiffany/10">
+            <div className="bg-tiffany/5 p-6 rounded-lg mb-10 border border-tiffany/10">
               <p className="text-tiffany font-bold text-lg mb-1">Наступне замовлення — з кешбеком</p>
               <p className="text-xs text-slate-400">Створіть акаунт, щоб отримувати 5% бонусами з кожної покупки.</p>
             </div>
           )}
-          <Link to="/" className="inline-block bg-slate-900 text-white px-10 py-4 rounded-2xl font-bold hover:bg-tiffany transition-all">
+          <Link to="/" className="inline-block bg-slate-900 text-white px-10 py-4 rounded-lg font-bold hover:bg-tiffany transition-all">
             На головну
           </Link>
         </motion.div>
@@ -333,7 +333,7 @@ export const Cart = () => {
         </div>
         <h1 className="text-3xl font-bold text-slate-900 mb-4">Ваш кошик порожній</h1>
         <p className="text-slate-500 mb-10">Здається, ви ще не обрали нічого для свого затишку.</p>
-        <Link to="/catalog" className="bg-tiffany text-white px-10 py-4 rounded-2xl font-bold hover:bg-slate-900 transition-all">
+        <Link to="/catalog" className="bg-tiffany text-white px-10 py-4 rounded-lg font-bold hover:bg-slate-900 transition-all">
           Перейти до покупок
         </Link>
       </div>
@@ -354,7 +354,7 @@ export const Cart = () => {
             <motion.div 
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              className="bg-slate-900 text-white p-8 rounded-[2.5rem] shadow-xl flex flex-col md:flex-row items-center justify-between gap-6"
+              className="bg-slate-900 text-white p-8 rounded-lg shadow-lg shadow-slate-900/10 flex flex-col md:flex-row items-center justify-between gap-6"
             >
               <div className="flex items-center gap-4">
                 <div className="w-12 h-12 bg-tiffany/20 text-tiffany rounded-full flex items-center justify-center shrink-0">
@@ -396,9 +396,9 @@ export const Cart = () => {
                     animate={{ opacity: 1, scale: 1, y: 0 }}
                     exit={{ opacity: 0, scale: 0.9, x: -20 }}
                     transition={{ duration: 0.2 }}
-                    className="bg-white p-6 rounded-3xl border border-slate-100 flex items-center gap-6 shadow-sm"
+                    className="bg-white p-6 rounded-lg border border-slate-100 flex items-center gap-6 shadow-sm"
                   >
-                    <div className="w-20 h-20 rounded-2xl overflow-hidden flex-shrink-0">
+                    <div className="w-20 h-20 rounded-lg overflow-hidden flex-shrink-0">
                       <img src={item.image || undefined} alt={item.name} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
                     </div>
                     <div className="flex-1">
@@ -447,7 +447,7 @@ export const Cart = () => {
                 <span className="w-8 h-8 bg-slate-900 text-white rounded-full flex items-center justify-center text-sm">2</span>
                 {isQuickOrder ? 'Швидке замовлення (тільки контакти)' : 'Контактні дані'}
               </h2>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-sm">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 bg-white p-8 rounded-lg border border-slate-100 shadow-sm">
                 <div className="space-y-2">
                   <label htmlFor="checkout-name" className="text-[10px] font-bold uppercase tracking-widest text-slate-400 ml-1">Ваше ім'я</label>
                   <input
@@ -457,7 +457,7 @@ export const Cart = () => {
                     required
                     type="text"
                     placeholder="Іван Іванов"
-                    className="w-full bg-slate-50 border-none rounded-2xl p-4 focus:ring-2 focus:ring-tiffany transition-all"
+                    className="w-full bg-slate-50 border-none rounded-lg p-4 focus:ring-2 focus:ring-tiffany transition-all"
                     value={formData.name}
                     onChange={e => setFormData({...formData, name: e.target.value})}
                   />
@@ -471,7 +471,7 @@ export const Cart = () => {
                     required
                     type="tel"
                     placeholder="+380"
-                    className="w-full bg-slate-50 border-none rounded-2xl p-4 focus:ring-2 focus:ring-tiffany transition-all"
+                    className="w-full bg-slate-50 border-none rounded-lg p-4 focus:ring-2 focus:ring-tiffany transition-all"
                     value={formData.phone}
                     onChange={e => setFormData({...formData, phone: e.target.value})}
                   />
@@ -485,7 +485,7 @@ export const Cart = () => {
                     required
                     type="email"
                     placeholder="example@mail.com"
-                    className="w-full bg-slate-50 border-none rounded-2xl p-4 focus:ring-2 focus:ring-tiffany transition-all"
+                    className="w-full bg-slate-50 border-none rounded-lg p-4 focus:ring-2 focus:ring-tiffany transition-all"
                     value={formData.email}
                     onChange={e => setFormData({...formData, email: e.target.value})}
                   />
@@ -497,7 +497,7 @@ export const Cart = () => {
                     name="comment"
                     placeholder="Наприклад: Передзвоніть мені після 18:00"
                     rows={3}
-                    className="w-full bg-slate-50 border-none rounded-2xl p-4 focus:ring-2 focus:ring-tiffany transition-all resize-none"
+                    className="w-full bg-slate-50 border-none rounded-lg p-4 focus:ring-2 focus:ring-tiffany transition-all resize-none"
                     value={formData.comment}
                     onChange={e => setFormData({...formData, comment: e.target.value})}
                   />
@@ -519,7 +519,7 @@ export const Cart = () => {
                       <span className="w-8 h-8 bg-slate-900 text-white rounded-full flex items-center justify-center text-sm">3</span>
                       Доставка
                     </h2>
-                    <div className="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-sm space-y-8">
+                    <div className="bg-white p-8 rounded-lg border border-slate-100 shadow-sm space-y-8">
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         {[
                           { id: 'nova-poshta', name: 'Нова Пошта', icon: <Truck size={20} /> },
@@ -535,7 +535,7 @@ export const Cart = () => {
                               setCitySuggestions([]);
                               setWarehouseSuggestions([]);
                             }}
-                            className={`flex items-center gap-3 p-4 rounded-2xl border-2 transition-all ${formData.deliveryMethod === method.id ? 'border-tiffany bg-tiffany/5 text-tiffany' : 'border-slate-100 text-slate-500 hover:border-slate-200'}`}
+                            className={`flex items-center gap-3 p-4 rounded-lg border-2 transition-all ${formData.deliveryMethod === method.id ? 'border-tiffany bg-tiffany/5 text-tiffany' : 'border-slate-100 text-slate-500 hover:border-slate-200'}`}
                           >
                             {method.icon}
                             <span className="font-bold text-sm">{method.name}</span>
@@ -551,7 +551,7 @@ export const Cart = () => {
                             required={!isQuickOrder}
                             type="text"
                             placeholder="Київ"
-                            className="w-full bg-slate-50 border-none rounded-2xl p-4 focus:ring-2 focus:ring-tiffany transition-all"
+                            className="w-full bg-slate-50 border-none rounded-lg p-4 focus:ring-2 focus:ring-tiffany transition-all"
                             value={formData.city}
                             autoComplete="off"
                             onChange={e => {
@@ -567,7 +567,7 @@ export const Cart = () => {
                               : 'Вкажіть місто доставки для Укрпошти вручну'}
                           </div>
                           {formData.deliveryMethod === 'nova-poshta' && citySuggestions.length > 0 && (
-                            <div className="absolute z-30 mt-2 max-h-64 w-full overflow-auto rounded-2xl border border-slate-100 bg-white p-2 shadow-2xl shadow-slate-900/10">
+                            <div className="absolute z-30 mt-2 max-h-64 w-full overflow-auto rounded-lg border border-slate-100 bg-white p-2 shadow-2xl shadow-slate-900/10">
                               {citySuggestions.map(city => (
                                 <button
                                   key={city.ref}
@@ -598,7 +598,7 @@ export const Cart = () => {
                             required={!isQuickOrder}
                             type="text"
                             placeholder={formData.deliveryMethod === 'nova-poshta' ? '№1 або вул. Лесі Українки, 1' : 'Наприклад: 01001 або відділення на Хрещатику'}
-                            className="w-full bg-slate-50 border-none rounded-2xl p-4 focus:ring-2 focus:ring-tiffany transition-all"
+                            className="w-full bg-slate-50 border-none rounded-lg p-4 focus:ring-2 focus:ring-tiffany transition-all"
                             value={formData.warehouse}
                             autoComplete="off"
                             onChange={e => {
@@ -612,7 +612,7 @@ export const Cart = () => {
                               : 'Для Укрпошти введіть індекс, номер або адресу відділення вручну'}
                           </div>
                           {formData.deliveryMethod === 'nova-poshta' && warehouseSuggestions.length > 0 && (
-                            <div className="absolute z-30 mt-2 max-h-72 w-full overflow-auto rounded-2xl border border-slate-100 bg-white p-2 shadow-2xl shadow-slate-900/10">
+                            <div className="absolute z-30 mt-2 max-h-72 w-full overflow-auto rounded-lg border border-slate-100 bg-white p-2 shadow-2xl shadow-slate-900/10">
                               {warehouseSuggestions.map(warehouse => (
                                 <button
                                   key={warehouse.ref}
@@ -640,8 +640,8 @@ export const Cart = () => {
                       <span className="w-8 h-8 bg-slate-900 text-white rounded-full flex items-center justify-center text-sm">4</span>
                       Оплата
                     </h2>
-                    <div className="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-sm">
-                      <div className="flex items-center gap-3 rounded-2xl border-2 border-tiffany bg-tiffany/5 p-4 text-tiffany">
+                    <div className="bg-white p-8 rounded-lg border border-slate-100 shadow-sm">
+                      <div className="flex items-center gap-3 rounded-lg border-2 border-tiffany bg-tiffany/5 p-4 text-tiffany">
                         <Truck size={20} />
                         <span className="text-sm font-bold">Накладений платіж</span>
                       </div>
@@ -660,7 +660,7 @@ export const Cart = () => {
         <div className="lg:col-span-4">
           <div className="sticky top-32 space-y-6">
             {/* Bonus Widget */}
-            <div className="bg-white p-8 rounded-[2rem] border border-slate-100 shadow-sm space-y-6">
+            <div className="bg-white p-8 rounded-lg border border-slate-100 shadow-sm space-y-6">
               {user && (
                 <div className="pb-6 border-b border-slate-50">
                   <div className="flex items-center justify-between mb-4">
@@ -689,11 +689,11 @@ export const Cart = () => {
                     </button>
                   </div>
                   <div className="grid grid-cols-2 gap-3">
-                    <div className="rounded-2xl bg-slate-50 p-4">
+                    <div className="rounded-lg bg-slate-50 p-4">
                       <div className="text-[10px] uppercase tracking-widest text-slate-400 font-bold">Можна списати</div>
                       <div className="text-lg font-bold text-slate-900">{usableBonusAmount} грн</div>
                     </div>
-                    <div className="rounded-2xl bg-tiffany/5 p-4">
+                    <div className="rounded-lg bg-tiffany/5 p-4">
                       <div className="text-[10px] uppercase tracking-widest text-slate-400 font-bold">Ліміт</div>
                       <div className="text-lg font-bold text-tiffany">30%</div>
                     </div>
@@ -701,7 +701,7 @@ export const Cart = () => {
                   <p className="mt-3 text-[11px] leading-relaxed text-slate-400">
                     Списання працює після промокоду: 1 бонус = 1 грн, максимум 30% суми.
                   </p>
-                  <div className="mt-4 rounded-2xl bg-slate-50 p-4">
+                  <div className="mt-4 rounded-lg bg-slate-50 p-4">
                     <div className="mb-2 flex items-center justify-between text-[10px] font-bold uppercase tracking-widest">
                       <span className="text-slate-400">Рівень {loyaltyProgress.current.name}</span>
                       {loyaltyProgress.next ? (
@@ -755,7 +755,7 @@ export const Cart = () => {
             </div>
 
             {/* Order Summary */}
-            <div className="bg-slate-900 text-white p-10 rounded-[2.5rem] shadow-2xl shadow-slate-900/20">
+            <div className="bg-slate-900 text-white p-10 rounded-lg shadow-lg shadow-slate-900/10">
               <h2 className="text-2xl font-bold mb-8">Підсумок</h2>
               <div className="space-y-4 mb-8">
                 <div className="flex justify-between text-white/60 text-sm">
@@ -775,7 +775,7 @@ export const Cart = () => {
                   </div>
                 )}
                 {activeBundleOffer && bundleDiscountAmount > 0 && (
-                  <div className="rounded-2xl bg-tiffany/10 p-4 text-sm text-white">
+                  <div className="rounded-lg bg-tiffany/10 p-4 text-sm text-white">
                     <div className="flex justify-between gap-4">
                       <span className="font-bold text-tiffany">{activeBundleOffer.title}</span>
                       <span className="font-bold text-tiffany">-{bundleDiscountAmount} грн</span>
@@ -799,7 +799,7 @@ export const Cart = () => {
                   </span>
                 </div>
                 {!isDeliveryFree && (
-                  <div className="rounded-2xl bg-white/5 p-3">
+                  <div className="rounded-lg bg-white/5 p-3">
                     <div className="mb-2 text-[11px] leading-relaxed text-white/60">
                       Додайте ще <span className="font-bold text-tiffany">{deliveryRemaining.toLocaleString('uk-UA')} грн</span> — і доставка стане <span className="font-bold text-white">безкоштовною</span>.
                     </div>
@@ -812,7 +812,7 @@ export const Cart = () => {
                   </div>
                 )}
                 {isDeliveryFree && totalPrice > 0 && (
-                  <div className="rounded-2xl bg-tiffany/10 p-3 text-[11px] font-bold text-tiffany">
+                  <div className="rounded-lg bg-tiffany/10 p-3 text-[11px] font-bold text-tiffany">
                     {isFirstOrder && totalPrice < freeDeliveryMin
                       ? 'Безкоштовна доставка на ваше перше замовлення 🎉'
                       : 'Ви отримали безкоштовну доставку 🎉'}
@@ -821,7 +821,7 @@ export const Cart = () => {
                 {!user && !isDeliveryFree && (
                   <Link
                     to="/login"
-                    className="block rounded-2xl bg-white/5 p-3 text-[11px] font-bold text-tiffany transition-colors hover:bg-white/10 hover:text-white hover:no-underline"
+                    className="block rounded-lg bg-white/5 p-3 text-[11px] font-bold text-tiffany transition-colors hover:bg-white/10 hover:text-white hover:no-underline"
                   >
                     Зареєструйтесь — і доставка на перше замовлення безкоштовна, без порогу →
                   </Link>
@@ -833,7 +833,7 @@ export const Cart = () => {
                 </div>
                 {/* Кешбек нараховується лише зареєстрованим. Гостю раніше показували
                     "+N бонусів", яких він ніколи не отримає. */}
-                <div className="bg-white/5 p-4 rounded-2xl text-center">
+                <div className="bg-white/5 p-4 rounded-lg text-center">
                   {user ? (
                     <>
                       <div className="text-tiffany font-bold text-sm">+{estimatedBonuses} бонусів</div>
@@ -850,7 +850,7 @@ export const Cart = () => {
                 </div>
               </div>
               {checkoutError && (
-                <div className="mb-4 rounded-2xl border border-red-400/20 bg-red-500/10 p-4 text-sm text-red-100">
+                <div className="mb-4 rounded-lg border border-red-400/20 bg-red-500/10 p-4 text-sm text-red-100">
                   {checkoutError}
                 </div>
               )}
@@ -859,7 +859,7 @@ export const Cart = () => {
                 form="checkout-form"
                 type="submit"
                 disabled={isSubmitting}
-                className={`w-full bg-tiffany text-white py-5 rounded-2xl font-bold text-lg flex items-center justify-center gap-3 transition-all shadow-xl shadow-tiffany/20 ${
+                className={`w-full bg-tiffany text-white py-5 rounded-lg font-bold text-lg flex items-center justify-center gap-3 transition-all shadow-xl shadow-tiffany/20 ${
                   isSubmitting ? 'opacity-70 cursor-wait' : 'hover:bg-white hover:text-tiffany'
                 }`}
               >
