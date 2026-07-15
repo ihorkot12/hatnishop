@@ -38,6 +38,12 @@ export const Hero = ({ title, subtitle, badge, featuredProduct: propProduct, loa
 
   return (
     <section className="relative overflow-hidden bg-cream">
+      {/* Преміальний фон: м'які кольорові ореоли додають глибини замість пласкої заливки.
+          Дуже низька насиченість + сильне розмиття — це відчувається як світло, а не як пляма. */}
+      <div aria-hidden="true" className="pointer-events-none absolute inset-0">
+        <div className="absolute -top-40 right-[-12%] h-[560px] w-[560px] rounded-full bg-tiffany/25 blur-[140px]" />
+        <div className="absolute bottom-[-25%] left-[-12%] h-[460px] w-[460px] rounded-full bg-gold/10 blur-[130px]" />
+      </div>
       <div className="relative mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8 lg:py-24">
         <div className="grid min-h-[calc(100vh-190px)] grid-cols-1 items-center gap-12 lg:grid-cols-[1.05fr_0.85fr] lg:gap-20">
           <motion.div
@@ -102,8 +108,8 @@ export const Hero = ({ title, subtitle, badge, featuredProduct: propProduct, loa
             className="relative"
           >
             <div className="absolute -left-6 top-10 hidden h-[70%] w-px bg-slate-900/10 lg:block" />
-            <div className="overflow-hidden rounded-lg border border-slate-900/10 bg-white shadow-xl shadow-slate-950/5">
-              <div className="relative aspect-[4/5] bg-slate-100">
+            <div className="group overflow-hidden rounded-lg border border-slate-900/10 bg-white shadow-xl shadow-slate-950/5">
+              <div className="relative aspect-[4/5] overflow-hidden bg-slate-100">
                 {featuredProduct ? (
                   <img
                     src={featuredProduct.image || undefined}
@@ -111,7 +117,7 @@ export const Hero = ({ title, subtitle, badge, featuredProduct: propProduct, loa
                     loading="eager"
                     decoding="async"
                     fetchPriority="high"
-                    className="h-full w-full object-cover object-[center_bottom]"
+                    className="h-full w-full object-cover object-[center_bottom] transition-transform duration-[1200ms] ease-out group-hover:scale-[1.04]"
                     referrerPolicy="no-referrer"
                   />
                 ) : loading ? (
