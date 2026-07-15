@@ -75,6 +75,7 @@ export class NeonAdapter implements DatabaseAdapter {
         final_total NUMERIC NOT NULL,
         bonuses_credited BOOLEAN DEFAULT FALSE,
         bonuses_restored BOOLEAN DEFAULT FALSE,
+        cashback_amount NUMERIC DEFAULT 0,
         tracking_number TEXT,
         comment TEXT,
         payment_method TEXT,
@@ -97,6 +98,10 @@ export class NeonAdapter implements DatabaseAdapter {
       await this.sql`ALTER TABLE orders ADD COLUMN IF NOT EXISTS bonuses_restored BOOLEAN DEFAULT FALSE`;
       await this.sql`ALTER TABLE orders ADD COLUMN IF NOT EXISTS tracking_number TEXT`;
       await this.sql`ALTER TABLE orders ADD COLUMN IF NOT EXISTS comment TEXT`;
+      // Кешбек фіксуємо на замовленні при оформленні. Інакше при нарахуванні/скасуванні
+      // ставка перераховувалась за поточним total_spent — тир міг зсунутись, і з клієнта
+      // знімали більше бонусів, ніж нарахували.
+      await this.sql`ALTER TABLE orders ADD COLUMN IF NOT EXISTS cashback_amount NUMERIC DEFAULT 0`;
     } catch (e) {
       console.log("Columns might already exist or error adding them:", e);
     }
@@ -123,6 +128,9 @@ export class NeonAdapter implements DatabaseAdapter {
         title TEXT,
         description TEXT,
         type TEXT DEFAULT 'promo',
+        usage_limit INTEGER DEFAULT 0,
+        used_count INTEGER DEFAULT 0,
+        expires_at TIMESTAMP,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
     `;
@@ -133,6 +141,10 @@ export class NeonAdapter implements DatabaseAdapter {
       await this.sql`ALTER TABLE bonus_codes ADD COLUMN IF NOT EXISTS description TEXT;`;
       await this.sql`ALTER TABLE bonus_codes ADD COLUMN IF NOT EXISTS type TEXT DEFAULT 'promo';`;
       await this.sql`ALTER TABLE bonus_codes ADD COLUMN IF NOT EXISTS show_in_site BOOLEAN DEFAULT TRUE;`;
+      // usage_limit = 0 означає "без обмежень" (сумісно зі старими кодами).
+      await this.sql`ALTER TABLE bonus_codes ADD COLUMN IF NOT EXISTS usage_limit INTEGER DEFAULT 0;`;
+      await this.sql`ALTER TABLE bonus_codes ADD COLUMN IF NOT EXISTS used_count INTEGER DEFAULT 0;`;
+      await this.sql`ALTER TABLE bonus_codes ADD COLUMN IF NOT EXISTS expires_at TIMESTAMP;`;
     } catch (e) {
       console.log("Migration error for bonus_codes:", e);
     }
@@ -442,6 +454,7 @@ export class NeonAdapter implements DatabaseAdapter {
       createdAt: order.created_at,
       bonusesCredited: order.bonuses_credited,
       bonusesRestored: order.bonuses_restored,
+      cashbackAmount: Number(order.cashback_amount || 0),
       trackingNumber: order.tracking_number,
       comment: order.comment,
       customer: {
@@ -477,6 +490,17 @@ export class NeonAdapter implements DatabaseAdapter {
 
   async markOrderBonusesRestored(id: string): Promise<void> {
     await this.sql`UPDATE orders SET bonuses_restored = TRUE WHERE id = ${id}`;
+  }
+
+  // Свідомо окремим запитом, а не в INSERT з createOrder: якщо колонка ще не з'явилась
+  // (міграція виконується при init), замовлення все одно створиться — впаде лише цей
+  // необов'язковий апдейт.
+  async setOrderCashback(id: string, amount: number): Promise<void> {
+    await this.sql`UPDATE orders SET cashback_amount = ${amount} WHERE id = ${id}`;
+  }
+
+  async incrementBonusCodeUsage(id: string): Promise<void> {
+    await this.sql`UPDATE bonus_codes SET used_count = COALESCE(used_count, 0) + 1 WHERE id = ${id}`;
   }
 
   async addUserTotalSpent(id: string, amount: number): Promise<void> {
@@ -515,8 +539,8 @@ export class NeonAdapter implements DatabaseAdapter {
 
   async createBonusCode(bonusCode: any): Promise<void> {
     await this.sql`
-      INSERT INTO bonus_codes (id, code, discount_amount, discount_type, min_order_amount, is_active, show_in_site, title, description, type)
-      VALUES (${bonusCode.id}, ${bonusCode.code}, ${bonusCode.discount_amount}, ${bonusCode.discount_type}, ${bonusCode.min_order_amount || 0}, ${bonusCode.is_active}, ${bonusCode.show_in_site}, ${bonusCode.title}, ${bonusCode.description}, ${bonusCode.type || 'promo'})
+      INSERT INTO bonus_codes (id, code, discount_amount, discount_type, min_order_amount, is_active, show_in_site, title, description, type, usage_limit, expires_at)
+      VALUES (${bonusCode.id}, ${bonusCode.code}, ${bonusCode.discount_amount}, ${bonusCode.discount_type}, ${bonusCode.min_order_amount || 0}, ${bonusCode.is_active}, ${bonusCode.show_in_site}, ${bonusCode.title}, ${bonusCode.description}, ${bonusCode.type || 'promo'}, ${bonusCode.usage_limit || 0}, ${bonusCode.expires_at || null})
     `;
   }
 
@@ -531,7 +555,9 @@ export class NeonAdapter implements DatabaseAdapter {
         show_in_site = ${bonusCode.show_in_site},
         title = ${bonusCode.title},
         description = ${bonusCode.description},
-        type = ${bonusCode.type}
+        type = ${bonusCode.type},
+        usage_limit = ${bonusCode.usage_limit || 0},
+        expires_at = ${bonusCode.expires_at || null}
       WHERE id = ${id}
     `;
   }

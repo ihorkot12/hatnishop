@@ -69,6 +69,7 @@ export class PostgresAdapter implements DatabaseAdapter {
           final_total REAL,
           bonuses_credited INTEGER DEFAULT 0,
           bonuses_restored INTEGER DEFAULT 0,
+          cashback_amount REAL DEFAULT 0,
           tracking_number TEXT,
           comment TEXT,
           payment_method TEXT,
@@ -83,6 +84,13 @@ export class PostgresAdapter implements DatabaseAdapter {
         ALTER TABLE orders ADD COLUMN IF NOT EXISTS bonuses_restored INTEGER DEFAULT 0;
       `;
 
+      // Кешбек фіксуємо на замовленні при оформленні. Інакше при нарахуванні/скасуванні
+      // ставка перераховувалась за поточним total_spent — тир міг зсунутись, і з клієнта
+      // знімали більше бонусів, ніж нарахували.
+      await sql`
+        ALTER TABLE orders ADD COLUMN IF NOT EXISTS cashback_amount REAL DEFAULT 0;
+      `;
+
       await sql`
         CREATE TABLE IF NOT EXISTS bonus_codes (
           id TEXT PRIMARY KEY,
@@ -95,6 +103,9 @@ export class PostgresAdapter implements DatabaseAdapter {
           title TEXT,
           description TEXT,
           type TEXT DEFAULT 'promo',
+          usage_limit INTEGER DEFAULT 0,
+          used_count INTEGER DEFAULT 0,
+          expires_at TIMESTAMP,
           created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         );
       `;
@@ -106,6 +117,10 @@ export class PostgresAdapter implements DatabaseAdapter {
         await sql`ALTER TABLE bonus_codes ADD COLUMN IF NOT EXISTS description TEXT;`;
         await sql`ALTER TABLE bonus_codes ADD COLUMN IF NOT EXISTS type TEXT DEFAULT 'promo';`;
         await sql`ALTER TABLE bonus_codes ADD COLUMN IF NOT EXISTS show_in_site INTEGER DEFAULT 1;`;
+        // usage_limit = 0 означає "без обмежень" (сумісно зі старими кодами).
+        await sql`ALTER TABLE bonus_codes ADD COLUMN IF NOT EXISTS usage_limit INTEGER DEFAULT 0;`;
+        await sql`ALTER TABLE bonus_codes ADD COLUMN IF NOT EXISTS used_count INTEGER DEFAULT 0;`;
+        await sql`ALTER TABLE bonus_codes ADD COLUMN IF NOT EXISTS expires_at TIMESTAMP;`;
         console.log("Bonus codes migration successful");
       } catch (e) {
         console.error("Migration error for bonus_codes:", e);
@@ -405,6 +420,7 @@ export class PostgresAdapter implements DatabaseAdapter {
         createdAt: order.created_at,
         bonusesCredited: !!order.bonuses_credited,
         bonusesRestored: !!order.bonuses_restored,
+        cashbackAmount: Number(order.cashback_amount || 0),
         trackingNumber: order.tracking_number,
         comment: order.comment,
         customer: {
@@ -442,6 +458,17 @@ export class PostgresAdapter implements DatabaseAdapter {
 
   async markOrderBonusesRestored(id: string): Promise<void> {
     await sql`UPDATE orders SET bonuses_restored = 1 WHERE id = ${id}`;
+  }
+
+  // Свідомо окремим запитом, а не в INSERT з createOrder: якщо колонка ще не з'явилась
+  // (міграція виконується при init), замовлення все одно створиться — впаде лише цей
+  // необов'язковий апдейт.
+  async setOrderCashback(id: string, amount: number): Promise<void> {
+    await sql`UPDATE orders SET cashback_amount = ${amount} WHERE id = ${id}`;
+  }
+
+  async incrementBonusCodeUsage(id: string): Promise<void> {
+    await sql`UPDATE bonus_codes SET used_count = COALESCE(used_count, 0) + 1 WHERE id = ${id}`;
   }
 
   async addUserTotalSpent(id: string, amount: number): Promise<void> {
@@ -482,8 +509,8 @@ export class PostgresAdapter implements DatabaseAdapter {
 
   async createBonusCode(bonusCode: any): Promise<void> {
     await sql`
-      INSERT INTO bonus_codes (id, code, discount_amount, discount_type, min_order_amount, is_active, show_in_site, title, description, type)
-      VALUES (${bonusCode.id}, ${bonusCode.code}, ${bonusCode.discount_amount}, ${bonusCode.discount_type}, ${bonusCode.min_order_amount || 0}, ${bonusCode.is_active ? 1 : 0}, ${bonusCode.show_in_site ? 1 : 0}, ${bonusCode.title}, ${bonusCode.description}, ${bonusCode.type || 'promo'})
+      INSERT INTO bonus_codes (id, code, discount_amount, discount_type, min_order_amount, is_active, show_in_site, title, description, type, usage_limit, expires_at)
+      VALUES (${bonusCode.id}, ${bonusCode.code}, ${bonusCode.discount_amount}, ${bonusCode.discount_type}, ${bonusCode.min_order_amount || 0}, ${bonusCode.is_active ? 1 : 0}, ${bonusCode.show_in_site ? 1 : 0}, ${bonusCode.title}, ${bonusCode.description}, ${bonusCode.type || 'promo'}, ${bonusCode.usage_limit || 0}, ${bonusCode.expires_at || null})
     `;
   }
 
@@ -498,7 +525,9 @@ export class PostgresAdapter implements DatabaseAdapter {
         show_in_site = ${bonusCode.show_in_site ? 1 : 0},
         title = ${bonusCode.title},
         description = ${bonusCode.description},
-        type = ${bonusCode.type}
+        type = ${bonusCode.type},
+        usage_limit = ${bonusCode.usage_limit || 0},
+        expires_at = ${bonusCode.expires_at || null}
       WHERE id = ${id}
     `;
   }

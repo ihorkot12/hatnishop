@@ -123,7 +123,9 @@ export const Admin = () => {
     show_in_site: true,
     title: '',
     description: '',
-    type: 'promo'
+    type: 'promo',
+    usage_limit: 0,
+    expires_at: ''
   });
   const [isProductLoading, setIsProductLoading] = useState(false);
   const [isOrderLoading, setIsOrderLoading] = useState(false);
@@ -574,7 +576,9 @@ export const Admin = () => {
           show_in_site: true,
           title: '',
           description: '',
-          type: 'promo'
+          type: 'promo',
+          usage_limit: 0,
+          expires_at: ''
         });
         alert('Акцію додано успішно');
       } else {
@@ -1798,8 +1802,27 @@ export const Admin = () => {
                       onChange={e => setNewBonusCode({...newBonusCode, min_order_amount: Number(e.target.value)})}
                     />
                   </div>
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-bold text-slate-400 uppercase ml-1">Ліміт (0 = без ліміту)</label>
+                    <input
+                      type="number"
+                      min={0}
+                      className="w-full bg-slate-50 border-none rounded-xl p-3 text-sm focus:ring-2 focus:ring-tiffany"
+                      value={newBonusCode.usage_limit}
+                      onChange={e => setNewBonusCode({...newBonusCode, usage_limit: Number(e.target.value)})}
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-bold text-slate-400 uppercase ml-1">Діє до</label>
+                    <input
+                      type="date"
+                      className="w-full bg-slate-50 border-none rounded-xl p-3 text-sm focus:ring-2 focus:ring-tiffany"
+                      value={newBonusCode.expires_at}
+                      onChange={e => setNewBonusCode({...newBonusCode, expires_at: e.target.value})}
+                    />
+                  </div>
                   <div className="flex items-end">
-                    <button 
+                    <button
                       onClick={createBonusCode}
                       className="w-full bg-slate-900 text-white h-[46px] rounded-xl font-bold text-sm hover:bg-tiffany transition-all"
                     >
@@ -2493,8 +2516,15 @@ export const Admin = () => {
                             <div className="text-xs text-slate-400 flex items-center gap-1">
                               <Truck size={10} /> {getDeliveryShortLabel(getOrderDeliveryMethod(order))}, {order.customer.city}
                             </div>
+                            {/* Прапорець доставки рахує сервер і кладе в comment. Виносимо
+                                його окремим бейджем — власнику це потрібно при пакуванні. */}
+                            {String(order.comment || '').includes('ДОСТАВКА: безкоштовна') && (
+                              <div className="mt-1 inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-bold text-emerald-700">
+                                <Truck size={10} /> Безкоштовна доставка
+                              </div>
+                            )}
                             {order.comment && (
-                              <div className="mt-1 text-[10px] text-amber-600 italic">
+                              <div className="mt-1 whitespace-pre-line text-[10px] text-amber-600 italic">
                                 Коментар: {order.comment}
                               </div>
                             )}
@@ -3605,8 +3635,29 @@ export const Admin = () => {
                       type="number"
                       value={editingBonusCode.min_order_amount}
                       onChange={e => setEditingBonusCode({...editingBonusCode, min_order_amount: Number(e.target.value)})}
-                      className="w-full bg-slate-50 border-none rounded-xl p-4 focus:ring-2 focus:ring-tiffany" 
+                      className="w-full bg-slate-50 border-none rounded-xl p-4 focus:ring-2 focus:ring-tiffany"
                     />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-sm font-bold text-slate-700">Ліміт використань</label>
+                    <input
+                      type="number"
+                      min={0}
+                      value={editingBonusCode.usage_limit ?? 0}
+                      onChange={e => setEditingBonusCode({...editingBonusCode, usage_limit: Number(e.target.value)})}
+                      className="w-full bg-slate-50 border-none rounded-xl p-4 focus:ring-2 focus:ring-tiffany"
+                    />
+                    <p className="text-xs text-slate-400">0 — без обмежень. Використано: {editingBonusCode.used_count ?? 0}</p>
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-sm font-bold text-slate-700">Діє до</label>
+                    <input
+                      type="date"
+                      value={String(editingBonusCode.expires_at || '').slice(0, 10)}
+                      onChange={e => setEditingBonusCode({...editingBonusCode, expires_at: e.target.value || null})}
+                      className="w-full bg-slate-50 border-none rounded-xl p-4 focus:ring-2 focus:ring-tiffany"
+                    />
+                    <p className="text-xs text-slate-400">Порожньо — безстроковий.</p>
                   </div>
                 </div>
 

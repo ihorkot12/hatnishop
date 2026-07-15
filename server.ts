@@ -488,6 +488,46 @@ const getCashbackRate = (totalSpent: number) => {
 const calculateBonusSpendLimit = (subtotalAfterPromo: number) =>
   Math.max(0, Math.floor(subtotalAfterPromo * BONUS_SPEND_LIMIT_RATE));
 
+// --- Промокоди: строк дії, ліміт використань, безпечний розрахунок знижки ---
+// usage_limit = 0 (або відсутній) означає "без обмежень" — так поводяться старі коди.
+const isPromoExpired = (promo: any) => {
+  const raw = promo?.expires_at;
+  if (!raw) return false;
+  const expiresAt = new Date(raw).getTime();
+  if (!Number.isFinite(expiresAt)) return false;
+  return Date.now() > expiresAt;
+};
+
+const isPromoExhausted = (promo: any) => {
+  const limit = Math.floor(toFiniteNumber(promo?.usage_limit, 0));
+  if (limit <= 0) return false;
+  return Math.floor(toFiniteNumber(promo?.used_count, 0)) >= limit;
+};
+
+// Публічна проєкція промокоду: лише поля, потрібні вітрині й кошику.
+// Внутрішні (used_count, usage_limit, expires_at, id) назовні не віддаємо.
+const toPublicPromo = (promo: any) => ({
+  code: promo.code,
+  type: promo.type,
+  title: promo.title,
+  description: promo.description,
+  discount_type: promo.discount_type,
+  discount_amount: toFiniteNumber(promo.discount_amount),
+  min_order_amount: toFiniteNumber(promo.min_order_amount),
+  is_active: !!promo.is_active,
+  show_in_site: !!promo.show_in_site
+});
+
+// Відсоток клампимо до 100: інакше discount_amount = 200 (описка адміна в полі "%")
+// робила замовлення безкоштовним.
+const computePromoDiscount = (promo: any, subtotal: number) => {
+  const amount = toFiniteNumber(promo?.discount_amount);
+  const raw = promo?.discount_type === "percent"
+    ? Math.floor(subtotal * (Math.min(Math.max(amount, 0), 100) / 100))
+    : amount;
+  return Math.min(Math.max(raw, 0), subtotal);
+};
+
 const getOptionalUser = (req: any) => {
   const token = req.cookies?.token;
   if (!token) return null;
@@ -2505,12 +2545,18 @@ ${textOnly}`;
     const orderUserId = order.user_id;
     const orderFinalTotal = Math.max(0, Math.floor(toFiniteNumber(order.finalTotal)));
     const orderBonusUsed = Math.max(0, Math.floor(toFiniteNumber(order.bonusUsed)));
+    // Сума кешбеку, зафіксована при оформленні (те, що клієнт бачив у кошику).
+    // Для старих замовлень, створених до появи колонки, вона 0 — тоді працює
+    // попередня логіка з перерахунком ставки.
+    const lockedCashback = Math.max(0, Math.floor(toFiniteNumber((order as any).cashbackAmount)));
 
     // Credit cashback once, after the order is paid or completed.
     if ((status === 'paid' || status === 'completed') && !order.bonusesCredited && !order.bonusesRestored && orderUserId) {
       const user = await db.getUserById(orderUserId);
       if (user) {
-        const earnedBonuses = Math.floor(orderFinalTotal * getCashbackRate(toFiniteNumber(user.total_spent)));
+        const earnedBonuses = lockedCashback > 0
+          ? lockedCashback
+          : Math.floor(orderFinalTotal * getCashbackRate(toFiniteNumber(user.total_spent)));
         await db.updateUserBonuses(orderUserId, Math.max(0, Math.floor(toFiniteNumber(user.bonuses)) + earnedBonuses));
         await db.addUserTotalSpent(orderUserId, orderFinalTotal);
         if ((db as any).markOrderBonusesCredited) {
@@ -2553,8 +2599,13 @@ ${textOnly}`;
           }
 
           if (order.bonusesCredited) {
+            // Знімаємо рівно стільки, скільки нарахували. Раніше ставка реконструювалась
+            // із поточного total_spent — якщо між нарахуванням і скасуванням тир зсунувся
+            // (закрилось інше замовлення), з клієнта списувалось більше, ніж він отримав.
             const spentBeforeOrder = Math.max(0, toFiniteNumber(user.total_spent) - orderFinalTotal);
-            const creditedBonuses = Math.floor(orderFinalTotal * getCashbackRate(spentBeforeOrder));
+            const creditedBonuses = lockedCashback > 0
+              ? lockedCashback
+              : Math.floor(orderFinalTotal * getCashbackRate(spentBeforeOrder));
             nextBonuses = Math.max(0, nextBonuses - creditedBonuses);
             await db.addUserTotalSpent(orderUserId, -orderFinalTotal);
           }
@@ -2800,7 +2851,11 @@ app.get("/api/admin/users", authenticate, asyncHandler(async (req: any, res: any
       }
 
       const codes = await db.getBonusCodes();
-      res.json(codes || []);
+      // Публічний ендпоінт: віддаємо лише живі коди й лише ті поля, які потрібні
+      // вітрині. Раніше сюди йшов увесь рядок з БД, включно з неактивними кодами.
+      res.json((codes || [])
+        .filter((code: any) => code.is_active && !isPromoExpired(code) && !isPromoExhausted(code))
+        .map(toPublicPromo));
     } catch (error: any) {
       const { isQuota, isFirst } = recordDbError(error);
       if (isFirst && !isQuota) {
@@ -2892,6 +2947,7 @@ app.get("/api/admin/users", authenticate, asyncHandler(async (req: any, res: any
 
       const promoCode = normalizeString(req.body?.promoCode, 80).toUpperCase();
       let promoDiscount = 0;
+      let appliedPromo: any = null;
       if (promoCode) {
         const bonusCodes = await db.getBonusCodes();
         const promo = bonusCodes.find((code: any) =>
@@ -2902,13 +2958,17 @@ app.get("/api/admin/users", authenticate, asyncHandler(async (req: any, res: any
         if (!promo) {
           return res.status(400).json({ error: "Промокод неактивний або не існує" });
         }
+        if (isPromoExpired(promo)) {
+          return res.status(400).json({ error: "Термін дії промокоду минув" });
+        }
+        if (isPromoExhausted(promo)) {
+          return res.status(400).json({ error: "Промокод вичерпав ліміт використань" });
+        }
         if (serverTotal < toFiniteNumber(promo.min_order_amount)) {
           return res.status(400).json({ error: "Сума замовлення менша за мінімум промокоду" });
         }
-        promoDiscount = promo.discount_type === "percent"
-          ? Math.floor(serverTotal * (toFiniteNumber(promo.discount_amount) / 100))
-          : toFiniteNumber(promo.discount_amount);
-        promoDiscount = Math.min(Math.max(promoDiscount, 0), serverTotal);
+        promoDiscount = computePromoDiscount(promo, serverTotal);
+        appliedPromo = promo;
       }
 
       const bundleOffer = req.body?.bundleOffer || null;
@@ -2994,6 +3054,27 @@ app.get("/api/admin/users", authenticate, asyncHandler(async (req: any, res: any
         ].filter(Boolean).join("\n") || undefined
       }, orderItems, safeBonusUsed, safeFinalTotal);
 
+      // Фіксуємо на замовленні саме ту суму кешбеку, яку показали в кошику. Нарахування
+      // і клоубек при скасуванні беруть це число, а не перераховують ставку заново.
+      // Окремим (не критичним) запитом: якщо колонка ще не змігрувала, замовлення все одно
+      // залишиться створеним.
+      if (cashbackPending > 0 && (db as any).setOrderCashback) {
+        try {
+          await (db as any).setOrderCashback(orderId, cashbackPending);
+        } catch (cashbackErr: any) {
+          console.warn("Could not persist order cashback:", cashbackErr?.message);
+        }
+      }
+
+      // Ліміт використань промокоду має сенс лише якщо ми рахуємо використання.
+      if (appliedPromo?.id && promoDiscount > 0 && (db as any).incrementBonusCodeUsage) {
+        try {
+          await (db as any).incrementBonusCodeUsage(appliedPromo.id);
+        } catch (promoErr: any) {
+          console.warn("Could not increment promo usage:", promoErr?.message);
+        }
+      }
+
       const orderSummary = {
         id: orderId,
         customer_name: customerName,
@@ -3051,8 +3132,15 @@ app.get("/api/admin/users", authenticate, asyncHandler(async (req: any, res: any
       if (!bonusCode) {
         return res.status(404).json({ error: "Промокод не знайдено або він неактивний" });
       }
-      
-      res.json(bonusCode);
+      if (isPromoExpired(bonusCode)) {
+        return res.status(410).json({ error: "Термін дії промокоду минув" });
+      }
+      if (isPromoExhausted(bonusCode)) {
+        return res.status(410).json({ error: "Промокод вичерпав ліміт використань" });
+      }
+
+      // Віддаємо лише публічні поля — раніше сюди йшов увесь рядок з БД.
+      res.json(toPublicPromo(bonusCode));
     } catch (error: any) {
       const { isQuota, isFirst } = recordDbError(error);
       if (isFirst && !isQuota) {

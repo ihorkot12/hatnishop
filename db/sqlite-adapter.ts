@@ -63,6 +63,7 @@ export class SqliteAdapter implements DatabaseAdapter {
         final_total REAL,
         bonuses_credited INTEGER DEFAULT 0,
         bonuses_restored INTEGER DEFAULT 0,
+        cashback_amount REAL DEFAULT 0,
         tracking_number TEXT,
         comment TEXT,
         payment_method TEXT,
@@ -90,6 +91,9 @@ export class SqliteAdapter implements DatabaseAdapter {
         title TEXT,
         description TEXT,
         type TEXT DEFAULT 'promo',
+        usage_limit INTEGER DEFAULT 0,
+        used_count INTEGER DEFAULT 0,
+        expires_at TEXT,
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP
       );
 
@@ -169,6 +173,14 @@ export class SqliteAdapter implements DatabaseAdapter {
     try { this.db.prepare("ALTER TABLE products ADD COLUMN bundle_items TEXT DEFAULT '[]'").run(); } catch (e) {}
     try { this.db.prepare("ALTER TABLE products ADD COLUMN cost_price REAL").run(); } catch (e) {}
     try { this.db.prepare("ALTER TABLE orders ADD COLUMN bonuses_restored INTEGER DEFAULT 0").run(); } catch (e) {}
+    // Кешбек фіксуємо на замовленні при оформленні. Інакше при нарахуванні/скасуванні
+    // ставка перераховувалась за поточним total_spent — тир міг зсунутись, і з клієнта
+    // знімали більше бонусів, ніж нарахували.
+    try { this.db.prepare("ALTER TABLE orders ADD COLUMN cashback_amount REAL DEFAULT 0").run(); } catch (e) {}
+    // usage_limit = 0 означає "без обмежень" (сумісно зі старими кодами).
+    try { this.db.prepare("ALTER TABLE bonus_codes ADD COLUMN usage_limit INTEGER DEFAULT 0").run(); } catch (e) {}
+    try { this.db.prepare("ALTER TABLE bonus_codes ADD COLUMN used_count INTEGER DEFAULT 0").run(); } catch (e) {}
+    try { this.db.prepare("ALTER TABLE bonus_codes ADD COLUMN expires_at TEXT").run(); } catch (e) {}
     try { this.db.prepare("ALTER TABLE site_settings ADD COLUMN hero_title TEXT DEFAULT 'Естетичний посуд та декор для дому'").run(); } catch (e) {}
     try { this.db.prepare("ALTER TABLE site_settings ADD COLUMN hero_subtitle TEXT DEFAULT 'Інтернет-магазин \"Хатні Штучки\" — ваш провідник у світ затишку. Купуйте кераміку, текстиль та аксесуари, які перетворюють оселю на місце сили.'").run(); } catch (e) {}
     try { this.db.prepare("ALTER TABLE site_settings ADD COLUMN hero_featured_product_id TEXT DEFAULT 'p1'").run(); } catch (e) {}
@@ -354,6 +366,7 @@ export class SqliteAdapter implements DatabaseAdapter {
         createdAt: order.created_at,
         bonusesCredited: !!order.bonuses_credited,
         bonusesRestored: !!order.bonuses_restored,
+        cashbackAmount: Number(order.cashback_amount || 0),
         trackingNumber: order.tracking_number,
         comment: order.comment,
         customer: {
@@ -391,6 +404,17 @@ export class SqliteAdapter implements DatabaseAdapter {
 
   async markOrderBonusesRestored(id: string): Promise<void> {
     this.db.prepare("UPDATE orders SET bonuses_restored = 1 WHERE id = ?").run(id);
+  }
+
+  // Свідомо окремим запитом, а не в INSERT з createOrder: якщо колонка ще не з'явилась
+  // (міграція виконується при init), замовлення все одно створиться — впаде лише цей
+  // необов'язковий апдейт.
+  async setOrderCashback(id: string, amount: number): Promise<void> {
+    this.db.prepare("UPDATE orders SET cashback_amount = ? WHERE id = ?").run(amount, id);
+  }
+
+  async incrementBonusCodeUsage(id: string): Promise<void> {
+    this.db.prepare("UPDATE bonus_codes SET used_count = used_count + 1 WHERE id = ?").run(id);
   }
 
   async addUserTotalSpent(id: string, amount: number): Promise<void> {
@@ -431,9 +455,9 @@ export class SqliteAdapter implements DatabaseAdapter {
 
   async createBonusCode(bonusCode: any): Promise<void> {
     this.db.prepare(`
-      INSERT INTO bonus_codes (id, code, discount_amount, discount_type, min_order_amount, is_active, show_in_site, title, description, type)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `).run(bonusCode.id, bonusCode.code, bonusCode.discount_amount, bonusCode.discount_type, bonusCode.min_order_amount || 0, bonusCode.is_active ? 1 : 0, bonusCode.show_in_site ? 1 : 0, bonusCode.title, bonusCode.description, bonusCode.type || 'promo');
+      INSERT INTO bonus_codes (id, code, discount_amount, discount_type, min_order_amount, is_active, show_in_site, title, description, type, usage_limit, expires_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `).run(bonusCode.id, bonusCode.code, bonusCode.discount_amount, bonusCode.discount_type, bonusCode.min_order_amount || 0, bonusCode.is_active ? 1 : 0, bonusCode.show_in_site ? 1 : 0, bonusCode.title, bonusCode.description, bonusCode.type || 'promo', bonusCode.usage_limit || 0, bonusCode.expires_at || null);
   }
 
   async updateBonusCode(id: string, bonusCode: any): Promise<void> {
@@ -448,6 +472,8 @@ export class SqliteAdapter implements DatabaseAdapter {
     if (bonusCode.title) { fields.push("title = ?"); values.push(bonusCode.title); }
     if (bonusCode.description) { fields.push("description = ?"); values.push(bonusCode.description); }
     if (bonusCode.type) { fields.push("type = ?"); values.push(bonusCode.type); }
+    if (bonusCode.usage_limit !== undefined) { fields.push("usage_limit = ?"); values.push(bonusCode.usage_limit || 0); }
+    if (bonusCode.expires_at !== undefined) { fields.push("expires_at = ?"); values.push(bonusCode.expires_at || null); }
     values.push(id);
     this.db.prepare(`UPDATE bonus_codes SET ${fields.join(', ')} WHERE id = ?`).run(...values);
   }

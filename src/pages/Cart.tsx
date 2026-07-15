@@ -162,7 +162,10 @@ export const Cart = () => {
   const calculateDiscount = () => {
     if (!appliedBonusCode) return 0;
     if (appliedBonusCode.discount_type === 'percent') {
-      return Math.floor((totalPrice * Number(appliedBonusCode.discount_amount || 0)) / 100);
+      // Клампимо відсоток так само, як сервер, інакше кошик показував би знижку,
+      // яку сервер не застосує.
+      const percent = Math.min(Math.max(Number(appliedBonusCode.discount_amount || 0), 0), 100);
+      return Math.floor((totalPrice * percent) / 100);
     }
     return Math.floor(Number(appliedBonusCode.discount_amount || 0));
   };
@@ -303,10 +306,17 @@ export const Cart = () => {
             <br />
             <span className="text-slate-900 font-bold">Наш менеджер зв'яжеться з вами у Viber або Telegram</span> для підтвердження та надання реквізитів для оплати.
           </p>
-          <div className="bg-tiffany/5 p-6 rounded-3xl mb-10 border border-tiffany/10">
-            <p className="text-tiffany font-bold text-lg mb-1">Очікується +{completedOrder?.cashbackPending ?? estimatedBonuses} бонусів</p>
-            <p className="text-xs text-slate-400">Бонуси зарахуються після підтвердження оплати або виконання замовлення.</p>
-          </div>
+          {(completedOrder?.cashbackPending ?? 0) > 0 ? (
+            <div className="bg-tiffany/5 p-6 rounded-3xl mb-10 border border-tiffany/10">
+              <p className="text-tiffany font-bold text-lg mb-1">Очікується +{completedOrder?.cashbackPending} бонусів</p>
+              <p className="text-xs text-slate-400">Бонуси зарахуються після підтвердження оплати або виконання замовлення.</p>
+            </div>
+          ) : (
+            <div className="bg-tiffany/5 p-6 rounded-3xl mb-10 border border-tiffany/10">
+              <p className="text-tiffany font-bold text-lg mb-1">Наступне замовлення — з кешбеком</p>
+              <p className="text-xs text-slate-400">Створіть акаунт, щоб отримувати 5% бонусами з кожної покупки.</p>
+            </div>
+          )}
           <Link to="/" className="inline-block bg-slate-900 text-white px-10 py-4 rounded-2xl font-bold hover:bg-tiffany transition-all">
             На головну
           </Link>
@@ -821,9 +831,22 @@ export const Cart = () => {
                   <span>Разом</span>
                   <span className="text-tiffany">{finalTotal} грн</span>
                 </div>
+                {/* Кешбек нараховується лише зареєстрованим. Гостю раніше показували
+                    "+N бонусів", яких він ніколи не отримає. */}
                 <div className="bg-white/5 p-4 rounded-2xl text-center">
-                  <div className="text-tiffany font-bold text-sm">+{estimatedBonuses} бонусів</div>
-                  <div className="text-[10px] text-white/30 uppercase tracking-widest font-bold">Після оплати · {cashbackPercent} кешбек</div>
+                  {user ? (
+                    <>
+                      <div className="text-tiffany font-bold text-sm">+{estimatedBonuses} бонусів</div>
+                      <div className="text-[10px] text-white/30 uppercase tracking-widest font-bold">Після оплати · {cashbackPercent} кешбек</div>
+                    </>
+                  ) : (
+                    <>
+                      <div className="text-tiffany font-bold text-sm">+{estimatedBonuses} бонусів з акаунтом</div>
+                      <Link to="/login" className="text-[10px] text-white/40 uppercase tracking-widest font-bold hover:text-white">
+                        Зареєструйтесь, щоб отримати кешбек
+                      </Link>
+                    </>
+                  )}
                 </div>
               </div>
               {checkoutError && (
