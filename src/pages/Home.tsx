@@ -65,6 +65,13 @@ export const Home = () => {
 
   const featuredProduct = products.find((product) => product.id === siteSettings?.hero_featured_product_id) || (loading ? undefined : products[0]);
 
+  // Раніше тут висів хотлінк на чужу кухню з Unsplash (юридичний ризик + зовнішня
+  // залежність). Показуємо реальний товар магазину — беремо перше фото з каталогу.
+  const craftImage = useMemo(
+    () => products.find((product) => typeof product.image === 'string' && product.image.trim())?.image || '',
+    [products],
+  );
+
   return (
     <div className="bg-white pb-16">
       <Hero
@@ -134,13 +141,19 @@ export const Home = () => {
             viewport={{ once: true }}
             className="relative overflow-hidden rounded-lg border border-slate-200 bg-cream-dark"
           >
-            <img
-              src="https://images.unsplash.com/photo-1556910103-1c02745aae4d?auto=format&fit=crop&w=1200&q=80"
-              alt="Тиха кухня з дерев'яними та керамічними деталями"
-              loading="lazy"
-              decoding="async"
-              className="h-full min-h-[420px] w-full object-cover"
-            />
+            {craftImage ? (
+              <img
+                src={craftImage}
+                alt="Речі з каталогу Хатні Штучки в інтер'єрі"
+                loading="lazy"
+                decoding="async"
+                className="h-full min-h-[420px] w-full object-cover"
+              />
+            ) : (
+              <div className="flex h-full min-h-[420px] w-full items-center justify-center bg-cream-dark">
+                <span className="font-serif text-3xl italic text-slate-400">Хатні Штучки</span>
+              </div>
+            )}
             <div className="absolute bottom-0 left-0 right-0 bg-slate-950/80 p-5 text-white backdrop-blur-sm">
               <div className="text-[11px] font-bold uppercase text-tiffany">Quiet Craft</div>
               <p className="mt-2 text-sm leading-6 text-white/75">
