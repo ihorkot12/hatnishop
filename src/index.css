@@ -91,6 +91,17 @@
   background: linear-gradient(135deg, #81D8D0 0%, #A0E6DF 100%);
 }
 
+/* Повільний кінематографічний Ken Burns для CinematicShowcase (відео-замінник
+   на реальних фото). Глобальне правило prefers-reduced-motion вище нейтралізує його. */
+@keyframes kenburns {
+  0%   { transform: scale(1.02) translate3d(0, 0, 0); }
+  100% { transform: scale(1.16) translate3d(0, -2%, 0); }
+}
+.animate-kenburns {
+  animation: kenburns 6.2s ease-out forwards;
+  will-change: transform;
+}
+
 .gold-text {
   @apply text-gold font-medium;
 }

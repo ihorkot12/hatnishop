@@ -6,6 +6,7 @@ import { Hero } from '../components/Hero';
 import { ProductCard } from '../components/ProductCard';
 import { QuickView } from '../components/QuickView';
 import { CategoryGrid } from '../components/CategoryGrid';
+import { CinematicShowcase } from '../components/CinematicShowcase';
 import { ReadySolutions } from '../components/ReadySolutions';
 import { BonusSystem } from '../components/BonusSystem';
 import { Eyebrow } from '../components/Eyebrow';
@@ -72,6 +73,15 @@ export const Home = () => {
     [products],
   );
 
+  // Кадри для кінематографічного блоку — реальні фото товарів (пріоритет популярним).
+  const showcaseSlides = useMemo(() => {
+    const withImage = products.filter((product) => typeof product.image === 'string' && product.image.trim());
+    const popular = withImage.filter((product: any) => product.isPopular || product.ispopular);
+    return (popular.length >= 3 ? popular : withImage)
+      .slice(0, 5)
+      .map((product) => ({ image: product.image as string, name: product.name }));
+  }, [products]);
+
   return (
     <div className="bg-white pb-16">
       <Hero
@@ -81,6 +91,8 @@ export const Home = () => {
         featuredProduct={featuredProduct}
         loading={loading}
       />
+
+      {showcaseSlides.length > 0 && <CinematicShowcase slides={showcaseSlides} />}
 
       <CategoryGrid />
 
