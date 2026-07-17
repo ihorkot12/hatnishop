@@ -105,9 +105,9 @@ export const CinematicShowcase = ({ slides }: CinematicShowcaseProps) => {
                 </Link>
                 <Link
                   to="/bundle-builder"
-                  className="text-sm font-bold uppercase tracking-widest text-white/80 underline-offset-8 transition-colors hover:text-white"
+                  className="inline-flex items-center justify-center gap-2 rounded-lg border border-white/35 px-8 py-4 font-bold text-white backdrop-blur-sm transition-colors hover:border-white hover:bg-white/10 hover:no-underline"
                 >
-                  Зібрати набір · −12%
+                  Зібрати набір <span className="text-tiffany">−12%</span>
                 </Link>
               </div>
             </div>
